@@ -47,56 +47,56 @@ async function seedDatabase() {
         {
           name: "Classic White T-Shirt",
           description: "Essential crew neck t-shirt made from 100% organic cotton.",
-          price: "15.99",
+          price: "1299",
           imageUrl: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?q=80&w=800&auto=format&fit=crop",
           category: "Mens"
         },
         {
           name: "Slim Fit Denim Jeans",
           description: "Classic five-pocket styling slim-fit jeans.",
-          price: "49.99",
+          price: "2499",
           imageUrl: "https://images.unsplash.com/photo-1542272604-787c3835535d?q=80&w=800&auto=format&fit=crop",
           category: "Mens"
         },
         {
           name: "Floral Midi Dress",
           description: "V-neck midi dress with a ditsy floral print and short sleeves.",
-          price: "39.99",
+          price: "3499",
           imageUrl: "https://images.unsplash.com/photo-1612336307429-8a898d10e223?q=80&w=800&auto=format&fit=crop",
           category: "Ladies"
         },
         {
           name: "Oversized Knit Sweater",
           description: "Cozy drop-shoulder sweater in a soft, ribbed knit.",
-          price: "34.99",
+          price: "1999",
           imageUrl: "https://images.unsplash.com/photo-1576566588028-4147f3842f27?q=80&w=800&auto=format&fit=crop",
           category: "Ladies"
         },
         {
           name: "Kids Dino Graphic Tee",
           description: "Fun dinosaur graphic t-shirt for kids, soft and durable.",
-          price: "12.99",
+          price: "799",
           imageUrl: "https://images.unsplash.com/photo-1622290291468-a28f7a7dc6a8?q=80&w=800&auto=format&fit=crop",
           category: "Kids"
         },
         {
           name: "Toddler Pull-on Shorts",
           description: "Comfortable elastic-waist shorts for everyday play.",
-          price: "14.99",
+          price: "899",
           imageUrl: "https://images.unsplash.com/photo-1519238263530-99abe11d5163?q=80&w=800&auto=format&fit=crop",
           category: "Kids"
         },
         {
           name: "Chunky White Sneakers",
           description: "Trendy thick-soled sneakers for a modern street style look.",
-          price: "59.99",
+          price: "3999",
           imageUrl: "https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?q=80&w=800&auto=format&fit=crop",
           category: "Footwear"
         },
         {
           name: "Minimalist Leather Belt",
           description: "Classic black leather belt with a silver-tone buckle.",
-          price: "19.99",
+          price: "999",
           imageUrl: "https://images.unsplash.com/photo-1624222247344-550fb60583dc?q=80&w=800&auto=format&fit=crop",
           category: "Accessories"
         }

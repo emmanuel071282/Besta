@@ -41,7 +41,7 @@ export function ProductCard({ product }: ProductCardProps) {
       <div className="space-y-1">
         <div className="flex justify-between items-start gap-4">
           <h3 className="font-medium text-sm text-foreground leading-snug">{product.name}</h3>
-          <span className="font-semibold text-sm whitespace-nowrap">${Number(product.price).toFixed(2)}</span>
+          <span className="font-semibold text-sm whitespace-nowrap">₹{Number(product.price).toLocaleString('en-IN')}</span>
         </div>
         <p className="text-xs text-muted-foreground">{product.category}</p>
       </div>

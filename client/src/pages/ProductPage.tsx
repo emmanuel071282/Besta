@@ -85,7 +85,7 @@ export default function ProductPage() {
                 </h1>
                 
                 <p className="text-2xl font-semibold mb-8">
-                  ${Number(product.price).toFixed(2)}
+                  ₹{Number(product.price).toLocaleString('en-IN')}
                 </p>
 
                 <p className="text-muted-foreground leading-relaxed mb-10">
@@ -129,7 +129,7 @@ export default function ProductPage() {
                       Shipping & Returns
                     </AccordionTrigger>
                     <AccordionContent className="text-muted-foreground leading-relaxed">
-                      Free standard shipping on orders over $50. Free returns within 30 days of purchase.
+                      Free standard shipping on orders over ₹1500. Free returns within 30 days of purchase.
                       Items must be unworn with tags attached.
                     </AccordionContent>
                   </AccordionItem>

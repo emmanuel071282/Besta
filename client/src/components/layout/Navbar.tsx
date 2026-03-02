@@ -64,7 +64,7 @@ export function Navbar() {
           href="/" 
           className="font-display text-2xl md:text-3xl font-bold tracking-tighter text-center flex-1 md:flex-none"
         >
-          VÉLURE
+          BESTA
         </Link>
 
         {/* Actions */}
@@ -91,7 +91,7 @@ export function Navbar() {
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 bg-background md:hidden flex flex-col">
           <div className="flex items-center justify-between p-4 border-b border-border">
-            <span className="font-display text-xl font-bold tracking-tighter">VÉLURE</span>
+            <span className="font-display text-xl font-bold tracking-tighter">BESTA</span>
             <button onClick={() => setMobileMenuOpen(false)} className="p-2">
               <X className="w-6 h-6" />
             </button>

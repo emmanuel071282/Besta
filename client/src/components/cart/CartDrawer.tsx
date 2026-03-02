@@ -51,7 +51,7 @@ export function CartDrawer() {
                         <h4 className="font-medium text-sm leading-tight line-clamp-2">{item.product.name}</h4>
                         <p className="text-xs text-muted-foreground">{item.product.category}</p>
                       </div>
-                      <p className="font-semibold text-sm shrink-0">${Number(item.product.price).toFixed(2)}</p>
+                      <p className="font-semibold text-sm shrink-0">₹{Number(item.product.price).toLocaleString('en-IN')}</p>
                     </div>
                     
                     <div className="mt-auto flex items-center justify-between pt-4">
@@ -93,7 +93,7 @@ export function CartDrawer() {
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Order value</span>
-                <span>${cartTotal.toFixed(2)}</span>
+                <span>₹{cartTotal.toLocaleString('en-IN')}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Delivery</span>
@@ -101,7 +101,7 @@ export function CartDrawer() {
               </div>
               <div className="flex justify-between font-semibold text-lg pt-2 border-t border-border/50">
                 <span>Total</span>
-                <span>${cartTotal.toFixed(2)}</span>
+                <span>₹{cartTotal.toLocaleString('en-IN')}</span>
               </div>
             </div>
             
