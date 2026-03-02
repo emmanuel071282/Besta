@@ -1,4 +1,5 @@
 import { Link } from "wouter";
+import logoBesta from "@assets/photo_2025-11-29_23.46.39_copy_1772478243583.jpeg";
 
 export function Footer() {
   return (
@@ -7,7 +8,7 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12 md:gap-8">
           
           <div className="space-y-6">
-            <h3 className="font-display text-2xl font-bold tracking-tighter">BESTA</h3>
+            <img src={logoBesta} alt="BESTA" className="h-8 w-auto object-contain brightness-0 invert" />
             <p className="text-sm text-primary-foreground/60 max-w-xs">
               Defining modern minimalism. Fast fashion that doesn't compromise on aesthetic or quality.
             </p>
