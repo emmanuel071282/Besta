@@ -1,0 +1,159 @@
+import { useRoute } from "wouter";
+import { useProduct, useProductsByCategory } from "@/hooks/use-products";
+import { useCart } from "@/hooks/use-cart";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ProductCard } from "@/components/product/ProductCard";
+import { 
+  Accordion, 
+  AccordionContent, 
+  AccordionItem, 
+  AccordionTrigger 
+} from "@/components/ui/accordion";
+import { useState } from "react";
+import { Check } from "lucide-react";
+
+export default function ProductPage() {
+  const [, params] = useRoute("/product/:id");
+  const id = params?.id ? parseInt(params.id, 10) : 0;
+  
+  const { data: product, isLoading, error } = useProduct(id);
+  const { data: relatedProducts } = useProductsByCategory(product?.category || "");
+  const { addItem } = useCart();
+  
+  const [isAdded, setIsAdded] = useState(false);
+
+  const handleAddToCart = () => {
+    if (!product) return;
+    addItem(product);
+    setIsAdded(true);
+    setTimeout(() => setIsAdded(false), 2000);
+  };
+
+  if (error) {
+    return (
+      <div className="min-h-screen pt-32 flex items-center justify-center">
+        <p className="text-destructive text-lg">Product not found.</p>
+      </div>
+    );
+  }
+
+  // Filter out current product and grab up to 4 related
+  const filteredRelated = relatedProducts
+    ?.filter(p => p.id !== product?.id)
+    .slice(0, 4) || [];
+
+  return (
+    <div className="min-h-screen bg-background pt-24 md:pt-32 pb-20">
+      <div className="container mx-auto px-4 md:px-6">
+        
+        {/* Main Product Area */}
+        <div className="flex flex-col lg:flex-row gap-12 lg:gap-20 mb-24">
+          
+          {/* Left: Image */}
+          <div className="w-full lg:w-3/5 bg-secondary relative aspect-[3/4] md:aspect-[4/5] lg:aspect-auto lg:h-[80vh]">
+            {isLoading ? (
+              <Skeleton className="w-full h-full rounded-none" />
+            ) : (
+              <img 
+                src={product?.imageUrl} 
+                alt={product?.name} 
+                className="w-full h-full object-cover"
+              />
+            )}
+          </div>
+
+          {/* Right: Details */}
+          <div className="w-full lg:w-2/5 flex flex-col justify-center">
+            {isLoading ? (
+              <div className="space-y-6">
+                <Skeleton className="h-10 w-3/4" />
+                <Skeleton className="h-6 w-1/4" />
+                <Skeleton className="h-24 w-full" />
+                <Skeleton className="h-14 w-full mt-8" />
+              </div>
+            ) : product ? (
+              <>
+                <div className="mb-2">
+                  <span className="text-xs uppercase tracking-widest font-semibold text-muted-foreground">
+                    {product.category}
+                  </span>
+                </div>
+                
+                <h1 className="text-3xl md:text-4xl font-display font-medium tracking-tight mb-4">
+                  {product.name}
+                </h1>
+                
+                <p className="text-2xl font-semibold mb-8">
+                  ${Number(product.price).toFixed(2)}
+                </p>
+
+                <p className="text-muted-foreground leading-relaxed mb-10">
+                  {product.description}
+                </p>
+
+                <Button 
+                  onClick={handleAddToCart}
+                  className="w-full h-14 rounded-none text-sm uppercase tracking-widest font-bold mb-12 relative overflow-hidden transition-all duration-300"
+                  variant={isAdded ? "secondary" : "default"}
+                >
+                  {isAdded ? (
+                    <span className="flex items-center gap-2 text-green-600">
+                      <Check className="w-5 h-5" /> Added to Bag
+                    </span>
+                  ) : (
+                    "Add to Bag"
+                  )}
+                </Button>
+
+                <Accordion type="single" collapsible className="w-full border-t border-border">
+                  <AccordionItem value="details" className="border-border">
+                    <AccordionTrigger className="text-sm font-medium hover:no-underline uppercase tracking-wide">
+                      Details & Fit
+                    </AccordionTrigger>
+                    <AccordionContent className="text-muted-foreground leading-relaxed">
+                      Regular fit. True to size. Designed with a clean silhouette for versatile styling.
+                      The model is 185cm and wearing size Medium.
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="materials" className="border-border">
+                    <AccordionTrigger className="text-sm font-medium hover:no-underline uppercase tracking-wide">
+                      Materials & Care
+                    </AccordionTrigger>
+                    <AccordionContent className="text-muted-foreground leading-relaxed">
+                      100% Premium Cotton. Machine wash cold with like colors. Do not bleach. Tumble dry low. Warm iron if needed.
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="shipping" className="border-border">
+                    <AccordionTrigger className="text-sm font-medium hover:no-underline uppercase tracking-wide">
+                      Shipping & Returns
+                    </AccordionTrigger>
+                    <AccordionContent className="text-muted-foreground leading-relaxed">
+                      Free standard shipping on orders over $50. Free returns within 30 days of purchase.
+                      Items must be unworn with tags attached.
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              </>
+            ) : null}
+          </div>
+        </div>
+
+        {/* Related Products */}
+        {!isLoading && filteredRelated.length > 0 && (
+          <div className="border-t border-border pt-16 mt-16">
+            <h3 className="text-2xl font-display font-medium tracking-tight mb-8">
+              You May Also Like
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-8 md:gap-x-6">
+              {filteredRelated.map((relatedProduct) => (
+                <ProductCard key={relatedProduct.id} product={relatedProduct} />
+              ))}
+            </div>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
