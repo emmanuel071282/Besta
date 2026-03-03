@@ -39,32 +39,9 @@ export default function Home() {
         <div className="absolute inset-0 bg-black/20" />
         
         <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-4">
-          <span className="text-white text-xs font-semibold tracking-[0.3em] uppercase mb-4 opacity-90">
-            Fall/Winter Collection
-          </span>
-          <h1 className="text-5xl md:text-7xl lg:text-8xl font-display font-bold text-white tracking-tighter mb-8 max-w-4xl leading-none">
-            THE NEW MINIMAL.
+          <h1 className="text-5xl md:text-7xl lg:text-9xl font-display font-bold text-white tracking-tighter leading-none">
+            BESTA
           </h1>
-          <div className="flex gap-4">
-            <Link 
-              href="/category/Ladies" 
-              className="bg-white text-black px-8 py-4 text-sm font-semibold tracking-widest uppercase hover:bg-white/90 transition-colors"
-            >
-              Shop Ladies
-            </Link>
-            <Link 
-              href="/category/Mens" 
-              className="bg-white text-black px-8 py-4 text-sm font-semibold tracking-widest uppercase hover:bg-white/90 transition-colors"
-            >
-              Shop Mens
-            </Link>
-            <Link 
-              href="/category/Kids" 
-              className="bg-transparent border border-white text-white px-8 py-4 text-sm font-semibold tracking-widest uppercase hover:bg-white hover:text-black transition-colors backdrop-blur-sm"
-            >
-              Shop Kids
-            </Link>
-          </div>
         </div>
       </section>
 
