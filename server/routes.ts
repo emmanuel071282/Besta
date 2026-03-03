@@ -45,59 +45,59 @@ async function seedDatabase() {
     if (existingProducts.length === 0) {
       const seedData = [
         {
-          name: "Classic White T-Shirt",
-          description: "Essential crew neck t-shirt made from 100% organic cotton.",
-          price: "1299",
-          imageUrl: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?q=80&w=800&auto=format&fit=crop",
-          category: "Mens"
-        },
-        {
-          name: "Slim Fit Denim Jeans",
-          description: "Classic five-pocket styling slim-fit jeans.",
+          name: "Premium Linen Shirt",
+          description: "Breathable, high-quality linen shirt for a sophisticated summer look.",
           price: "2499",
-          imageUrl: "https://images.unsplash.com/photo-1542272604-787c3835535d?q=80&w=800&auto=format&fit=crop",
+          imageUrl: "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?q=80&w=800&auto=format&fit=crop",
           category: "Mens"
         },
         {
-          name: "Floral Midi Dress",
-          description: "V-neck midi dress with a ditsy floral print and short sleeves.",
-          price: "3499",
-          imageUrl: "https://images.unsplash.com/photo-1612336307429-8a898d10e223?q=80&w=800&auto=format&fit=crop",
+          name: "Tailored Chino Trousers",
+          description: "Slim-fit chinos crafted from stretch-cotton twill for all-day comfort.",
+          price: "2999",
+          imageUrl: "https://images.unsplash.com/photo-1624371414361-e67094c24944?q=80&w=800&auto=format&fit=crop",
+          category: "Mens"
+        },
+        {
+          name: "Satin Wrap Dress",
+          description: "Elegant satin wrap dress with a graceful drape, perfect for evening occasions.",
+          price: "4599",
+          imageUrl: "https://images.unsplash.com/photo-1595777457583-95e059d581b8?q=80&w=800&auto=format&fit=crop",
           category: "Ladies"
         },
         {
-          name: "Oversized Knit Sweater",
-          description: "Cozy drop-shoulder sweater in a soft, ribbed knit.",
-          price: "1999",
-          imageUrl: "https://images.unsplash.com/photo-1576566588028-4147f3842f27?q=80&w=800&auto=format&fit=crop",
+          name: "Cashmere Blend Cardigan",
+          description: "Luxuriously soft cardigan featuring a relaxed silhouette and ribbed trims.",
+          price: "3899",
+          imageUrl: "https://images.unsplash.com/photo-1434389677669-e08b49302194?q=80&w=800&auto=format&fit=crop",
           category: "Ladies"
         },
         {
-          name: "Kids Dino Graphic Tee",
-          description: "Fun dinosaur graphic t-shirt for kids, soft and durable.",
-          price: "799",
-          imageUrl: "https://images.unsplash.com/photo-1622290291468-a28f7a7dc6a8?q=80&w=800&auto=format&fit=crop",
+          name: "Organic Cotton Kids Set",
+          description: "Two-piece set made from soft organic cotton jersey for ultimate comfort.",
+          price: "1599",
+          imageUrl: "https://images.unsplash.com/photo-1621454523226-eb4045de3a05?q=80&w=800&auto=format&fit=crop",
           category: "Kids"
         },
         {
-          name: "Toddler Pull-on Shorts",
-          description: "Comfortable elastic-waist shorts for everyday play.",
-          price: "899",
-          imageUrl: "https://images.unsplash.com/photo-1519238263530-99abe11d5163?q=80&w=800&auto=format&fit=crop",
+          name: "Quilted Winter Jacket",
+          description: "Lightweight yet warm quilted jacket with a water-repellent finish.",
+          price: "2499",
+          imageUrl: "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?q=80&w=800&auto=format&fit=crop",
           category: "Kids"
         },
         {
-          name: "Chunky White Sneakers",
-          description: "Trendy thick-soled sneakers for a modern street style look.",
-          price: "3999",
-          imageUrl: "https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?q=80&w=800&auto=format&fit=crop",
+          name: "Handcrafted Leather Loafers",
+          description: "Classic loafers made from premium Italian leather with a polished finish.",
+          price: "5499",
+          imageUrl: "https://images.unsplash.com/photo-1614252235316-8c857d38b5f4?q=80&w=800&auto=format&fit=crop",
           category: "Footwear"
         },
         {
-          name: "Minimalist Leather Belt",
-          description: "Classic black leather belt with a silver-tone buckle.",
-          price: "999",
-          imageUrl: "https://images.unsplash.com/photo-1624222247344-550fb60583dc?q=80&w=800&auto=format&fit=crop",
+          name: "Minimalist Chronograph Watch",
+          description: "Sleek stainless steel watch with a minimalist dial and leather strap.",
+          price: "7999",
+          imageUrl: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=800&auto=format&fit=crop",
           category: "Accessories"
         }
       ];

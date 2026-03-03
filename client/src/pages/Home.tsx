@@ -73,7 +73,7 @@ export default function Home() {
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           <Link href="/category/Kids" className="group relative aspect-[4/5] overflow-hidden bg-secondary">
             <img 
-              src="https://images.unsplash.com/photo-1514090458221-65bb69cf63e6?q=80&w=1000&auto=format&fit=crop" 
+              src="https://images.unsplash.com/photo-1519238263530-99abe11d5163?q=80&w=1000&auto=format&fit=crop" 
               alt="Kids" 
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
             />
@@ -88,7 +88,7 @@ export default function Home() {
 
           <Link href="/category/Accessories" className="group relative aspect-[4/5] overflow-hidden bg-secondary">
             <img 
-              src="https://images.unsplash.com/photo-1492707892479-7bc8d5a4ee93?q=80&w=1000&auto=format&fit=crop" 
+              src="https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=1000&auto=format&fit=crop" 
               alt="Accessories" 
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
             />
@@ -103,7 +103,7 @@ export default function Home() {
           
           <Link href="/category/Footwear" className="group relative aspect-[4/5] overflow-hidden bg-secondary col-span-2 lg:col-span-1">
             <img 
-              src="https://images.unsplash.com/photo-1549298916-b41d501d3772?q=80&w=1000&auto=format&fit=crop" 
+              src="https://images.unsplash.com/photo-1614252235316-8c857d38b5f4?q=80&w=1000&auto=format&fit=crop" 
               alt="Footwear" 
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
             />
