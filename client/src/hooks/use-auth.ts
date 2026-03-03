@@ -7,6 +7,7 @@ interface AuthUser {
   mobile: string;
   email: string;
   birthday: string;
+  role: string;
 }
 
 export function useAuth() {

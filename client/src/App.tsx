@@ -4,13 +4,11 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
-// Layout & UI
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { CartDrawer } from "@/components/cart/CartDrawer";
 import NotFound from "@/pages/not-found";
 
-// Pages
 import Home from "@/pages/Home";
 import CategoryPage from "@/pages/CategoryPage";
 import ProductPage from "@/pages/ProductPage";
@@ -20,8 +18,16 @@ import ExchangePolicyPage from "@/pages/ExchangePolicyPage";
 import LoginPage from "@/pages/LoginPage";
 import RegisterPage from "@/pages/RegisterPage";
 import AccountPage from "@/pages/AccountPage";
+import MyOrdersPage from "@/pages/MyOrdersPage";
+import OrderDetailPage from "@/pages/OrderDetailPage";
 
-function Router() {
+import DashboardPage from "@/pages/admin/DashboardPage";
+import AdminOrdersPage from "@/pages/admin/OrdersPage";
+import SalesPage from "@/pages/admin/SalesPage";
+import StoresPage from "@/pages/admin/StoresPage";
+import InventoryPage from "@/pages/admin/InventoryPage";
+
+function StorefrontRouter() {
   return (
     <div className="flex flex-col min-h-screen">
       <Navbar />
@@ -36,6 +42,8 @@ function Router() {
           <Route path="/login" component={LoginPage} />
           <Route path="/register" component={RegisterPage} />
           <Route path="/account" component={AccountPage} />
+          <Route path="/orders" component={MyOrdersPage} />
+          <Route path="/orders/:id" component={OrderDetailPage} />
           <Route component={NotFound} />
         </Switch>
       </main>
@@ -50,7 +58,14 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
-        <Router />
+        <Switch>
+          <Route path="/admin" component={DashboardPage} />
+          <Route path="/admin/orders" component={AdminOrdersPage} />
+          <Route path="/admin/sales" component={SalesPage} />
+          <Route path="/admin/stores" component={StoresPage} />
+          <Route path="/admin/inventory" component={InventoryPage} />
+          <Route component={StorefrontRouter} />
+        </Switch>
       </TooltipProvider>
     </QueryClientProvider>
   );

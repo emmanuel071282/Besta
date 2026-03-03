@@ -1,7 +1,7 @@
 import { useEffect } from "react";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import { User, Mail, Phone, Calendar, LogOut, Loader2 } from "lucide-react";
+import { User, Mail, Phone, Calendar, LogOut, Loader2, Package, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function AccountPage() {
@@ -92,6 +92,27 @@ export default function AccountPage() {
               </div>
             </div>
           </div>
+        </div>
+
+        <div className="space-y-3 mb-6">
+          <Link
+            href="/orders"
+            data-testid="link-my-orders"
+            className="w-full border border-border py-3.5 text-xs uppercase tracking-widest font-semibold hover:bg-secondary transition-colors flex items-center justify-center gap-2"
+          >
+            <Package className="w-4 h-4" />
+            My Orders
+          </Link>
+          {user.role === "admin" && (
+            <Link
+              href="/admin"
+              data-testid="link-admin-panel"
+              className="w-full border border-foreground bg-foreground text-background py-3.5 text-xs uppercase tracking-widest font-semibold hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+            >
+              <ShieldCheck className="w-4 h-4" />
+              Admin Panel
+            </Link>
+          )}
         </div>
 
         <button

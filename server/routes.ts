@@ -1,9 +1,9 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
-import { registerSchema, loginSchema } from "@shared/schema";
+import { registerSchema, loginSchema, ORDER_STATUSES } from "@shared/schema";
 import bcrypt from "bcryptjs";
 
 export async function registerRoutes(
@@ -28,7 +28,7 @@ export async function registerRoutes(
       const user = await storage.createUser({ name, mobile, email, pin: hashedPin, birthday });
 
       req.session.userId = user.id;
-      res.json({ id: user.id, name: user.name, mobile: user.mobile, email: user.email, birthday: user.birthday });
+      res.json({ id: user.id, name: user.name, mobile: user.mobile, email: user.email, birthday: user.birthday, role: user.role });
     } catch (error) {
       console.error("Registration error:", error);
       res.status(500).json({ message: "Something went wrong. Please try again." });
@@ -54,7 +54,7 @@ export async function registerRoutes(
       }
 
       req.session.userId = user.id;
-      res.json({ id: user.id, name: user.name, mobile: user.mobile, email: user.email, birthday: user.birthday });
+      res.json({ id: user.id, name: user.name, mobile: user.mobile, email: user.email, birthday: user.birthday, role: user.role });
     } catch (error) {
       console.error("Login error:", error);
       res.status(500).json({ message: "Something went wrong. Please try again." });
@@ -69,7 +69,7 @@ export async function registerRoutes(
     if (!user) {
       return res.status(401).json({ message: "User not found" });
     }
-    res.json({ id: user.id, name: user.name, mobile: user.mobile, email: user.email, birthday: user.birthday });
+    res.json({ id: user.id, name: user.name, mobile: user.mobile, email: user.email, birthday: user.birthday, role: user.role });
   });
 
   app.post("/api/auth/logout", (req, res) => {
@@ -80,6 +80,189 @@ export async function registerRoutes(
       res.clearCookie("connect.sid");
       res.json({ message: "Logged out successfully" });
     });
+  });
+
+  const requireAuth = async (req: Request, res: Response, next: NextFunction) => {
+    if (!req.session.userId) return res.status(401).json({ message: "Not logged in" });
+    const user = await storage.getUserById(req.session.userId);
+    if (!user) return res.status(401).json({ message: "User not found" });
+    (req as any).user = user;
+    next();
+  };
+
+  const requireAdmin = async (req: Request, res: Response, next: NextFunction) => {
+    if (!req.session.userId) return res.status(401).json({ message: "Not logged in" });
+    const user = await storage.getUserById(req.session.userId);
+    if (!user || user.role !== "admin") return res.status(403).json({ message: "Admin access required" });
+    (req as any).user = user;
+    next();
+  };
+
+  app.get("/api/admin/dashboard", requireAdmin, async (_req, res) => {
+    const stats = await storage.getDashboardStats();
+    res.json(stats);
+  });
+
+  app.get("/api/admin/orders", requireAdmin, async (req, res) => {
+    const status = req.query.status as string | undefined;
+    const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
+    const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+    const allOrders = await storage.getOrders({ status: status || undefined, startDate, endDate });
+    res.json(allOrders);
+  });
+
+  app.patch("/api/admin/orders/:id/status", requireAdmin, async (req, res) => {
+    const id = Number(req.params.id);
+    const { status } = req.body;
+    if (!ORDER_STATUSES.includes(status)) {
+      return res.status(400).json({ message: "Invalid status" });
+    }
+    const order = await storage.updateOrderStatus(id, status);
+    if (!order) return res.status(404).json({ message: "Order not found" });
+    res.json(order);
+  });
+
+  app.get("/api/admin/orders/:id/items", requireAdmin, async (req, res) => {
+    const items = await storage.getOrderItems(Number(req.params.id));
+    res.json(items);
+  });
+
+  app.get("/api/admin/sales", requireAdmin, async (req, res) => {
+    const days = Number(req.query.days) || 30;
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+    const report = await storage.getSalesReport(startDate, endDate);
+    const topProducts = await storage.getTopSellingProducts(10);
+    res.json({ report, topProducts });
+  });
+
+  app.get("/api/admin/stores", requireAdmin, async (_req, res) => {
+    const allStores = await storage.getStores();
+    res.json(allStores);
+  });
+
+  app.post("/api/admin/stores", requireAdmin, async (req, res) => {
+    try {
+      const store = await storage.createStore(req.body);
+      res.json(store);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create store" });
+    }
+  });
+
+  app.patch("/api/admin/stores/:id", requireAdmin, async (req, res) => {
+    const store = await storage.updateStore(Number(req.params.id), req.body);
+    if (!store) return res.status(404).json({ message: "Store not found" });
+    res.json(store);
+  });
+
+  app.get("/api/admin/inventory", requireAdmin, async (req, res) => {
+    const productId = req.query.productId ? Number(req.query.productId) : undefined;
+    const storeId = req.query.storeId ? Number(req.query.storeId) : undefined;
+    const inv = await storage.getInventory({ productId, storeId });
+    res.json(inv);
+  });
+
+  app.patch("/api/admin/inventory/:id", requireAdmin, async (req, res) => {
+    const { quantity } = req.body;
+    const updated = await storage.updateInventoryQuantity(Number(req.params.id), quantity);
+    if (!updated) return res.status(404).json({ message: "Inventory record not found" });
+    res.json(updated);
+  });
+
+  app.post("/api/admin/inventory", requireAdmin, async (req, res) => {
+    try {
+      const inv = await storage.upsertInventory(req.body);
+      res.json(inv);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update inventory" });
+    }
+  });
+
+  const orderBodySchema = z.object({
+    items: z.array(z.object({
+      productId: z.number(),
+      quantity: z.number().min(1),
+      price: z.string(),
+    })).min(1),
+    shippingName: z.string().min(1, "Name is required"),
+    shippingAddress: z.string().min(1, "Address is required"),
+    shippingCity: z.string().min(1, "City is required"),
+    shippingState: z.string().min(1, "State is required"),
+    shippingPincode: z.string().regex(/^\d{6}$/, "Invalid pincode"),
+    shippingPhone: z.string().regex(/^[6-9]\d{9}$/, "Invalid phone"),
+    paymentMethod: z.string().min(1, "Payment method required"),
+  });
+
+  app.post("/api/orders", requireAuth, async (req, res) => {
+    try {
+      const parsed = orderBodySchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0].message });
+      }
+      const user = (req as any).user;
+      const { items, shippingName, shippingAddress, shippingCity, shippingState, shippingPincode, shippingPhone, paymentMethod } = parsed.data;
+
+      let totalAmount = 0;
+      for (const item of items) {
+        totalAmount += Number(item.price) * item.quantity;
+      }
+
+      const orderNumber = `BESTA-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+      const order = await storage.createOrder({
+        userId: user.id,
+        orderNumber,
+        status: "placed",
+        totalAmount: totalAmount.toString(),
+        shippingName,
+        shippingAddress,
+        shippingCity,
+        shippingState,
+        shippingPincode,
+        shippingPhone,
+        paymentMethod,
+      });
+
+      for (const item of items) {
+        const inv = await storage.getInventory({ productId: item.productId });
+        const availableStore = inv.find(i => i.quantity >= item.quantity);
+        const assignedStoreId = availableStore?.storeId || null;
+
+        await storage.createOrderItem({
+          orderId: order.id,
+          productId: item.productId,
+          storeId: assignedStoreId,
+          quantity: item.quantity,
+          price: item.price,
+        });
+
+        if (availableStore) {
+          await storage.updateInventoryQuantity(availableStore.id, availableStore.quantity - item.quantity);
+        }
+      }
+
+      res.json(order);
+    } catch (error) {
+      console.error("Order error:", error);
+      res.status(500).json({ message: "Failed to place order" });
+    }
+  });
+
+  app.get("/api/orders", requireAuth, async (req, res) => {
+    const user = (req as any).user;
+    const userOrders = await storage.getOrdersByUser(user.id);
+    res.json(userOrders);
+  });
+
+  app.get("/api/orders/:id", requireAuth, async (req, res) => {
+    const user = (req as any).user;
+    const order = await storage.getOrder(Number(req.params.id));
+    if (!order || order.userId !== user.id) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+    const items = await storage.getOrderItems(order.id);
+    res.json({ ...order, items });
   });
 
   app.get(api.products.list.path, async (req, res) => {
@@ -123,11 +306,13 @@ async function seedDatabase() {
     const existingProducts = await storage.getProducts();
     if (existingProducts.length > 0) {
       const hasV3Subcats = existingProducts.some(p => p.subcategory === "Joggers" || p.subcategory === "Rompers" || p.subcategory === "Sherwanis");
-      if (hasV3Subcats) return;
+      if (hasV3Subcats) {
+        await seedStoresAndInventory();
+        await seedAdminUser();
+        return;
+      }
 
-      const { db } = await import("./db");
-      const { products } = await import("@shared/schema");
-      await db.delete(products);
+      await storage.deleteAllProducts();
     }
 
     const seedData = [
@@ -283,7 +468,69 @@ async function seedDatabase() {
       await storage.createProduct(p);
     }
     console.log(`Database seeded with ${seedData.length} products`);
+
+    await seedStoresAndInventory();
+    await seedAdminUser();
   } catch (error) {
     console.error("Error seeding database:", error);
   }
+}
+
+async function seedAdminUser() {
+  const existing = await storage.getUserByMobile("9999999999");
+  if (existing) return;
+
+  const hashedPin = await bcrypt.hash("0000", 10);
+  await storage.createUser({
+    name: "Admin",
+    mobile: "9999999999",
+    email: "admin@besta.in",
+    pin: hashedPin,
+    birthday: "1990-01-01",
+    role: "admin",
+  });
+  console.log("Admin user seeded (mobile: 9999999999, PIN: 0000)");
+}
+
+async function seedStoresAndInventory() {
+  const existingStores = await storage.getStores();
+  if (existingStores.length > 0) return;
+
+  const storeData = [
+    { name: "BESTA Mumbai Central", city: "Mumbai", state: "Maharashtra", pincode: "400008", address: "Ground Floor, Phoenix Mills, Lower Parel", phone: "022-24001234", isActive: true },
+    { name: "BESTA Delhi CP", city: "New Delhi", state: "Delhi", pincode: "110001", address: "N Block, Connaught Place", phone: "011-23451234", isActive: true },
+    { name: "BESTA Bangalore Indiranagar", city: "Bangalore", state: "Karnataka", pincode: "560038", address: "100 Feet Road, Indiranagar", phone: "080-25671234", isActive: true },
+    { name: "BESTA Chennai T Nagar", city: "Chennai", state: "Tamil Nadu", pincode: "600017", address: "Usman Road, T Nagar", phone: "044-24341234", isActive: true },
+    { name: "BESTA Kolkata Park Street", city: "Kolkata", state: "West Bengal", pincode: "700016", address: "22 Park Street", phone: "033-22291234", isActive: true },
+    { name: "BESTA Hyderabad Banjara Hills", city: "Hyderabad", state: "Telangana", pincode: "500034", address: "Road No. 2, Banjara Hills", phone: "040-23551234", isActive: true },
+    { name: "BESTA Pune FC Road", city: "Pune", state: "Maharashtra", pincode: "411004", address: "Fergusson College Road", phone: "020-25671234", isActive: true },
+    { name: "BESTA Ahmedabad SG Highway", city: "Ahmedabad", state: "Gujarat", pincode: "380054", address: "SG Highway, Bodakdev", phone: "079-26851234", isActive: true },
+    { name: "BESTA Jaipur MI Road", city: "Jaipur", state: "Rajasthan", pincode: "302001", address: "MI Road, C-Scheme", phone: "0141-2371234", isActive: true },
+    { name: "BESTA Lucknow Hazratganj", city: "Lucknow", state: "Uttar Pradesh", pincode: "226001", address: "Hazratganj Main Road", phone: "0522-2201234", isActive: true },
+  ];
+
+  const createdStores = [];
+  for (const s of storeData) {
+    const store = await storage.createStore(s);
+    createdStores.push(store);
+  }
+  console.log(`Seeded ${createdStores.length} stores`);
+
+  const allProducts = await storage.getProducts();
+  let invCount = 0;
+  for (const product of allProducts) {
+    const numStores = 3 + Math.floor(Math.random() * 5);
+    const shuffledStores = [...createdStores].sort(() => Math.random() - 0.5).slice(0, numStores);
+    for (const store of shuffledStores) {
+      const qty = 5 + Math.floor(Math.random() * 46);
+      await storage.upsertInventory({
+        productId: product.id,
+        storeId: store.id,
+        quantity: qty,
+        reservedQty: 0,
+      });
+      invCount++;
+    }
+  }
+  console.log(`Seeded ${invCount} inventory records`);
 }

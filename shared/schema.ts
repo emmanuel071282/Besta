@@ -1,4 +1,4 @@
-import { pgTable, text, serial, numeric, date } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, numeric, integer, boolean, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -24,12 +24,76 @@ export const users = pgTable("users", {
   email: text("email").notNull(),
   pin: text("pin").notNull(),
   birthday: text("birthday").notNull(),
+  role: text("role").notNull().default("customer"),
 });
 
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
+
+export const stores = pgTable("stores", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  city: text("city").notNull(),
+  state: text("state").notNull(),
+  pincode: text("pincode").notNull(),
+  address: text("address").notNull(),
+  phone: text("phone").notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+});
+
+export const insertStoreSchema = createInsertSchema(stores).omit({ id: true });
+export type InsertStore = z.infer<typeof insertStoreSchema>;
+export type Store = typeof stores.$inferSelect;
+
+export const inventory = pgTable("inventory", {
+  id: serial("id").primaryKey(),
+  productId: integer("product_id").notNull(),
+  storeId: integer("store_id").notNull(),
+  quantity: integer("quantity").notNull().default(0),
+  reservedQty: integer("reserved_qty").notNull().default(0),
+});
+
+export const insertInventorySchema = createInsertSchema(inventory).omit({ id: true });
+export type InsertInventory = z.infer<typeof insertInventorySchema>;
+export type Inventory = typeof inventory.$inferSelect;
+
+export const orders = pgTable("orders", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  orderNumber: text("order_number").notNull().unique(),
+  status: text("status").notNull().default("placed"),
+  totalAmount: numeric("total_amount").notNull(),
+  shippingName: text("shipping_name").notNull(),
+  shippingAddress: text("shipping_address").notNull(),
+  shippingCity: text("shipping_city").notNull(),
+  shippingState: text("shipping_state").notNull(),
+  shippingPincode: text("shipping_pincode").notNull(),
+  shippingPhone: text("shipping_phone").notNull(),
+  paymentMethod: text("payment_method").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertOrderSchema = createInsertSchema(orders).omit({ id: true, createdAt: true });
+export type InsertOrder = z.infer<typeof insertOrderSchema>;
+export type Order = typeof orders.$inferSelect;
+
+export const orderItems = pgTable("order_items", {
+  id: serial("id").primaryKey(),
+  orderId: integer("order_id").notNull(),
+  productId: integer("product_id").notNull(),
+  storeId: integer("store_id"),
+  quantity: integer("quantity").notNull(),
+  price: numeric("price").notNull(),
+});
+
+export const insertOrderItemSchema = createInsertSchema(orderItems).omit({ id: true });
+export type InsertOrderItem = z.infer<typeof insertOrderItemSchema>;
+export type OrderItem = typeof orderItems.$inferSelect;
+
+export const ORDER_STATUSES = ["placed", "confirmed", "shipped", "delivered", "cancelled", "returned"] as const;
+export type OrderStatus = typeof ORDER_STATUSES[number];
 
 export const registerSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),

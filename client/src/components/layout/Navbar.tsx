@@ -252,6 +252,9 @@ export function Navbar() {
             <div className="mt-6 space-y-4">
               <Link href="/" className="block text-sm uppercase tracking-widest text-muted-foreground py-2">Home</Link>
               <Link href="/wishlist" className="block text-sm uppercase tracking-widest text-muted-foreground py-2">Wishlist</Link>
+              {isLoggedIn && (
+                <Link href="/orders" className="block text-sm uppercase tracking-widest text-muted-foreground py-2" data-testid="link-mobile-orders">My Orders</Link>
+              )}
               <Link href={isLoggedIn ? "/account" : "/login"} className="block text-sm uppercase tracking-widest text-muted-foreground py-2" data-testid="link-mobile-account">
                 {isLoggedIn ? "My Account" : "Sign In"}
               </Link>
