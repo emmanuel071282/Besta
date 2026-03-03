@@ -6,8 +6,21 @@ import { ArrowRight } from "lucide-react";
 export default function Home() {
   const { data: products, isLoading } = useProducts();
 
-  // Pick some items for the "trending" section
   const trendingProducts = products?.slice(0, 4) || [];
+
+  const bestSellerNames = [
+    "High-Rise Skinny Jeans",
+    "Relaxed Fit Women's T-Shirt",
+    "Classic Oxford Shirt",
+    "Embroidered Anarkali Kurta",
+    "White Canvas Sneakers",
+    "Cotton Printed Kurta",
+    "Slim Fit Chinos",
+    "Boys Dinosaur Print Tee",
+  ];
+  const bestSellers = products
+    ?.filter((p) => bestSellerNames.includes(p.name))
+    .slice(0, 8) || [];
 
   return (
     <div className="min-h-screen bg-background">
@@ -113,11 +126,26 @@ export default function Home() {
           }
         </div>
         
-        {/* Mobile View All */}
         <div className="mt-12 text-center sm:hidden">
           <Link href="/category/Ladies" className="inline-block border border-foreground px-8 py-3 text-xs uppercase tracking-widest font-semibold w-full">
             View All Trending
           </Link>
+        </div>
+      </section>
+
+      {/* Best Sellers */}
+      <section className="pb-24 container mx-auto px-4 md:px-6" data-testid="section-best-sellers">
+        <div className="flex items-end justify-between mb-12 border-b border-border pb-6">
+          <h2 className="text-3xl md:text-4xl font-display font-bold tracking-tight" data-testid="text-best-sellers-title">Best Sellers</h2>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-10 md:gap-x-6">
+          {isLoading
+            ? Array.from({ length: 8 }).map((_, i) => <ProductCardSkeleton key={i} />)
+            : bestSellers.map(product => (
+                <ProductCard key={product.id} product={product} />
+              ))
+          }
         </div>
       </section>
     </div>
