@@ -10,7 +10,67 @@ export const products = pgTable("products", {
   imageUrl: text("image_url").notNull(),
   category: text("category").notNull(),
   subcategory: text("subcategory").notNull().default(""),
+  sizes: text("sizes").array().default([]),
 });
+
+export const SIZE_CHART: Record<string, Record<string, string[]>> = {
+  Mens: {
+    default: ["S", "M", "L", "XL", "XXL"],
+    Sneakers: ["UK 6", "UK 7", "UK 8", "UK 9", "UK 10", "UK 11"],
+    "Formal Shoes": ["UK 6", "UK 7", "UK 8", "UK 9", "UK 10", "UK 11"],
+    Sandals: ["UK 6", "UK 7", "UK 8", "UK 9", "UK 10", "UK 11"],
+    Loafers: ["UK 6", "UK 7", "UK 8", "UK 9", "UK 10", "UK 11"],
+    Watches: ["Free Size"],
+    Belts: ["S", "M", "L", "XL"],
+    Wallets: ["Free Size"],
+    Sunglasses: ["Free Size"],
+  },
+  Ladies: {
+    default: ["XS", "S", "M", "L", "XL"],
+    Heels: ["UK 3", "UK 4", "UK 5", "UK 6", "UK 7", "UK 8"],
+    Flats: ["UK 3", "UK 4", "UK 5", "UK 6", "UK 7", "UK 8"],
+    Sneakers: ["UK 3", "UK 4", "UK 5", "UK 6", "UK 7", "UK 8"],
+    Sandals: ["UK 3", "UK 4", "UK 5", "UK 6", "UK 7", "UK 8"],
+    Bras: ["30B", "32B", "32C", "34B", "34C", "36B", "36C"],
+    "Lingerie Sets": ["XS", "S", "M", "L", "XL"],
+    Lehengas: ["S", "M", "L", "XL"],
+  },
+  Kids: {
+    default: ["2-3Y", "4-5Y", "6-7Y", "8-9Y", "10-11Y", "12-13Y"],
+    Sneakers: ["UK 8C", "UK 9C", "UK 10C", "UK 11C", "UK 12C", "UK 13C", "UK 1", "UK 2", "UK 3"],
+    Sandals: ["UK 8C", "UK 9C", "UK 10C", "UK 11C", "UK 12C", "UK 13C", "UK 1", "UK 2", "UK 3"],
+    "School Shoes": ["UK 8C", "UK 9C", "UK 10C", "UK 11C", "UK 12C", "UK 13C", "UK 1", "UK 2", "UK 3"],
+    Booties: ["0-6M", "6-12M", "12-18M"],
+    Rompers: ["0-3M", "3-6M", "6-9M", "9-12M"],
+    Onesies: ["0-3M", "3-6M", "6-9M", "9-12M"],
+    Sets: ["0-3M", "3-6M", "6-12M", "1-2Y"],
+    Sleepsuits: ["0-3M", "3-6M", "6-9M", "9-12M"],
+  },
+  Accessories: {
+    default: ["Free Size"],
+    Belts: ["S", "M", "L", "XL"],
+    Watches: ["Free Size"],
+    Bags: ["Free Size"],
+    Sunglasses: ["Free Size"],
+    Jewellery: ["Free Size"],
+    Scarves: ["Free Size"],
+  },
+  Footwear: {
+    default: ["UK 6", "UK 7", "UK 8", "UK 9", "UK 10", "UK 11"],
+    Sneakers: ["UK 6", "UK 7", "UK 8", "UK 9", "UK 10", "UK 11"],
+    "Formal Shoes": ["UK 6", "UK 7", "UK 8", "UK 9", "UK 10", "UK 11"],
+    Sandals: ["UK 5", "UK 6", "UK 7", "UK 8", "UK 9", "UK 10"],
+    Heels: ["UK 3", "UK 4", "UK 5", "UK 6", "UK 7", "UK 8"],
+    Boots: ["UK 6", "UK 7", "UK 8", "UK 9", "UK 10", "UK 11"],
+    Loafers: ["UK 6", "UK 7", "UK 8", "UK 9", "UK 10", "UK 11"],
+  },
+};
+
+export function getSizesForProduct(category: string, subcategory: string): string[] {
+  const catSizes = SIZE_CHART[category];
+  if (!catSizes) return ["Free Size"];
+  return catSizes[subcategory] || catSizes.default || ["Free Size"];
+}
 
 export const insertProductSchema = createInsertSchema(products).omit({ id: true });
 
@@ -86,6 +146,7 @@ export const orderItems = pgTable("order_items", {
   storeId: integer("store_id"),
   quantity: integer("quantity").notNull(),
   price: numeric("price").notNull(),
+  size: text("size"),
 });
 
 export const insertOrderItemSchema = createInsertSchema(orderItems).omit({ id: true });

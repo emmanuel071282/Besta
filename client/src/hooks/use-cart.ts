@@ -5,18 +5,23 @@ import type { Product } from "@shared/schema";
 export interface CartItem {
   product: Product;
   quantity: number;
+  selectedSize: string;
 }
 
 interface CartStore {
   items: CartItem[];
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
-  addItem: (product: Product, quantity?: number) => void;
-  removeItem: (productId: number) => void;
-  updateQuantity: (productId: number, quantity: number) => void;
+  addItem: (product: Product, quantity?: number, size?: string) => void;
+  removeItem: (productId: number, size?: string) => void;
+  updateQuantity: (productId: number, quantity: number, size?: string) => void;
   clearCart: () => void;
   get cartTotal(): number;
   get itemCount(): number;
+}
+
+function cartKey(productId: number, size?: string) {
+  return `${productId}__${size || ""}`;
 }
 
 export const useCart = create<CartStore>()(
@@ -27,14 +32,16 @@ export const useCart = create<CartStore>()(
       
       setIsOpen: (isOpen) => set({ isOpen }),
       
-      addItem: (product, quantity = 1) => {
+      addItem: (product, quantity = 1, size = "") => {
         set((state) => {
-          const existingItem = state.items.find((item) => item.product.id === product.id);
+          const existingItem = state.items.find(
+            (item) => item.product.id === product.id && item.selectedSize === size
+          );
           
           if (existingItem) {
             return {
               items: state.items.map((item) =>
-                item.product.id === product.id
+                item.product.id === product.id && item.selectedSize === size
                   ? { ...item, quantity: item.quantity + quantity }
                   : item
               ),
@@ -43,25 +50,31 @@ export const useCart = create<CartStore>()(
           }
           
           return {
-            items: [...state.items, { product, quantity }],
+            items: [...state.items, { product, quantity, selectedSize: size }],
             isOpen: true,
           };
         });
       },
       
-      removeItem: (productId) => {
+      removeItem: (productId, size) => {
         set((state) => ({
-          items: state.items.filter((item) => item.product.id !== productId),
+          items: state.items.filter(
+            (item) => !(item.product.id === productId && (size === undefined || item.selectedSize === size))
+          ),
         }));
       },
       
-      updateQuantity: (productId, quantity) => {
+      updateQuantity: (productId, quantity, size) => {
         set((state) => ({
           items: quantity > 0 
             ? state.items.map((item) =>
-                item.product.id === productId ? { ...item, quantity } : item
+                item.product.id === productId && (size === undefined || item.selectedSize === size)
+                  ? { ...item, quantity }
+                  : item
               )
-            : state.items.filter((item) => item.product.id !== productId),
+            : state.items.filter(
+                (item) => !(item.product.id === productId && (size === undefined || item.selectedSize === size))
+              ),
         }));
       },
       
@@ -80,7 +93,7 @@ export const useCart = create<CartStore>()(
     }),
     {
       name: "fashion-cart-storage",
-      partialize: (state) => ({ items: state.items }), // Only persist items
+      partialize: (state) => ({ items: state.items }),
     }
   )
 );

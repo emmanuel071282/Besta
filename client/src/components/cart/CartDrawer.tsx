@@ -35,8 +35,8 @@ export function CartDrawer() {
             </div>
           ) : (
             <ul className="space-y-6">
-              {items.map((item) => (
-                <li key={item.product.id} className="flex gap-4 group">
+              {items.map((item, idx) => (
+                <li key={`${item.product.id}-${item.selectedSize}-${idx}`} className="flex gap-4 group">
                   <div className="w-24 h-32 bg-secondary shrink-0 overflow-hidden relative">
                     <img 
                       src={item.product.imageUrl} 
@@ -49,7 +49,10 @@ export function CartDrawer() {
                     <div className="flex justify-between items-start">
                       <div className="space-y-1 pr-4">
                         <h4 className="font-medium text-sm leading-tight line-clamp-2">{item.product.name}</h4>
-                        <p className="text-xs text-muted-foreground">{item.product.category}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {item.product.category}
+                          {item.selectedSize && <span> · Size: {item.selectedSize}</span>}
+                        </p>
                       </div>
                       <p className="font-semibold text-sm shrink-0">₹{Number(item.product.price).toLocaleString('en-IN')}</p>
                     </div>
@@ -57,7 +60,7 @@ export function CartDrawer() {
                     <div className="mt-auto flex items-center justify-between pt-4">
                       <div className="flex items-center border border-border/60">
                         <button 
-                          onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
+                          onClick={() => updateQuantity(item.product.id, item.quantity - 1, item.selectedSize)}
                           className="p-2 hover:bg-secondary transition-colors"
                           aria-label="Decrease quantity"
                         >
@@ -65,7 +68,7 @@ export function CartDrawer() {
                         </button>
                         <span className="w-8 text-center text-xs font-medium">{item.quantity}</span>
                         <button 
-                          onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
+                          onClick={() => updateQuantity(item.product.id, item.quantity + 1, item.selectedSize)}
                           className="p-2 hover:bg-secondary transition-colors"
                           aria-label="Increase quantity"
                         >
@@ -74,7 +77,7 @@ export function CartDrawer() {
                       </div>
                       
                       <button 
-                        onClick={() => removeItem(item.product.id)}
+                        onClick={() => removeItem(item.product.id, item.selectedSize)}
                         className="text-xs text-muted-foreground hover:text-destructive transition-colors flex items-center gap-1"
                       >
                         <Trash2 className="w-3 h-3" />

@@ -82,6 +82,7 @@ export default function CheckoutPage() {
           productId: item.product.id,
           quantity: item.quantity,
           price: item.product.price,
+          size: item.selectedSize || undefined,
         })),
         shippingName: shipping.name,
         shippingAddress: shipping.address,
@@ -448,7 +449,9 @@ export default function CheckoutPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{item.product.name}</p>
-                      <p className="text-xs text-muted-foreground">Qty: {item.quantity}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {item.selectedSize && item.selectedSize !== "Free Size" && `Size: ${item.selectedSize} · `}Qty: {item.quantity}
+                      </p>
                     </div>
                     <p className="text-sm font-semibold shrink-0">
                       ₹{(Number(item.product.price) * item.quantity).toLocaleString('en-IN')}

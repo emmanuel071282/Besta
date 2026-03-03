@@ -9,7 +9,7 @@ Full omni-channel fast-fashion e-commerce platform for the Indian market. Featur
 - **State Management**: Zustand with persistence for cart (`use-cart.ts`) and wishlist (`use-wishlist.ts`)
 
 ## Key Features
-- 126 products across 5 categories with grouped subcategories
+- 124 products across 5 categories with grouped subcategories
 - Shopping cart (drawer UI), wishlist (heart toggle)
 - User accounts: registration (mobile + 4-digit PIN), login, sessions
 - Checkout with shipping address form + Indian payment options (Card, Net Banking, UPI)
@@ -76,7 +76,7 @@ Full omni-channel fast-fashion e-commerce platform for the Indian market. Featur
 - `POST /api/admin/inventory` - Add/upsert inventory
 
 ## Database Schema
-- `products` - id, name, description, price, imageUrl, category, subcategory
+- `products` - id, name, description, price, imageUrl, category, subcategory, sizes (text array)
 - `users` - id, name, mobile (unique), email, pin (bcrypt), birthday, role (customer/admin)
 - `stores` - id, name, city, state, pincode, address, phone, isActive
 - `inventory` - id, productId, storeId, quantity, reservedQty
@@ -93,6 +93,15 @@ Full omni-channel fast-fashion e-commerce platform for the Indian market. Featur
 - **Kids** (grouped): Boys, Girls, Infants, Footwear
 - **Accessories** (flat): Watches, Bags, Belts, Sunglasses, Jewellery, Scarves
 - **Footwear** (flat): Sneakers, Formal Shoes, Sandals, Heels, Boots, Loafers
+
+## Per-Category Size Selection
+- `SIZE_CHART` in `shared/schema.ts` maps category/subcategory → size arrays
+- Mens clothing: S, M, L, XL, XXL; Mens footwear: UK 6-11
+- Ladies clothing: XS, S, M, L, XL; Ladies footwear: UK 3-8; Bras: band/cup sizes
+- Kids clothing: age groups (2-3Y to 12-13Y); Infants: 0-3M to 9-12M; Kids footwear: UK 8C-3
+- Accessories: Free Size (auto-added, no selector shown)
+- Cart key = `productId + selectedSize` (same product in different sizes = separate items)
+- `getSizesForProduct(category, subcategory)` helper auto-assigns sizes
 
 ## Design
 - Brand: "BESTA" typography-only (bold, tracking-tighter)

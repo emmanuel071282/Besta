@@ -3,7 +3,7 @@ import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
-import { registerSchema, loginSchema, ORDER_STATUSES } from "@shared/schema";
+import { registerSchema, loginSchema, ORDER_STATUSES, getSizesForProduct } from "@shared/schema";
 import bcrypt from "bcryptjs";
 
 export async function registerRoutes(
@@ -185,6 +185,7 @@ export async function registerRoutes(
       productId: z.number(),
       quantity: z.number().min(1),
       price: z.string(),
+      size: z.string().optional(),
     })).min(1),
     shippingName: z.string().min(1, "Name is required"),
     shippingAddress: z.string().min(1, "Address is required"),
@@ -235,6 +236,7 @@ export async function registerRoutes(
           storeId: assignedStoreId,
           quantity: item.quantity,
           price: item.price,
+          size: item.size || null,
         });
 
         if (availableStore) {
@@ -463,7 +465,8 @@ async function seedDatabase() {
     ];
 
     for (const p of seedData) {
-      await storage.createProduct(p);
+      const sizes = getSizesForProduct(p.category, p.subcategory);
+      await storage.createProduct({ ...p, sizes });
     }
     console.log(`Database seeded with ${seedData.length} products`);
 

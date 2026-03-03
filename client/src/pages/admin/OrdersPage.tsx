@@ -175,7 +175,10 @@ function OrderRow({ order, isExpanded, onToggle, onUpdateStatus, statusColors }:
                       {item.productImage && (
                         <img src={item.productImage} alt="" className="w-10 h-10 object-cover" />
                       )}
-                      <span className="flex-1">{item.productName || `Product #${item.productId}`}</span>
+                      <span className="flex-1">
+                        {item.productName || `Product #${item.productId}`}
+                        {item.size && item.size !== "Free Size" && <span className="text-muted-foreground ml-1">({item.size})</span>}
+                      </span>
                       <span className="text-muted-foreground">x{item.quantity}</span>
                       <span className="font-semibold">₹{Number(item.price).toLocaleString("en-IN")}</span>
                     </div>

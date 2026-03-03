@@ -128,7 +128,9 @@ export default function OrderDetailPage() {
                 )}
                 <div className="flex-1">
                   <p className="text-sm font-medium">{item.productName || `Product #${item.productId}`}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Qty: {item.quantity}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {item.size && item.size !== "Free Size" && `Size: ${item.size} · `}Qty: {item.quantity}
+                  </p>
                 </div>
                 <p className="font-semibold text-sm">₹{Number(item.price).toLocaleString("en-IN")}</p>
               </div>

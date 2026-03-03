@@ -14,6 +14,8 @@ import {
 import { useState } from "react";
 import { Check, Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getSizesForProduct } from "@shared/schema";
+import { useToast } from "@/hooks/use-toast";
 
 export default function ProductPage() {
   const [, params] = useRoute("/product/:id");
@@ -23,12 +25,26 @@ export default function ProductPage() {
   const { data: relatedProducts } = useProductsByCategory(product?.category || "");
   const { addItem } = useCart();
   const { toggleItem, isInWishlist } = useWishlist();
+  const { toast } = useToast();
   
   const [isAdded, setIsAdded] = useState(false);
+  const [selectedSize, setSelectedSize] = useState<string>("");
+
+  const availableSizes = product
+    ? (product.sizes && product.sizes.length > 0
+        ? product.sizes
+        : getSizesForProduct(product.category, product.subcategory))
+    : [];
+
+  const isFreeSize = availableSizes.length === 1 && availableSizes[0] === "Free Size";
 
   const handleAddToCart = () => {
     if (!product) return;
-    addItem(product);
+    if (!isFreeSize && !selectedSize) {
+      toast({ title: "Please select a size", variant: "destructive" });
+      return;
+    }
+    addItem(product, 1, isFreeSize ? "Free Size" : selectedSize);
     setIsAdded(true);
     setTimeout(() => setIsAdded(false), 2000);
   };
@@ -43,7 +59,6 @@ export default function ProductPage() {
     );
   }
 
-  // Filter out current product and grab up to 4 related
   const filteredRelated = relatedProducts
     ?.filter(p => p.id !== product?.id)
     .slice(0, 4) || [];
@@ -52,10 +67,8 @@ export default function ProductPage() {
     <div className="min-h-screen bg-background pt-24 md:pt-32 pb-20">
       <div className="container mx-auto px-4 md:px-6">
         
-        {/* Main Product Area */}
         <div className="flex flex-col lg:flex-row gap-12 lg:gap-20 mb-24">
           
-          {/* Left: Image */}
           <div className="w-full lg:w-3/5 bg-secondary relative aspect-[3/4] md:aspect-[4/5] lg:aspect-auto lg:h-[80vh]">
             {isLoading ? (
               <Skeleton className="w-full h-full rounded-none" />
@@ -68,7 +81,6 @@ export default function ProductPage() {
             )}
           </div>
 
-          {/* Right: Details */}
           <div className="w-full lg:w-2/5 flex flex-col justify-center">
             {isLoading ? (
               <div className="space-y-6">
@@ -85,21 +97,50 @@ export default function ProductPage() {
                   </span>
                 </div>
                 
-                <h1 className="text-3xl md:text-4xl font-display font-medium tracking-tight mb-4">
+                <h1 className="text-3xl md:text-4xl font-display font-medium tracking-tight mb-4" data-testid="text-product-name">
                   {product.name}
                 </h1>
                 
-                <p className="text-2xl font-semibold mb-8">
+                <p className="text-2xl font-semibold mb-8" data-testid="text-product-price">
                   ₹{Number(product.price).toLocaleString('en-IN')}
                 </p>
 
-                <p className="text-muted-foreground leading-relaxed mb-10">
+                <p className="text-muted-foreground leading-relaxed mb-8">
                   {product.description}
                 </p>
+
+                {!isFreeSize && availableSizes.length > 0 && (
+                  <div className="mb-8">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs uppercase tracking-widest font-semibold">Select Size</span>
+                      {selectedSize && (
+                        <span className="text-xs text-muted-foreground">Selected: {selectedSize}</span>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-2" data-testid="size-selector">
+                      {availableSizes.map((size) => (
+                        <button
+                          key={size}
+                          onClick={() => setSelectedSize(size)}
+                          data-testid={`button-size-${size.replace(/\s+/g, "-").toLowerCase()}`}
+                          className={cn(
+                            "min-w-[48px] px-3 py-2.5 text-sm font-medium border transition-colors text-center",
+                            selectedSize === size
+                              ? "border-foreground bg-foreground text-background"
+                              : "border-border hover:border-foreground"
+                          )}
+                        >
+                          {size}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <div className="flex gap-4 mb-12">
                   <Button 
                     onClick={handleAddToCart}
+                    data-testid="button-add-to-bag"
                     className="flex-1 h-14 rounded-none text-sm uppercase tracking-widest font-bold relative overflow-hidden transition-all duration-300"
                     variant={isAdded ? "secondary" : "default"}
                   >
@@ -115,6 +156,7 @@ export default function ProductPage() {
                     variant="outline"
                     className="h-14 w-14 rounded-none border-border hover:bg-secondary transition-colors"
                     onClick={() => product && toggleItem(product)}
+                    data-testid="button-toggle-wishlist"
                   >
                     <Heart className={cn("w-5 h-5 transition-colors", isFavorited ? "fill-red-500 stroke-red-500" : "stroke-foreground")} />
                   </Button>
@@ -153,7 +195,6 @@ export default function ProductPage() {
           </div>
         </div>
 
-        {/* Related Products */}
         {!isLoading && filteredRelated.length > 0 && (
           <div className="border-t border-border pt-16 mt-16">
             <h3 className="text-2xl font-display font-medium tracking-tight mb-8">

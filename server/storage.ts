@@ -230,6 +230,7 @@ export class DatabaseStorage implements IStorage {
         storeId: orderItems.storeId,
         quantity: orderItems.quantity,
         price: orderItems.price,
+        size: orderItems.size,
         productName: products.name,
         productImage: products.imageUrl,
       })
@@ -244,6 +245,7 @@ export class DatabaseStorage implements IStorage {
       storeId: r.storeId,
       quantity: r.quantity,
       price: r.price,
+      size: r.size,
       productName: r.productName ?? undefined,
       productImage: r.productImage ?? undefined,
     }));
