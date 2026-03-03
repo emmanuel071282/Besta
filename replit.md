@@ -9,22 +9,33 @@ Fast-fashion e-commerce storefront for the Indian market, inspired by Primark/H&
 - **State Management**: Zustand with persistence for cart (`use-cart.ts`) and wishlist (`use-wishlist.ts`)
 
 ## Key Features
-- Product browsing with subcategory filtering (85+ products total)
-- Categories with subcategories:
-  - **Mens**: T-Shirts, Shirts, Trousers, Jeans, Jackets, Kurtas, Suits
-  - **Ladies** (grouped into sections):
-    - *Western Wear*: T-Shirts, Tops, Dresses, Jeans, Skirts, Jackets, Cord Sets
+- Product browsing with subcategory filtering (126 products total)
+- Categories with grouped sections (SubcategorySection[] type):
+  - **Mens** (grouped):
+    - *Casual Wear*: T-Shirts, Shirts, Trousers, Jeans, Jackets
+    - *Ethnic Wear*: Kurtas, Sherwanis, Nehru Jackets
+    - *Athleisure*: Joggers, Track Pants, Sports T-Shirts, Hoodies
+    - *Accessories*: Watches, Belts, Wallets, Sunglasses
+    - *Footwear*: Sneakers, Formal Shoes, Sandals, Loafers
+  - **Ladies** (grouped):
+    - *Western Wear*: T-Shirts, Tops, Dresses, Jeans, Skirts, Jackets, Cord Sets, Athleisure
     - *Indian Wear*: Kurtas, Kurta Sets, Sarees, Lehengas
     - *Sleepwear*: Nightdresses, Pyjama Sets
     - *Intimate Wear*: Bras, Lingerie Sets
-  - **Kids**: T-Shirts, Dresses, Sets, Jackets, Shorts, Ethnic Wear
-  - **Accessories**: Watches, Bags, Belts, Sunglasses, Jewellery, Scarves
-  - **Footwear**: Sneakers, Formal Shoes, Sandals, Heels, Boots, Loafers
-- Ladies uses grouped SubcategorySection[] type; other categories use flat string[]
+    - *Footwear*: Heels, Flats, Sneakers, Sandals
+  - **Kids** (grouped):
+    - *Boys*: T-Shirts, Shirts, Jeans, Shorts, Jackets, Ethnic Wear
+    - *Girls*: Dresses, Tops, Skirts, Leggings, Jackets, Ethnic Wear
+    - *Infants*: Rompers, Onesies, Sets, Sleepsuits
+    - *Footwear*: Sneakers, Sandals, School Shoes, Booties
+  - **Accessories** (flat): Watches, Bags, Belts, Sunglasses, Jewellery, Scarves
+  - **Footwear** (flat): Sneakers, Formal Shoes, Sandals, Heels, Boots, Loafers
+- Mens, Ladies, Kids use grouped SubcategorySection[]; Accessories/Footwear use flat string[]
+- Footwear is available both as a standalone category AND within Mens/Ladies/Kids sections
 - Schema helpers: `isGroupedSubcategories()`, `getAllSubcategories()` in shared/schema.ts
 - Navbar with hover dropdown menus showing subcategories (desktop) and expandable accordion (mobile)
-  - Ladies dropdown shows multi-column layout with section headers
-  - Ladies mobile accordion shows section-grouped subcategories
+  - Grouped categories show multi-column layout with section headers in dropdown
+  - Mobile accordion shows section-grouped subcategories with headers
 - Shopping cart (drawer UI, Zustand persist)
 - Wishlist (heart toggle, Zustand persist)
 - Checkout page with Indian payment options:
