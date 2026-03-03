@@ -16,6 +16,7 @@ import CategoryPage from "@/pages/CategoryPage";
 import ProductPage from "@/pages/ProductPage";
 import WishlistPage from "@/pages/WishlistPage";
 import CheckoutPage from "@/pages/CheckoutPage";
+import ExchangePolicyPage from "@/pages/ExchangePolicyPage";
 
 function Router() {
   return (
@@ -28,6 +29,7 @@ function Router() {
           <Route path="/product/:id" component={ProductPage} />
           <Route path="/wishlist" component={WishlistPage} />
           <Route path="/checkout" component={CheckoutPage} />
+          <Route path="/exchange-policy" component={ExchangePolicyPage} />
           <Route component={NotFound} />
         </Switch>
       </main>

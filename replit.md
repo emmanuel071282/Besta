@@ -50,6 +50,7 @@ Fast-fashion e-commerce storefront for the Indian market, inspired by Primark/H&
 - `/product/:id` - Product detail
 - `/wishlist` - Wishlist page
 - `/checkout` - Checkout with payment options
+- `/exchange-policy` - Returns & Exchange policy (Ajio-style)
 
 ## Database Schema
 - `products` table: id, name, description, price, imageUrl, category, subcategory
