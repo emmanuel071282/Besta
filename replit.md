@@ -51,10 +51,23 @@ Fast-fashion e-commerce storefront for the Indian market, inspired by Primark/H&
 - `/wishlist` - Wishlist page
 - `/checkout` - Checkout with payment options
 - `/exchange-policy` - Returns & Exchange policy (Ajio-style)
+- `/login` - Sign in page (mobile + 4-digit PIN)
+- `/register` - Create account page (name, mobile, email, birthday, 4-digit PIN)
+- `/account` - My account page (profile display, sign out)
 
 ## Database Schema
 - `products` table: id, name, description, price, imageUrl, category, subcategory
+- `users` table: id, name, mobile (unique), email, pin (bcrypt hashed), birthday
+- Session storage: connect-pg-simple (auto-created `session` table)
 - Subcategory mapping defined in `shared/schema.ts` as `SUBCATEGORIES` constant
+
+## Authentication
+- Session-based auth using express-session + connect-pg-simple
+- Registration: name, mobile (10-digit Indian), email, birthday, 4-digit PIN
+- Login: mobile + 4-digit PIN
+- PIN stored as bcrypt hash
+- Auth hook: `useAuth()` in `client/src/hooks/use-auth.ts`
+- API: POST `/api/auth/register`, POST `/api/auth/login`, GET `/api/auth/me`, POST `/api/auth/logout`
 
 ## Design
 - Brand: "BESTA" typography-only (bold, tracking-tighter)
@@ -65,6 +78,6 @@ Fast-fashion e-commerce storefront for the Indian market, inspired by Primark/H&
 - `shared/schema.ts` - Drizzle schema (products table) + SUBCATEGORIES map
 - `server/routes.ts` - API routes + seed data
 - `server/storage.ts` - Database storage with subcategory filter support
-- `client/src/pages/` - Page components (Home, CategoryPage, ProductPage, WishlistPage, CheckoutPage)
+- `client/src/pages/` - Page components (Home, CategoryPage, ProductPage, WishlistPage, CheckoutPage, LoginPage, RegisterPage, AccountPage)
 - `client/src/components/` - Shared UI components (Navbar, Footer, CartDrawer, ProductCard)
-- `client/src/hooks/` - Custom hooks (use-cart, use-wishlist, use-products)
+- `client/src/hooks/` - Custom hooks (use-cart, use-wishlist, use-products, use-auth)

@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { products, type Product, type InsertProduct } from "@shared/schema";
+import { products, users, type Product, type InsertProduct, type User, type InsertUser } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 
 export interface IStorage {
@@ -8,6 +8,9 @@ export interface IStorage {
   getProductsByCategoryAndSubcategory(category: string, subcategory: string): Promise<Product[]>;
   getProduct(id: number): Promise<Product | undefined>;
   createProduct(product: InsertProduct): Promise<Product>;
+  createUser(user: InsertUser): Promise<User>;
+  getUserByMobile(mobile: string): Promise<User | undefined>;
+  getUserById(id: number): Promise<User | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -33,6 +36,21 @@ export class DatabaseStorage implements IStorage {
   async createProduct(insertProduct: InsertProduct): Promise<Product> {
     const [product] = await db.insert(products).values(insertProduct).returning();
     return product;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db.insert(users).values(insertUser).returning();
+    return user;
+  }
+
+  async getUserByMobile(mobile: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.mobile, mobile));
+    return user;
+  }
+
+  async getUserById(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
   }
 }
 

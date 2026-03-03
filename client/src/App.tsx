@@ -17,6 +17,9 @@ import ProductPage from "@/pages/ProductPage";
 import WishlistPage from "@/pages/WishlistPage";
 import CheckoutPage from "@/pages/CheckoutPage";
 import ExchangePolicyPage from "@/pages/ExchangePolicyPage";
+import LoginPage from "@/pages/LoginPage";
+import RegisterPage from "@/pages/RegisterPage";
+import AccountPage from "@/pages/AccountPage";
 
 function Router() {
   return (
@@ -30,6 +33,9 @@ function Router() {
           <Route path="/wishlist" component={WishlistPage} />
           <Route path="/checkout" component={CheckoutPage} />
           <Route path="/exchange-policy" component={ExchangePolicyPage} />
+          <Route path="/login" component={LoginPage} />
+          <Route path="/register" component={RegisterPage} />
+          <Route path="/account" component={AccountPage} />
           <Route component={NotFound} />
         </Switch>
       </main>

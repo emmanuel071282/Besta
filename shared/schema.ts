@@ -1,4 +1,4 @@
-import { pgTable, text, serial, numeric } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, numeric, date } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -16,6 +16,37 @@ export const insertProductSchema = createInsertSchema(products).omit({ id: true 
 
 export type InsertProduct = z.infer<typeof insertProductSchema>;
 export type Product = typeof products.$inferSelect;
+
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  mobile: text("mobile").notNull().unique(),
+  email: text("email").notNull(),
+  pin: text("pin").notNull(),
+  birthday: text("birthday").notNull(),
+});
+
+export const insertUserSchema = createInsertSchema(users).omit({ id: true });
+
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type User = typeof users.$inferSelect;
+
+export const registerSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  mobile: z.string().regex(/^[6-9]\d{9}$/, "Enter a valid 10-digit Indian mobile number"),
+  email: z.string().email("Enter a valid email address"),
+  pin: z.string().regex(/^\d{4}$/, "PIN must be exactly 4 digits"),
+  confirmPin: z.string().regex(/^\d{4}$/, "PIN must be exactly 4 digits"),
+  birthday: z.string().min(1, "Birthday is required"),
+}).refine((data) => data.pin === data.confirmPin, {
+  message: "PINs do not match",
+  path: ["confirmPin"],
+});
+
+export const loginSchema = z.object({
+  mobile: z.string().regex(/^[6-9]\d{9}$/, "Enter a valid 10-digit Indian mobile number"),
+  pin: z.string().regex(/^\d{4}$/, "PIN must be exactly 4 digits"),
+});
 
 export interface SubcategorySection {
   section: string;

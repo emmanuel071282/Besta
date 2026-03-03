@@ -1,7 +1,8 @@
 import { Link, useLocation } from "wouter";
 import { useCart } from "@/hooks/use-cart";
 import { useWishlist } from "@/hooks/use-wishlist";
-import { ShoppingBag, Search, Menu, X, Heart, ChevronDown, ChevronRight } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
+import { ShoppingBag, Search, Menu, X, Heart, ChevronDown, ChevronRight, User } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { SUBCATEGORIES, isGroupedSubcategories } from "@shared/schema";
@@ -13,6 +14,7 @@ export function Navbar() {
   const [location, navigate] = useLocation();
   const { itemCount: cartCount, setIsOpen: setCartOpen } = useCart();
   const { items: wishlistItems } = useWishlist();
+  const { isLoggedIn } = useAuth();
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [expandedMobileCategory, setExpandedMobileCategory] = useState<string | null>(null);
@@ -181,6 +183,14 @@ export function Navbar() {
           <button className="hidden sm:block p-2 text-muted-foreground hover:text-foreground transition-colors">
             <Search className="w-5 h-5" />
           </button>
+
+          <Link
+            href={isLoggedIn ? "/account" : "/login"}
+            className="p-2 text-muted-foreground hover:text-foreground transition-colors"
+            data-testid="link-account"
+          >
+            <User className={cn("w-5 h-5", isLoggedIn && "fill-foreground text-foreground")} />
+          </Link>
           
           <Link href="/wishlist" className="p-2 relative text-foreground hover:opacity-70 transition-opacity">
             <Heart className={cn("w-5 h-5", wishlistItems.length > 0 && "fill-foreground")} />
@@ -242,6 +252,9 @@ export function Navbar() {
             <div className="mt-6 space-y-4">
               <Link href="/" className="block text-sm uppercase tracking-widest text-muted-foreground py-2">Home</Link>
               <Link href="/wishlist" className="block text-sm uppercase tracking-widest text-muted-foreground py-2">Wishlist</Link>
+              <Link href={isLoggedIn ? "/account" : "/login"} className="block text-sm uppercase tracking-widest text-muted-foreground py-2" data-testid="link-mobile-account">
+                {isLoggedIn ? "My Account" : "Sign In"}
+              </Link>
             </div>
           </nav>
         </div>

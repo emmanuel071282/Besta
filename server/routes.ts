@@ -3,12 +3,85 @@ import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
+import { registerSchema, loginSchema } from "@shared/schema";
+import bcrypt from "bcryptjs";
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  
+
+  app.post("/api/auth/register", async (req, res) => {
+    try {
+      const parsed = registerSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0].message });
+      }
+      const { name, mobile, email, pin, birthday } = parsed.data;
+
+      const existing = await storage.getUserByMobile(mobile);
+      if (existing) {
+        return res.status(409).json({ message: "An account with this mobile number already exists" });
+      }
+
+      const hashedPin = await bcrypt.hash(pin, 10);
+      const user = await storage.createUser({ name, mobile, email, pin: hashedPin, birthday });
+
+      req.session.userId = user.id;
+      res.json({ id: user.id, name: user.name, mobile: user.mobile, email: user.email, birthday: user.birthday });
+    } catch (error) {
+      console.error("Registration error:", error);
+      res.status(500).json({ message: "Something went wrong. Please try again." });
+    }
+  });
+
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const parsed = loginSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0].message });
+      }
+      const { mobile, pin } = parsed.data;
+
+      const user = await storage.getUserByMobile(mobile);
+      if (!user) {
+        return res.status(401).json({ message: "Invalid mobile number or PIN" });
+      }
+
+      const valid = await bcrypt.compare(pin, user.pin);
+      if (!valid) {
+        return res.status(401).json({ message: "Invalid mobile number or PIN" });
+      }
+
+      req.session.userId = user.id;
+      res.json({ id: user.id, name: user.name, mobile: user.mobile, email: user.email, birthday: user.birthday });
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(500).json({ message: "Something went wrong. Please try again." });
+    }
+  });
+
+  app.get("/api/auth/me", async (req, res) => {
+    if (!req.session.userId) {
+      return res.status(401).json({ message: "Not logged in" });
+    }
+    const user = await storage.getUserById(req.session.userId);
+    if (!user) {
+      return res.status(401).json({ message: "User not found" });
+    }
+    res.json({ id: user.id, name: user.name, mobile: user.mobile, email: user.email, birthday: user.birthday });
+  });
+
+  app.post("/api/auth/logout", (req, res) => {
+    req.session.destroy((err) => {
+      if (err) {
+        return res.status(500).json({ message: "Failed to logout" });
+      }
+      res.clearCookie("connect.sid");
+      res.json({ message: "Logged out successfully" });
+    });
+  });
+
   app.get(api.products.list.path, async (req, res) => {
     const productsList = await storage.getProducts();
     res.json(productsList);
