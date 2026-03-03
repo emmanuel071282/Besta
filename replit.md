@@ -9,14 +9,22 @@ Fast-fashion e-commerce storefront for the Indian market, inspired by Primark/H&
 - **State Management**: Zustand with persistence for cart (`use-cart.ts`) and wishlist (`use-wishlist.ts`)
 
 ## Key Features
-- Product browsing with subcategory filtering (68 products total)
+- Product browsing with subcategory filtering (85+ products total)
 - Categories with subcategories:
   - **Mens**: T-Shirts, Shirts, Trousers, Jeans, Jackets, Kurtas, Suits
-  - **Ladies**: Dresses, Tops, Kurtas, Jeans, Skirts, Sarees, Jackets
+  - **Ladies** (grouped into sections):
+    - *Western Wear*: T-Shirts, Tops, Dresses, Jeans, Skirts, Jackets, Cord Sets
+    - *Indian Wear*: Kurtas, Kurta Sets, Sarees, Lehengas
+    - *Sleepwear*: Nightdresses, Pyjama Sets
+    - *Intimate Wear*: Bras, Lingerie Sets
   - **Kids**: T-Shirts, Dresses, Sets, Jackets, Shorts, Ethnic Wear
   - **Accessories**: Watches, Bags, Belts, Sunglasses, Jewellery, Scarves
   - **Footwear**: Sneakers, Formal Shoes, Sandals, Heels, Boots, Loafers
+- Ladies uses grouped SubcategorySection[] type; other categories use flat string[]
+- Schema helpers: `isGroupedSubcategories()`, `getAllSubcategories()` in shared/schema.ts
 - Navbar with hover dropdown menus showing subcategories (desktop) and expandable accordion (mobile)
+  - Ladies dropdown shows multi-column layout with section headers
+  - Ladies mobile accordion shows section-grouped subcategories
 - Shopping cart (drawer UI, Zustand persist)
 - Wishlist (heart toggle, Zustand persist)
 - Checkout page with Indian payment options:

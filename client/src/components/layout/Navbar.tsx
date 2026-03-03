@@ -4,7 +4,8 @@ import { useWishlist } from "@/hooks/use-wishlist";
 import { ShoppingBag, Search, Menu, X, Heart, ChevronDown, ChevronRight } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { SUBCATEGORIES } from "@shared/schema";
+import { SUBCATEGORIES, isGroupedSubcategories } from "@shared/schema";
+import type { SubcategorySection } from "@shared/schema";
 
 const CATEGORIES = ["Mens", "Ladies", "Kids", "Accessories", "Footwear"];
 
@@ -28,6 +29,111 @@ export function Navbar() {
     setMobileMenuOpen(false);
     setExpandedMobileCategory(null);
   }, [location]);
+
+  const renderDesktopDropdown = (cat: string) => {
+    const config = SUBCATEGORIES[cat];
+    if (!config) return null;
+
+    if (isGroupedSubcategories(config)) {
+      return (
+        <div className="absolute top-full left-0 pt-4 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+          <div className="bg-background border border-border shadow-lg py-4 px-6 flex gap-8 min-w-[480px]">
+            {(config as SubcategorySection[]).map((group) => (
+              <div key={group.section} className="min-w-[120px]">
+                <span className="block text-[10px] uppercase tracking-widest font-bold text-foreground mb-3">
+                  {group.section}
+                </span>
+                {group.items.map((sub) => (
+                  <button
+                    key={sub}
+                    data-testid={`nav-subcategory-${cat.toLowerCase()}-${sub.toLowerCase().replace(/\s+/g, "-")}`}
+                    onClick={() => navigate(`/category/${cat}?sub=${encodeURIComponent(sub)}`)}
+                    className="block w-full text-left py-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {sub}
+                  </button>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="absolute top-full left-0 pt-4 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+        <div className="bg-background border border-border shadow-lg min-w-[200px] py-3">
+          <Link
+            href={`/category/${cat}`}
+            className="block px-5 py-2.5 text-xs uppercase tracking-widest font-semibold text-foreground hover:bg-secondary transition-colors"
+          >
+            View All {cat}
+          </Link>
+          <div className="h-px bg-border mx-4 my-2" />
+          {(config as string[]).map((sub) => (
+            <button
+              key={sub}
+              data-testid={`nav-subcategory-${cat.toLowerCase()}-${sub.toLowerCase().replace(/\s+/g, "-")}`}
+              onClick={() => navigate(`/category/${cat}?sub=${encodeURIComponent(sub)}`)}
+              className="block w-full text-left px-5 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            >
+              {sub}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderMobileSubmenu = (cat: string) => {
+    const config = SUBCATEGORIES[cat];
+    if (!config || expandedMobileCategory !== cat) return null;
+
+    if (isGroupedSubcategories(config)) {
+      return (
+        <div className="pb-4 pl-4 space-y-4">
+          {(config as SubcategorySection[]).map((group) => (
+            <div key={group.section}>
+              <span className="block text-[10px] uppercase tracking-widest font-bold text-foreground mb-2">
+                {group.section}
+              </span>
+              <div className="space-y-1 pl-2">
+                {group.items.map((sub) => (
+                  <button
+                    key={sub}
+                    onClick={() => {
+                      navigate(`/category/${cat}?sub=${encodeURIComponent(sub)}`);
+                      setMobileMenuOpen(false);
+                    }}
+                    className="block w-full text-left py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {sub}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    return (
+      <div className="pb-4 pl-4 space-y-1">
+        {(config as string[]).map((sub) => (
+          <button
+            key={sub}
+            onClick={() => {
+              navigate(`/category/${cat}?sub=${encodeURIComponent(sub)}`);
+              setMobileMenuOpen(false);
+            }}
+            className="block w-full text-left py-2.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {sub}
+          </button>
+        ))}
+      </div>
+    );
+  };
 
   return (
     <header 
@@ -59,30 +165,7 @@ export function Navbar() {
               >
                 {cat}
               </Link>
-
-              {SUBCATEGORIES[cat] && (
-                <div className="absolute top-full left-0 pt-4 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                  <div className="bg-background border border-border shadow-lg min-w-[200px] py-3">
-                    <Link
-                      href={`/category/${cat}`}
-                      className="block px-5 py-2.5 text-xs uppercase tracking-widest font-semibold text-foreground hover:bg-secondary transition-colors"
-                    >
-                      View All {cat}
-                    </Link>
-                    <div className="h-px bg-border mx-4 my-2" />
-                    {SUBCATEGORIES[cat].map((sub) => (
-                      <button
-                        key={sub}
-                        data-testid={`nav-subcategory-${cat.toLowerCase()}-${sub.toLowerCase().replace(/\s+/g, "-")}`}
-                        onClick={() => navigate(`/category/${cat}?sub=${encodeURIComponent(sub)}`)}
-                        className="block w-full text-left px-5 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                      >
-                        {sub}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+              {renderDesktopDropdown(cat)}
             </div>
           ))}
         </nav>
@@ -153,22 +236,7 @@ export function Navbar() {
                     </button>
                   )}
                 </div>
-                {expandedMobileCategory === cat && SUBCATEGORIES[cat] && (
-                  <div className="pb-4 pl-4 space-y-1">
-                    {SUBCATEGORIES[cat].map((sub) => (
-                      <button
-                        key={sub}
-                        onClick={() => {
-                          navigate(`/category/${cat}?sub=${encodeURIComponent(sub)}`);
-                          setMobileMenuOpen(false);
-                        }}
-                        className="block w-full text-left py-2.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        {sub}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                {renderMobileSubmenu(cat)}
               </div>
             ))}
             <div className="mt-6 space-y-4">
