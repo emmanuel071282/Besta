@@ -1,6 +1,7 @@
 import { useRoute } from "wouter";
 import { useProduct, useProductsByCategory } from "@/hooks/use-products";
 import { useCart } from "@/hooks/use-cart";
+import { useWishlist } from "@/hooks/use-wishlist";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProductCard } from "@/components/product/ProductCard";
@@ -11,7 +12,8 @@ import {
   AccordionTrigger 
 } from "@/components/ui/accordion";
 import { useState } from "react";
-import { Check } from "lucide-react";
+import { Check, Heart } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export default function ProductPage() {
   const [, params] = useRoute("/product/:id");
@@ -20,6 +22,7 @@ export default function ProductPage() {
   const { data: product, isLoading, error } = useProduct(id);
   const { data: relatedProducts } = useProductsByCategory(product?.category || "");
   const { addItem } = useCart();
+  const { toggleItem, isInWishlist } = useWishlist();
   
   const [isAdded, setIsAdded] = useState(false);
 
@@ -29,6 +32,8 @@ export default function ProductPage() {
     setIsAdded(true);
     setTimeout(() => setIsAdded(false), 2000);
   };
+
+  const isFavorited = product ? isInWishlist(product.id) : false;
 
   if (error) {
     return (
@@ -92,19 +97,28 @@ export default function ProductPage() {
                   {product.description}
                 </p>
 
-                <Button 
-                  onClick={handleAddToCart}
-                  className="w-full h-14 rounded-none text-sm uppercase tracking-widest font-bold mb-12 relative overflow-hidden transition-all duration-300"
-                  variant={isAdded ? "secondary" : "default"}
-                >
-                  {isAdded ? (
-                    <span className="flex items-center gap-2 text-green-600">
-                      <Check className="w-5 h-5" /> Added to Bag
-                    </span>
-                  ) : (
-                    "Add to Bag"
-                  )}
-                </Button>
+                <div className="flex gap-4 mb-12">
+                  <Button 
+                    onClick={handleAddToCart}
+                    className="flex-1 h-14 rounded-none text-sm uppercase tracking-widest font-bold relative overflow-hidden transition-all duration-300"
+                    variant={isAdded ? "secondary" : "default"}
+                  >
+                    {isAdded ? (
+                      <span className="flex items-center gap-2 text-green-600">
+                        <Check className="w-5 h-5" /> Added to Bag
+                      </span>
+                    ) : (
+                      "Add to Bag"
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="h-14 w-14 rounded-none border-border hover:bg-secondary transition-colors"
+                    onClick={() => product && toggleItem(product)}
+                  >
+                    <Heart className={cn("w-5 h-5 transition-colors", isFavorited ? "fill-red-500 stroke-red-500" : "stroke-foreground")} />
+                  </Button>
+                </div>
 
                 <Accordion type="single" collapsible className="w-full border-t border-border">
                   <AccordionItem value="details" className="border-border">

@@ -1,6 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { useCart } from "@/hooks/use-cart";
-import { ShoppingBag, Search, Menu, X } from "lucide-react";
+import { useWishlist } from "@/hooks/use-wishlist";
+import { ShoppingBag, Search, Menu, X, Heart } from "lucide-react";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import logoBesta from "@assets/photo_2025-11-29_23.46.39_copy_1772478243583.jpeg";
@@ -9,7 +10,8 @@ const CATEGORIES = ["Mens", "Ladies", "Kids", "Accessories", "Footwear"];
 
 export function Navbar() {
   const [location] = useLocation();
-  const { itemCount, setIsOpen } = useCart();
+  const { itemCount: cartCount, setIsOpen: setCartOpen } = useCart();
+  const { items: wishlistItems } = useWishlist();
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -69,19 +71,30 @@ export function Navbar() {
         </Link>
 
         {/* Actions */}
-        <div className="flex items-center justify-end gap-4 lg:gap-6 flex-1">
+        <div className="flex items-center justify-end gap-2 sm:gap-4 lg:gap-6 flex-1">
           <button className="hidden sm:block p-2 text-muted-foreground hover:text-foreground transition-colors">
             <Search className="w-5 h-5" />
           </button>
           
+          <Link href="/wishlist">
+            <a className="p-2 relative text-foreground hover:opacity-70 transition-opacity">
+              <Heart className={cn("w-5 h-5", wishlistItems.length > 0 && "fill-foreground")} />
+              {wishlistItems.length > 0 && (
+                <span className="absolute top-0 right-0 bg-primary text-primary-foreground text-[10px] font-bold h-4 w-4 rounded-full flex items-center justify-center translate-x-1 -translate-y-1">
+                  {wishlistItems.length}
+                </span>
+              )}
+            </a>
+          </Link>
+
           <button 
             className="p-2 relative text-foreground hover:opacity-70 transition-opacity"
-            onClick={() => setIsOpen(true)}
+            onClick={() => setCartOpen(true)}
           >
             <ShoppingBag className="w-5 h-5" />
-            {itemCount > 0 && (
+            {cartCount > 0 && (
               <span className="absolute top-0 right-0 bg-primary text-primary-foreground text-[10px] font-bold h-4 w-4 rounded-full flex items-center justify-center translate-x-1 -translate-y-1">
-                {itemCount}
+                {cartCount}
               </span>
             )}
           </button>

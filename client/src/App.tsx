@@ -14,6 +14,7 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import CategoryPage from "@/pages/CategoryPage";
 import ProductPage from "@/pages/ProductPage";
+import WishlistPage from "@/pages/WishlistPage";
 
 function Router() {
   return (
@@ -24,6 +25,7 @@ function Router() {
           <Route path="/" component={Home} />
           <Route path="/category/:category" component={CategoryPage} />
           <Route path="/product/:id" component={ProductPage} />
+          <Route path="/wishlist" component={WishlistPage} />
           <Route component={NotFound} />
         </Switch>
       </main>
