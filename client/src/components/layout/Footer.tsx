@@ -8,7 +8,7 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12 md:gap-8">
           
           <div className="space-y-6">
-            <img src={logoBesta} alt="BESTA" className="h-8 w-auto object-contain brightness-0 invert" />
+            <h3 className="font-display text-2xl font-bold tracking-tighter">BESTA</h3>
             <p className="text-sm text-primary-foreground/60 max-w-xs">
               Defining modern minimalism. Fast fashion that doesn't compromise on aesthetic or quality.
             </p>

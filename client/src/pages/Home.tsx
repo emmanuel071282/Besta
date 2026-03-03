@@ -13,13 +13,30 @@ export default function Home() {
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
       <section className="relative h-[85vh] w-full bg-secondary overflow-hidden pt-20">
-        {/* landing page hero fashion aesthetic */}
-        <img 
-          src="https://images.unsplash.com/photo-1483985988355-763728e1935b?q=80&w=2070&auto=format&fit=crop" 
-          alt="Fashion Hero" 
-          className="absolute inset-0 w-full h-full object-cover object-top"
-        />
-        <div className="absolute inset-0 bg-black/10" />
+        <div className="absolute inset-0 flex">
+          <div className="relative flex-1">
+            <img 
+              src="https://images.unsplash.com/photo-1483985988355-763728e1935b?q=80&w=1000&auto=format&fit=crop" 
+              alt="Ladies Fashion" 
+              className="absolute inset-0 w-full h-full object-cover object-top"
+            />
+          </div>
+          <div className="relative flex-1 hidden md:block border-l border-white/20">
+            <img 
+              src="https://images.unsplash.com/photo-1488161628813-04466f872be2?q=80&w=1000&auto=format&fit=crop" 
+              alt="Mens Fashion" 
+              className="absolute inset-0 w-full h-full object-cover object-top"
+            />
+          </div>
+          <div className="relative flex-1 hidden lg:block border-l border-white/20">
+            <img 
+              src="https://images.unsplash.com/photo-1514090458221-65bb69cf63e6?q=80&w=1000&auto=format&fit=crop" 
+              alt="Kids Fashion" 
+              className="absolute inset-0 w-full h-full object-cover object-top"
+            />
+          </div>
+        </div>
+        <div className="absolute inset-0 bg-black/20" />
         
         <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-4">
           <span className="text-white text-xs font-semibold tracking-[0.3em] uppercase mb-4 opacity-90">
@@ -37,9 +54,15 @@ export default function Home() {
             </Link>
             <Link 
               href="/category/Mens" 
-              className="bg-transparent border border-white text-white px-8 py-4 text-sm font-semibold tracking-widest uppercase hover:bg-white hover:text-black transition-colors backdrop-blur-sm"
+              className="bg-white text-black px-8 py-4 text-sm font-semibold tracking-widest uppercase hover:bg-white/90 transition-colors"
             >
               Shop Mens
+            </Link>
+            <Link 
+              href="/category/Kids" 
+              className="bg-transparent border border-white text-white px-8 py-4 text-sm font-semibold tracking-widest uppercase hover:bg-white hover:text-black transition-colors backdrop-blur-sm"
+            >
+              Shop Kids
             </Link>
           </div>
         </div>
@@ -47,50 +70,47 @@ export default function Home() {
 
       {/* Featured Categories */}
       <section className="py-20 md:py-32 container mx-auto px-4 md:px-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <Link href="/category/Accessories" className="group relative aspect-[4/5] overflow-hidden bg-secondary">
-            {/* minimal accessories */}
-            <img 
-              src="https://images.unsplash.com/photo-1492707892479-7bc8d5a4ee93?q=80&w=1000&auto=format&fit=crop" 
-              alt="Accessories" 
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-80" />
-            <div className="absolute bottom-8 left-8">
-              <h2 className="text-white text-2xl font-display font-medium tracking-tight mb-2">Accessories</h2>
-              <span className="text-white/80 text-xs uppercase tracking-widest font-semibold flex items-center gap-2 group-hover:gap-4 transition-all">
-                Discover <ArrowRight className="w-4 h-4" />
-              </span>
-            </div>
-          </Link>
-
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           <Link href="/category/Kids" className="group relative aspect-[4/5] overflow-hidden bg-secondary">
-            {/* kids fashion */}
             <img 
               src="https://images.unsplash.com/photo-1514090458221-65bb69cf63e6?q=80&w=1000&auto=format&fit=crop" 
               alt="Kids" 
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-80" />
-            <div className="absolute bottom-8 left-8">
-              <h2 className="text-white text-2xl font-display font-medium tracking-tight mb-2">Kids</h2>
-              <span className="text-white/80 text-xs uppercase tracking-widest font-semibold flex items-center gap-2 group-hover:gap-4 transition-all">
+            <div className="absolute bottom-6 left-6 md:bottom-8 md:left-8">
+              <h2 className="text-white text-xl md:text-2xl font-display font-medium tracking-tight mb-2">Kids</h2>
+              <span className="text-white/80 text-[10px] md:text-xs uppercase tracking-widest font-semibold flex items-center gap-2 group-hover:gap-4 transition-all">
+                Discover <ArrowRight className="w-4 h-4" />
+              </span>
+            </div>
+          </Link>
+
+          <Link href="/category/Accessories" className="group relative aspect-[4/5] overflow-hidden bg-secondary">
+            <img 
+              src="https://images.unsplash.com/photo-1492707892479-7bc8d5a4ee93?q=80&w=1000&auto=format&fit=crop" 
+              alt="Accessories" 
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-80" />
+            <div className="absolute bottom-6 left-6 md:bottom-8 md:left-8">
+              <h2 className="text-white text-xl md:text-2xl font-display font-medium tracking-tight mb-2">Accessories</h2>
+              <span className="text-white/80 text-[10px] md:text-xs uppercase tracking-widest font-semibold flex items-center gap-2 group-hover:gap-4 transition-all">
                 Discover <ArrowRight className="w-4 h-4" />
               </span>
             </div>
           </Link>
           
-          <Link href="/category/Footwear" className="group relative aspect-[4/5] overflow-hidden bg-secondary md:col-span-2 lg:col-span-1">
-            {/* fashion footwear */}
+          <Link href="/category/Footwear" className="group relative aspect-[4/5] overflow-hidden bg-secondary col-span-2 lg:col-span-1">
             <img 
               src="https://images.unsplash.com/photo-1549298916-b41d501d3772?q=80&w=1000&auto=format&fit=crop" 
               alt="Footwear" 
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-80" />
-            <div className="absolute bottom-8 left-8">
-              <h2 className="text-white text-2xl font-display font-medium tracking-tight mb-2">Footwear</h2>
-              <span className="text-white/80 text-xs uppercase tracking-widest font-semibold flex items-center gap-2 group-hover:gap-4 transition-all">
+            <div className="absolute bottom-6 left-6 md:bottom-8 md:left-8">
+              <h2 className="text-white text-xl md:text-2xl font-display font-medium tracking-tight mb-2">Footwear</h2>
+              <span className="text-white/80 text-[10px] md:text-xs uppercase tracking-widest font-semibold flex items-center gap-2 group-hover:gap-4 transition-all">
                 Discover <ArrowRight className="w-4 h-4" />
               </span>
             </div>
