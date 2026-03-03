@@ -23,11 +23,12 @@ export function useProducts() {
   });
 }
 
-export function useProductsByCategory(category: string) {
-  const url = buildUrl(api.products.getByCategory.path, { category });
+export function useProductsByCategory(category: string, subcategory?: string) {
+  const basePath = buildUrl(api.products.getByCategory.path, { category });
+  const url = subcategory ? `${basePath}?subcategory=${encodeURIComponent(subcategory)}` : basePath;
   
   return useQuery({
-    queryKey: [api.products.getByCategory.path, category],
+    queryKey: [api.products.getByCategory.path, category, subcategory || "all"],
     queryFn: async () => {
       const res = await fetch(url, { credentials: "include" });
       if (!res.ok) throw new Error(`Failed to fetch products for category: ${category}`);
