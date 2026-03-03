@@ -129,7 +129,7 @@ export const SUBCATEGORIES: Record<string, SubcategoryConfig> = {
   ],
   Ladies: [
     { section: "Western Wear", items: ["T-Shirts", "Tops", "Dresses", "Jeans", "Skirts", "Jackets", "Cord Sets", "Athleisure"] },
-    { section: "Indian Wear", items: ["Kurtas", "Kurta Sets", "Sarees", "Lehengas"] },
+    { section: "Indian Wear", items: ["Kurtas", "Kurta Sets", "Lehengas"] },
     { section: "Sleepwear", items: ["Nightdresses", "Pyjama Sets"] },
     { section: "Intimate Wear", items: ["Bras", "Lingerie Sets"] },
     { section: "Footwear", items: ["Heels", "Flats", "Sneakers", "Sandals"] },

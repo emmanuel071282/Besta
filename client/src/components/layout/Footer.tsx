@@ -53,7 +53,7 @@ export function Footer() {
         </div>
         
         <div className="mt-16 md:mt-24 pt-8 border-t border-primary-foreground/10 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-primary-foreground/40">
-          <p>&copy; {new Date().getFullYear()} Besta Fashion. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} Besta Fashion Shopping. All rights reserved.</p>
           <div className="flex gap-6">
             <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
             <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
