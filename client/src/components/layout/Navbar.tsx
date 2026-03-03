@@ -76,15 +76,13 @@ export function Navbar() {
             <Search className="w-5 h-5" />
           </button>
           
-          <Link href="/wishlist">
-            <a className="p-2 relative text-foreground hover:opacity-70 transition-opacity">
-              <Heart className={cn("w-5 h-5", wishlistItems.length > 0 && "fill-foreground")} />
-              {wishlistItems.length > 0 && (
-                <span className="absolute top-0 right-0 bg-primary text-primary-foreground text-[10px] font-bold h-4 w-4 rounded-full flex items-center justify-center translate-x-1 -translate-y-1">
-                  {wishlistItems.length}
-                </span>
-              )}
-            </a>
+          <Link href="/wishlist" className="p-2 relative text-foreground hover:opacity-70 transition-opacity">
+            <Heart className={cn("w-5 h-5", wishlistItems.length > 0 && "fill-foreground")} />
+            {wishlistItems.length > 0 && (
+              <span className="absolute top-0 right-0 bg-primary text-primary-foreground text-[10px] font-bold h-4 w-4 rounded-full flex items-center justify-center translate-x-1 -translate-y-1">
+                {wishlistItems.length}
+              </span>
+            )}
           </Link>
 
           <button 

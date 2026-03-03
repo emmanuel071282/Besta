@@ -15,6 +15,7 @@ import Home from "@/pages/Home";
 import CategoryPage from "@/pages/CategoryPage";
 import ProductPage from "@/pages/ProductPage";
 import WishlistPage from "@/pages/WishlistPage";
+import CheckoutPage from "@/pages/CheckoutPage";
 
 function Router() {
   return (
@@ -26,6 +27,7 @@ function Router() {
           <Route path="/category/:category" component={CategoryPage} />
           <Route path="/product/:id" component={ProductPage} />
           <Route path="/wishlist" component={WishlistPage} />
+          <Route path="/checkout" component={CheckoutPage} />
           <Route component={NotFound} />
         </Switch>
       </main>

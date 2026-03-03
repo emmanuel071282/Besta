@@ -105,11 +105,17 @@ export function CartDrawer() {
               </div>
             </div>
             
-            <Button className="w-full rounded-none py-6 text-sm uppercase tracking-widest font-semibold">
-              Continue to Checkout
-            </Button>
+            <Link href="/checkout">
+              <Button 
+                data-testid="button-checkout"
+                className="w-full rounded-none py-6 text-sm uppercase tracking-widest font-semibold"
+                onClick={() => setIsOpen(false)}
+              >
+                Continue to Checkout
+              </Button>
+            </Link>
             <p className="text-[10px] text-center text-muted-foreground">
-              We accept all major credit cards and PayPal.
+              We accept Visa, Mastercard, RuPay, UPI, and Net Banking.
             </p>
           </div>
         )}

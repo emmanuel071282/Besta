@@ -1,4 +1,4 @@
-import { Link } from "wouter";
+import { useLocation } from "wouter";
 import type { Product } from "@shared/schema";
 import { useCart } from "@/hooks/use-cart";
 import { useWishlist } from "@/hooks/use-wishlist";
@@ -11,23 +11,25 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product }: ProductCardProps) {
+  const [, navigate] = useLocation();
   const { addItem } = useCart();
   const { toggleItem, isInWishlist } = useWishlist();
 
-  const handleQuickAdd = (e: React.MouseEvent) => {
-    e.preventDefault(); // Prevent link navigation
-    addItem(product);
-  };
-
-  const handleToggleWishlist = (e: React.MouseEvent) => {
-    e.preventDefault();
-    toggleItem(product);
-  };
-
   const active = isInWishlist(product.id);
 
+  const handleCardClick = () => {
+    navigate(`/product/${product.id}`);
+  };
+
   return (
-    <Link href={`/product/${product.id}`} className="group block w-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4">
+    <div
+      data-testid={`card-product-${product.id}`}
+      className="group block w-full cursor-pointer outline-none"
+      onClick={handleCardClick}
+      role="link"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === "Enter") handleCardClick(); }}
+    >
       <div className="relative aspect-[3/4] overflow-hidden bg-secondary mb-4">
         <img
           src={product.imageUrl}
@@ -36,18 +38,18 @@ export function ProductCard({ product }: ProductCardProps) {
           loading="lazy"
         />
         
-        {/* Wishlist Button */}
-        <button 
-          onClick={handleToggleWishlist}
+        <button
+          data-testid={`button-wishlist-${product.id}`}
+          onClick={(e) => { e.stopPropagation(); toggleItem(product); }}
           className="absolute top-3 right-3 p-2 bg-white/80 backdrop-blur-sm rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-white"
         >
           <Heart className={cn("w-4 h-4 transition-colors", active ? "fill-red-500 stroke-red-500" : "stroke-foreground")} />
         </button>
         
-        {/* Quick Add Overlay */}
         <div className="absolute inset-x-0 bottom-0 p-4 opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
-          <Button 
-            onClick={handleQuickAdd}
+          <Button
+            data-testid={`button-quickadd-${product.id}`}
+            onClick={(e) => { e.stopPropagation(); addItem(product); }}
             className="w-full bg-white/90 hover:bg-white text-black border border-transparent shadow-lg backdrop-blur-sm transition-colors rounded-none font-medium text-xs tracking-wider"
           >
             <Plus className="w-4 h-4 mr-2" />
@@ -59,11 +61,11 @@ export function ProductCard({ product }: ProductCardProps) {
       <div className="space-y-1">
         <div className="flex justify-between items-start gap-4">
           <h3 className="font-medium text-sm text-foreground leading-snug">{product.name}</h3>
-          <span className="font-semibold text-sm whitespace-nowrap">₹{Number(product.price).toLocaleString('en-IN')}</span>
+          <span data-testid={`text-price-${product.id}`} className="font-semibold text-sm whitespace-nowrap">₹{Number(product.price).toLocaleString('en-IN')}</span>
         </div>
         <p className="text-xs text-muted-foreground">{product.category}</p>
       </div>
-    </Link>
+    </div>
   );
 }
 
