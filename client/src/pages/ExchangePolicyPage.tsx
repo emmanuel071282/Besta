@@ -4,7 +4,7 @@ const EXCHANGE_STEPS = [
   { step: "1", title: "Initiate Return", desc: "Go to My Orders, select the item and choose 'Return/Exchange'. Pick your reason." },
   { step: "2", title: "Schedule Pickup", desc: "Choose a convenient date and time slot. Our courier partner will pick up from your doorstep." },
   { step: "3", title: "Quality Check", desc: "Once received at our warehouse, items undergo a quality check within 1-2 business days." },
-  { step: "4", title: "Refund / Exchange", desc: "Refund is initiated to your original payment method or exchange is dispatched within 3-5 business days." },
+  { step: "4", title: "Refund / Exchange", desc: "Refund is initiated to your original payment method or exchange is dispatched within 7 working days." },
 ];
 
 const NON_RETURNABLE = [
@@ -28,7 +28,7 @@ const EXCHANGE_CONDITIONS = [
 const FAQ_ITEMS = [
   {
     q: "How long does the refund take?",
-    a: "Refunds are processed within 3-5 business days after the quality check. Bank processing may take an additional 5-7 business days depending on your payment method.",
+    a: "Refunds are processed within 7 working days after the quality check is completed. The exact timeline may vary slightly depending on your payment method.",
   },
   {
     q: "Can I exchange for a different size?",
@@ -81,9 +81,9 @@ export default function ExchangePolicyPage() {
           </div>
           <div className="border border-border p-6 flex flex-col items-center text-center" data-testid="card-refund-time">
             <RotateCcw className="w-8 h-8 mb-4 text-foreground" />
-            <span className="text-3xl font-display font-bold tracking-tighter mb-1">3-5 Days</span>
+            <span className="text-3xl font-display font-bold tracking-tighter mb-1">7 Days</span>
             <span className="text-xs uppercase tracking-widest text-muted-foreground font-semibold">Refund Processing</span>
-            <p className="text-sm text-muted-foreground mt-2">After quality check is completed</p>
+            <p className="text-sm text-muted-foreground mt-2">Within 7 working days after quality check</p>
           </div>
         </div>
 
@@ -126,10 +126,10 @@ export default function ExchangePolicyPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                <tr><td className="py-4 px-5">UPI (Google Pay / Paytm / Amazon Pay)</td><td className="py-4 px-5 text-muted-foreground">1-3 business days</td></tr>
-                <tr><td className="py-4 px-5">Credit / Debit Card (Visa, Mastercard, RuPay)</td><td className="py-4 px-5 text-muted-foreground">5-7 business days</td></tr>
-                <tr><td className="py-4 px-5">Net Banking</td><td className="py-4 px-5 text-muted-foreground">5-7 business days</td></tr>
-                <tr><td className="py-4 px-5">Cash on Delivery</td><td className="py-4 px-5 text-muted-foreground">BESTA Wallet credit (instant) or bank transfer (5-7 days)</td></tr>
+                <tr><td className="py-4 px-5">UPI (Google Pay / Paytm / Amazon Pay)</td><td className="py-4 px-5 text-muted-foreground">5-7 working days</td></tr>
+                <tr><td className="py-4 px-5">Credit / Debit Card (Visa, Mastercard, RuPay)</td><td className="py-4 px-5 text-muted-foreground">7 working days</td></tr>
+                <tr><td className="py-4 px-5">Net Banking</td><td className="py-4 px-5 text-muted-foreground">7 working days</td></tr>
+                <tr><td className="py-4 px-5">Cash on Delivery</td><td className="py-4 px-5 text-muted-foreground">BESTA Wallet credit (instant) or bank transfer (7 working days)</td></tr>
               </tbody>
             </table>
           </div>
