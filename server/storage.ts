@@ -7,6 +7,7 @@ import {
   type Inventory, type InsertInventory,
   type Order, type InsertOrder,
   type OrderItem, type InsertOrderItem,
+  getSizesForProduct,
 } from "@shared/schema";
 import { eq, and, desc, sql, gte, lte, inArray } from "drizzle-orm";
 
@@ -49,23 +50,33 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  private ensureSizes(product: Product): Product {
+    if (!product.sizes || product.sizes.length === 0) {
+      return { ...product, sizes: getSizesForProduct(product.category, product.subcategory) };
+    }
+    return product;
+  }
+
   async getProducts(): Promise<Product[]> {
-    return await db.select().from(products);
+    const rows = await db.select().from(products);
+    return rows.map(p => this.ensureSizes(p));
   }
 
   async getProductsByCategory(category: string): Promise<Product[]> {
-    return await db.select().from(products).where(eq(products.category, category));
+    const rows = await db.select().from(products).where(eq(products.category, category));
+    return rows.map(p => this.ensureSizes(p));
   }
 
   async getProductsByCategoryAndSubcategory(category: string, subcategory: string): Promise<Product[]> {
-    return await db.select().from(products).where(
+    const rows = await db.select().from(products).where(
       and(eq(products.category, category), eq(products.subcategory, subcategory))
     );
+    return rows.map(p => this.ensureSizes(p));
   }
 
   async getProduct(id: number): Promise<Product | undefined> {
     const [product] = await db.select().from(products).where(eq(products.id, id));
-    return product;
+    return product ? this.ensureSizes(product) : undefined;
   }
 
   async createProduct(insertProduct: InsertProduct): Promise<Product> {
