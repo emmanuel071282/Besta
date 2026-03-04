@@ -53,23 +53,25 @@ export default function CategoryPage() {
           </p>
         </div>
 
-        {config && isGrouped && (
-          <div className="mb-8" data-testid="subcategory-filters">
-            <div className="flex gap-2 mb-4 overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
+        {config && activeSubcategory && (
+          <div className="mb-8" data-testid="subcategory-breadcrumb">
+            <div className="flex items-center gap-3">
               <button
                 data-testid="button-subcategory-all"
                 onClick={() => handleSubcategoryClick(undefined)}
-                className={cn(
-                  "px-4 py-2.5 text-xs uppercase tracking-widest font-semibold border transition-colors whitespace-nowrap shrink-0",
-                  !activeSubcategory
-                    ? "bg-foreground text-background border-foreground"
-                    : "bg-transparent text-foreground border-border hover:border-foreground"
-                )}
+                className="px-4 py-2.5 text-xs uppercase tracking-widest font-semibold border border-border bg-transparent text-foreground hover:border-foreground transition-colors whitespace-nowrap"
               >
-                All
+                ← All {category}
               </button>
+              <span className="px-4 py-2.5 text-xs uppercase tracking-widest font-semibold border bg-foreground text-background border-foreground whitespace-nowrap">
+                {activeSubcategory}
+              </span>
             </div>
-            
+          </div>
+        )}
+
+        {config && !activeSubcategory && isGrouped && (
+          <div className="mb-8" data-testid="subcategory-filters">
             <div className="space-y-6">
               {(config as SubcategorySection[]).map((group) => (
                 <div key={group.section}>
@@ -80,12 +82,7 @@ export default function CategoryPage() {
                         key={sub}
                         data-testid={`button-subcategory-${sub.toLowerCase().replace(/\s+/g, "-")}`}
                         onClick={() => handleSubcategoryClick(sub)}
-                        className={cn(
-                          "px-4 py-2 text-xs uppercase tracking-widest font-semibold border transition-colors whitespace-nowrap",
-                          activeSubcategory === sub
-                            ? "bg-foreground text-background border-foreground"
-                            : "bg-transparent text-foreground border-border hover:border-foreground"
-                        )}
+                        className="px-4 py-2 text-xs uppercase tracking-widest font-semibold border border-border bg-transparent text-foreground hover:border-foreground transition-colors whitespace-nowrap"
                       >
                         {sub}
                       </button>
@@ -97,32 +94,15 @@ export default function CategoryPage() {
           </div>
         )}
 
-        {config && !isGrouped && (
+        {config && !activeSubcategory && !isGrouped && (
           <div className="mb-8 overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
             <div className="flex gap-2 md:gap-3 min-w-max md:flex-wrap" data-testid="subcategory-filters">
-              <button
-                data-testid="button-subcategory-all"
-                onClick={() => handleSubcategoryClick(undefined)}
-                className={cn(
-                  "px-4 py-2.5 text-xs uppercase tracking-widest font-semibold border transition-colors whitespace-nowrap",
-                  !activeSubcategory
-                    ? "bg-foreground text-background border-foreground"
-                    : "bg-transparent text-foreground border-border hover:border-foreground"
-                )}
-              >
-                All
-              </button>
               {(config as string[]).map((sub) => (
                 <button
                   key={sub}
                   data-testid={`button-subcategory-${sub.toLowerCase().replace(/\s+/g, "-")}`}
                   onClick={() => handleSubcategoryClick(sub)}
-                  className={cn(
-                    "px-4 py-2.5 text-xs uppercase tracking-widest font-semibold border transition-colors whitespace-nowrap",
-                    activeSubcategory === sub
-                      ? "bg-foreground text-background border-foreground"
-                      : "bg-transparent text-foreground border-border hover:border-foreground"
-                  )}
+                  className="px-4 py-2.5 text-xs uppercase tracking-widest font-semibold border border-border bg-transparent text-foreground hover:border-foreground transition-colors whitespace-nowrap"
                 >
                   {sub}
                 </button>
