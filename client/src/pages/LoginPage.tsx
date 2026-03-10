@@ -28,7 +28,7 @@ export default function LoginPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen pt-32 flex items-start justify-center">
+      <div className="min-h-screen bg-background pt-28 pb-20 flex items-start justify-center">
         <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
       </div>
     );
@@ -126,9 +126,9 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen pt-32 pb-16 px-4">
+    <div className="min-h-screen bg-background pt-28 pb-20 px-4">
       <div className="max-w-md mx-auto">
-        <h1 className="text-3xl font-bold tracking-tight text-center mb-2" data-testid="text-login-title">SIGN IN</h1>
+        <h1 className="text-3xl md:text-4xl font-display font-bold tracking-tighter text-center mb-2 uppercase" data-testid="text-login-title">Sign In</h1>
         <p className="text-center text-muted-foreground text-sm mb-10">Welcome back to BESTA</p>
 
         {step === "mobile" && (

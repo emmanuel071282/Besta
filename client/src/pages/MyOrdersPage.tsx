@@ -28,14 +28,14 @@ export default function MyOrdersPage() {
   });
 
   if (authLoading) {
-    return <div className="min-h-screen pt-32 flex items-start justify-center"><Loader2 className="w-6 h-6 animate-spin" /></div>;
+    return <div className="min-h-screen bg-background pt-28 pb-20 flex items-start justify-center"><Loader2 className="w-6 h-6 animate-spin" /></div>;
   }
   if (!isLoggedIn) return null;
 
   return (
-    <div className="min-h-screen pt-32 pb-16 px-4">
+    <div className="min-h-screen bg-background pt-28 pb-20 px-4">
       <div className="max-w-2xl mx-auto">
-        <h1 className="text-3xl font-bold tracking-tight text-center mb-2" data-testid="text-my-orders-title">MY ORDERS</h1>
+        <h1 className="text-3xl md:text-4xl font-display font-bold tracking-tighter text-center mb-2 uppercase" data-testid="text-my-orders-title">My Orders</h1>
         <p className="text-center text-muted-foreground text-sm mb-10">Track and manage your orders</p>
 
         {isLoading ? (
@@ -44,7 +44,7 @@ export default function MyOrdersPage() {
           <div className="text-center py-16">
             <Package className="w-12 h-12 mx-auto text-muted-foreground/30 mb-4" />
             <p className="text-muted-foreground">No orders yet</p>
-            <Link href="/category/Ladies" className="inline-block mt-4 border border-foreground px-6 py-2 text-xs uppercase tracking-widest font-semibold hover:bg-foreground hover:text-background transition-colors">
+            <Link href="/category/Ladies" className="inline-block mt-4 border border-foreground px-8 py-3.5 text-xs uppercase tracking-widest font-semibold hover:bg-foreground hover:text-background transition-colors">
               Start Shopping
             </Link>
           </div>

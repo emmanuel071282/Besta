@@ -127,7 +127,7 @@ export default function Home() {
         </div>
         
         <div className="mt-12 text-center sm:hidden">
-          <Link href="/category/Ladies" className="inline-block border border-foreground px-8 py-3 text-xs uppercase tracking-widest font-semibold w-full">
+          <Link href="/category/Ladies" className="inline-block border border-foreground px-8 py-3.5 text-xs uppercase tracking-widest font-semibold w-full">
             View All Trending
           </Link>
         </div>

@@ -53,7 +53,7 @@ export default function ProductPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen pt-32 flex items-center justify-center">
+      <div className="min-h-screen bg-background pt-28 pb-20 flex items-center justify-center">
         <p className="text-destructive text-lg">Product not found.</p>
       </div>
     );
@@ -64,7 +64,7 @@ export default function ProductPage() {
     .slice(0, 4) || [];
 
   return (
-    <div className="min-h-screen bg-background pt-24 md:pt-32 pb-20">
+    <div className="min-h-screen bg-background pt-28 pb-20">
       <div className="container mx-auto px-4 md:px-6">
         
         <div className="flex flex-col lg:flex-row gap-12 lg:gap-20 mb-24">

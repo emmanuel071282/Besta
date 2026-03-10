@@ -109,6 +109,12 @@ Full omni-channel fast-fashion e-commerce platform for the Indian market. Featur
 - Brand: "BESTA" typography-only (bold, tracking-tighter)
 - Minimalist black/white, rounded-none buttons, uppercase tracking-widest labels
 - Currency: ₹ with `toLocaleString('en-IN')` formatting
+- **Visual Consistency Standards** (all customer-facing pages):
+  - Page shell: `min-h-screen bg-background pt-28 pb-20`
+  - Page headings: `font-display font-bold tracking-tighter uppercase`
+  - CTA buttons/links: `py-3.5 text-xs uppercase tracking-widest font-semibold`
+  - Loading/error/empty states use same shell classes as main content
+  - Fonts: DM Sans (body), Outfit (display/headings)
 
 ## File Structure
 - `shared/schema.ts` - Drizzle schema + SUBCATEGORIES map + helpers

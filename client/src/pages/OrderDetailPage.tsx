@@ -42,12 +42,12 @@ export default function OrderDetailPage() {
   });
 
   if (authLoading || isLoading) {
-    return <div className="min-h-screen pt-32 flex items-start justify-center"><Loader2 className="w-6 h-6 animate-spin" /></div>;
+    return <div className="min-h-screen bg-background pt-28 pb-20 flex items-start justify-center"><Loader2 className="w-6 h-6 animate-spin" /></div>;
   }
 
   if (!order) {
     return (
-      <div className="min-h-screen pt-32 pb-16 px-4 text-center">
+      <div className="min-h-screen bg-background pt-28 pb-20 px-4 text-center">
         <p className="text-muted-foreground">Order not found</p>
         <Link href="/orders" className="text-sm underline mt-4 inline-block">Back to orders</Link>
       </div>
@@ -61,7 +61,7 @@ export default function OrderDetailPage() {
     : ORDER_STATUSES.filter(s => s !== "cancelled" && s !== "returned");
 
   return (
-    <div className="min-h-screen pt-32 pb-16 px-4">
+    <div className="min-h-screen bg-background pt-28 pb-20 px-4">
       <div className="max-w-2xl mx-auto">
         <Link href="/orders" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6">
           <ArrowLeft className="w-4 h-4" /> Back to Orders

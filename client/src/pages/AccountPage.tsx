@@ -15,7 +15,7 @@ export default function AccountPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen pt-32 flex items-start justify-center">
+      <div className="min-h-screen bg-background pt-28 pb-20 flex items-start justify-center">
         <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
       </div>
     );
@@ -43,9 +43,9 @@ export default function AccountPage() {
   };
 
   return (
-    <div className="min-h-screen pt-32 pb-16 px-4">
+    <div className="min-h-screen bg-background pt-28 pb-20 px-4">
       <div className="max-w-lg mx-auto">
-        <h1 className="text-3xl font-bold tracking-tight text-center mb-2" data-testid="text-account-title">MY ACCOUNT</h1>
+        <h1 className="text-3xl md:text-4xl font-display font-bold tracking-tighter text-center mb-2 uppercase" data-testid="text-account-title">My Account</h1>
         <p className="text-center text-muted-foreground text-sm mb-10">Manage your BESTA profile</p>
 
         <div className="border border-border p-6 mb-6">
