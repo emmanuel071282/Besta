@@ -116,6 +116,15 @@ Full omni-channel fast-fashion e-commerce platform for the Indian market. Featur
   - Loading/error/empty states use same shell classes as main content
   - Fonts: DM Sans (body), Outfit (display/headings)
 
+## Mobile App (Capacitor)
+- **App ID**: `in.besta.app`
+- **Framework**: Capacitor (wraps web app into native Android/iOS)
+- **Config**: `capacitor.config.ts`
+- **Build Guide**: `MOBILE_BUILD_GUIDE.md` — step-by-step instructions for building and publishing to Google Play & App Store
+- **Web Manifest**: `client/public/manifest.json` — PWA manifest with app icons
+- **Icons**: `client/public/icons/` — SVG icons (replace with PNG for production)
+- **Build flow**: `npm run build` → `npx cap sync` → `npx cap open android/ios`
+
 ## File Structure
 - `shared/schema.ts` - Drizzle schema + SUBCATEGORIES map + helpers
 - `server/routes.ts` - API routes + seed data (products, stores, admin user, inventory)
@@ -124,3 +133,5 @@ Full omni-channel fast-fashion e-commerce platform for the Indian market. Featur
 - `client/src/pages/admin/` - Admin pages (AdminLayout, DashboardPage, OrdersPage, SalesPage, StoresPage, InventoryPage)
 - `client/src/components/` - Shared UI (Navbar, Footer, CartDrawer, ProductCard)
 - `client/src/hooks/` - Custom hooks (use-cart, use-wishlist, use-products, use-auth)
+- `capacitor.config.ts` - Capacitor native app configuration
+- `MOBILE_BUILD_GUIDE.md` - Complete Android & iOS build/publish instructions
