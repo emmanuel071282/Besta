@@ -1,22 +1,30 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Loader2, ArrowLeft, Smartphone } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function LoginPage() {
   const [, navigate] = useLocation();
-  const { login, isLoggedIn, isLoading } = useAuth();
+  const { sendOtp, verifyOtp, isLoggedIn, isLoading } = useAuth();
   const { toast } = useToast();
 
+  const [step, setStep] = useState<"mobile" | "otp">("mobile");
   const [mobile, setMobile] = useState("");
-  const [pin, setPin] = useState("");
-  const [showPin, setShowPin] = useState(false);
+  const [otp, setOtp] = useState(["", "", "", ""]);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [countdown, setCountdown] = useState(0);
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
     if (!isLoading && isLoggedIn) navigate("/account");
   }, [isLoading, isLoggedIn, navigate]);
+
+  useEffect(() => {
+    if (countdown <= 0) return;
+    const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [countdown]);
 
   if (isLoading) {
     return (
@@ -28,27 +36,92 @@ export default function LoginPage() {
 
   if (isLoggedIn) return null;
 
-  const validate = () => {
+  const handleSendOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
     const errs: Record<string, string> = {};
     if (!/^[6-9]\d{9}$/.test(mobile)) errs.mobile = "Enter a valid 10-digit Indian mobile number";
-    if (!/^\d{4}$/.test(pin)) errs.pin = "PIN must be exactly 4 digits";
     setErrors(errs);
-    return Object.keys(errs).length === 0;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validate()) return;
+    if (Object.keys(errs).length > 0) return;
 
     try {
-      await login.mutateAsync({ mobile, pin });
+      const result = await sendOtp.mutateAsync({ mobile });
+      setStep("otp");
+      setOtp(["", "", "", ""]);
+      setCountdown(30);
+      setTimeout(() => inputRefs.current[0]?.focus(), 100);
+
+      toast({
+        title: "OTP Sent!",
+        description: `Your verification code is ${result.otp}. In production, this would be sent via SMS to +91 ${mobile}.`,
+        duration: 15000,
+      });
+    } catch (error: any) {
+      let msg = "Failed to send OTP";
+      try { msg = JSON.parse(error.message.split(":").slice(1).join(":").trim()).message; } catch {}
+      toast({ title: "Error", description: msg, variant: "destructive" });
+    }
+  };
+
+  const handleOtpChange = (index: number, value: string) => {
+    const digit = value.replace(/\D/g, "").slice(-1);
+    const newOtp = [...otp];
+    newOtp[index] = digit;
+    setOtp(newOtp);
+
+    if (digit && index < 3) {
+      inputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
+    if (e.key === "Backspace" && !otp[index] && index > 0) {
+      inputRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleOtpPaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 4);
+    if (pasted.length === 4) {
+      setOtp(pasted.split(""));
+      inputRefs.current[3]?.focus();
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const otpString = otp.join("");
+    if (otpString.length !== 4) {
+      setErrors({ otp: "Please enter the 4-digit OTP" });
+      return;
+    }
+    setErrors({});
+
+    try {
+      await verifyOtp.mutateAsync({ mobile, otp: otpString });
       toast({ title: "Welcome back!", description: "You have signed in successfully." });
       navigate("/account");
     } catch (error: any) {
-      const msg = error.message?.includes(":") ? error.message.split(":").slice(1).join(":").trim() : "Login failed. Please try again.";
-      let parsed = msg;
-      try { parsed = JSON.parse(msg).message; } catch {}
-      toast({ title: "Sign in failed", description: parsed, variant: "destructive" });
+      let msg = "Verification failed";
+      try { msg = JSON.parse(error.message.split(":").slice(1).join(":").trim()).message; } catch {}
+      toast({ title: "Invalid OTP", description: msg, variant: "destructive" });
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (countdown > 0) return;
+    try {
+      const result = await sendOtp.mutateAsync({ mobile });
+      setOtp(["", "", "", ""]);
+      setCountdown(30);
+      setTimeout(() => inputRefs.current[0]?.focus(), 100);
+      toast({
+        title: "OTP Resent!",
+        description: `Your new verification code is ${result.otp}. In production, this would be sent via SMS.`,
+        duration: 15000,
+      });
+    } catch {
+      toast({ title: "Error", description: "Failed to resend OTP", variant: "destructive" });
     }
   };
 
@@ -58,56 +131,101 @@ export default function LoginPage() {
         <h1 className="text-3xl font-bold tracking-tight text-center mb-2" data-testid="text-login-title">SIGN IN</h1>
         <p className="text-center text-muted-foreground text-sm mb-10">Welcome back to BESTA</p>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label className="block text-[10px] uppercase tracking-widest font-semibold mb-2">Mobile Number</label>
-            <div className="flex">
-              <span className="inline-flex items-center px-3 border border-r-0 border-border bg-secondary text-sm text-muted-foreground">+91</span>
-              <input
-                data-testid="input-mobile"
-                type="tel"
-                value={mobile}
-                onChange={(e) => setMobile(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                className="flex-1 border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-foreground"
-                placeholder="10-digit mobile number"
-              />
+        {step === "mobile" && (
+          <form onSubmit={handleSendOtp} className="space-y-5">
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest font-semibold mb-2">Mobile Number</label>
+              <div className="flex">
+                <span className="inline-flex items-center px-3 border border-r-0 border-border bg-secondary text-sm text-muted-foreground">+91</span>
+                <input
+                  data-testid="input-mobile"
+                  type="tel"
+                  value={mobile}
+                  onChange={(e) => setMobile(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                  className="flex-1 border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-foreground"
+                  placeholder="10-digit mobile number"
+                  autoFocus
+                />
+              </div>
+              {errors.mobile && <p className="text-red-500 text-xs mt-1">{errors.mobile}</p>}
             </div>
-            {errors.mobile && <p className="text-red-500 text-xs mt-1">{errors.mobile}</p>}
-          </div>
 
+            <button
+              data-testid="button-send-otp"
+              type="submit"
+              disabled={sendOtp.isPending}
+              className="w-full bg-foreground text-background py-3.5 text-xs uppercase tracking-widest font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {sendOtp.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Smartphone className="w-4 h-4" />}
+              Send OTP
+            </button>
+          </form>
+        )}
+
+        {step === "otp" && (
           <div>
-            <label className="block text-[10px] uppercase tracking-widest font-semibold mb-2">4-Digit PIN</label>
-            <div className="relative">
-              <input
-                data-testid="input-pin"
-                type={showPin ? "text" : "password"}
-                value={pin}
-                onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                className="w-full border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-foreground pr-12"
-                placeholder="••••"
-                maxLength={4}
-              />
+            <button
+              data-testid="button-back-to-mobile"
+              onClick={() => { setStep("mobile"); setOtp(["", "", "", ""]); setErrors({}); }}
+              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Change number
+            </button>
+
+            <div className="text-center mb-8">
+              <p className="text-sm text-muted-foreground">
+                We sent a verification code to
+              </p>
+              <p className="text-sm font-semibold mt-1">+91 {mobile}</p>
+            </div>
+
+            <form onSubmit={handleVerifyOtp} className="space-y-6">
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest font-semibold mb-4 text-center">Enter OTP</label>
+                <div className="flex gap-3 justify-center" onPaste={handleOtpPaste}>
+                  {otp.map((digit, i) => (
+                    <input
+                      key={i}
+                      ref={(el) => { inputRefs.current[i] = el; }}
+                      data-testid={`input-otp-${i}`}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={1}
+                      value={digit}
+                      onChange={(e) => handleOtpChange(i, e.target.value)}
+                      onKeyDown={(e) => handleOtpKeyDown(i, e)}
+                      className="w-14 h-14 text-center text-xl font-bold border border-border bg-background focus:outline-none focus:ring-2 focus:ring-foreground transition-all"
+                    />
+                  ))}
+                </div>
+                {errors.otp && <p className="text-red-500 text-xs mt-2 text-center">{errors.otp}</p>}
+              </div>
+
               <button
-                type="button"
-                onClick={() => setShowPin(!showPin)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                data-testid="button-verify-otp"
+                type="submit"
+                disabled={verifyOtp.isPending}
+                className="w-full bg-foreground text-background py-3.5 text-xs uppercase tracking-widest font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                {showPin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                {verifyOtp.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                Verify & Sign In
+              </button>
+            </form>
+
+            <div className="text-center mt-6">
+              <p className="text-xs text-muted-foreground mb-1">Didn't receive the code?</p>
+              <button
+                data-testid="button-resend-otp"
+                onClick={handleResendOtp}
+                disabled={countdown > 0 || sendOtp.isPending}
+                className="text-xs font-semibold uppercase tracking-widest text-foreground underline underline-offset-4 hover:opacity-70 disabled:opacity-40 disabled:no-underline"
+              >
+                {countdown > 0 ? `Resend in ${countdown}s` : "Resend OTP"}
               </button>
             </div>
-            {errors.pin && <p className="text-red-500 text-xs mt-1">{errors.pin}</p>}
           </div>
-
-          <button
-            data-testid="button-login"
-            type="submit"
-            disabled={login.isPending}
-            className="w-full bg-foreground text-background py-3.5 text-xs uppercase tracking-widest font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            {login.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-            Sign In
-          </button>
-        </form>
+        )}
 
         <p className="text-center text-sm text-muted-foreground mt-8">
           Don't have an account?{" "}

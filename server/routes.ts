@@ -6,6 +6,19 @@ import { z } from "zod";
 import { registerSchema, loginSchema, ORDER_STATUSES, getSizesForProduct } from "@shared/schema";
 import bcrypt from "bcryptjs";
 
+const otpStore = new Map<string, { otp: string; expiresAt: number }>();
+
+function generateOtp(): string {
+  return String(Math.floor(1000 + Math.random() * 9000));
+}
+
+function cleanExpiredOtps() {
+  const now = Date.now();
+  for (const [key, val] of otpStore) {
+    if (val.expiresAt < now) otpStore.delete(key);
+  }
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -57,6 +70,72 @@ export async function registerRoutes(
       res.json({ id: user.id, name: user.name, mobile: user.mobile, email: user.email, birthday: user.birthday, role: user.role });
     } catch (error) {
       console.error("Login error:", error);
+      res.status(500).json({ message: "Something went wrong. Please try again." });
+    }
+  });
+
+  app.post("/api/auth/send-otp", async (req, res) => {
+    try {
+      const schema = z.object({ mobile: z.string().regex(/^[6-9]\d{9}$/, "Invalid mobile number") });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0].message });
+      }
+      const { mobile } = parsed.data;
+
+      const user = await storage.getUserByMobile(mobile);
+      if (!user) {
+        return res.status(404).json({ message: "No account found with this mobile number" });
+      }
+
+      cleanExpiredOtps();
+      const otp = generateOtp();
+      otpStore.set(mobile, { otp, expiresAt: Date.now() + 5 * 60 * 1000 });
+
+      console.log(`[SMS SIM] OTP for +91${mobile}: ${otp}`);
+
+      res.json({ message: "OTP sent successfully", otp });
+    } catch (error) {
+      console.error("Send OTP error:", error);
+      res.status(500).json({ message: "Failed to send OTP. Please try again." });
+    }
+  });
+
+  app.post("/api/auth/verify-otp", async (req, res) => {
+    try {
+      const schema = z.object({
+        mobile: z.string().regex(/^[6-9]\d{9}$/),
+        otp: z.string().regex(/^\d{4}$/),
+      });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0].message });
+      }
+      const { mobile, otp } = parsed.data;
+
+      const stored = otpStore.get(mobile);
+      if (!stored) {
+        return res.status(400).json({ message: "OTP expired or not requested. Please request a new one." });
+      }
+      if (stored.expiresAt < Date.now()) {
+        otpStore.delete(mobile);
+        return res.status(400).json({ message: "OTP has expired. Please request a new one." });
+      }
+      if (stored.otp !== otp) {
+        return res.status(401).json({ message: "Invalid OTP. Please try again." });
+      }
+
+      otpStore.delete(mobile);
+
+      const user = await storage.getUserByMobile(mobile);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      req.session.userId = user.id;
+      res.json({ id: user.id, name: user.name, mobile: user.mobile, email: user.email, birthday: user.birthday, role: user.role });
+    } catch (error) {
+      console.error("Verify OTP error:", error);
       res.status(500).json({ message: "Something went wrong. Please try again." });
     }
   });
