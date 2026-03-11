@@ -51,7 +51,12 @@ export default function LoginPage() {
       setCountdown(30);
       if (result.simulated) setSimulatedOtp(result.otp);
       setTimeout(() => inputRefs.current[0]?.focus(), 100);
-      toast({ title: "OTP Sent!", description: `Verification code sent to +91 ${mobile}.` });
+      toast({
+        title: "OTP Sent!",
+        description: result.simulated
+          ? `Demo mode — your code is shown below.`
+          : `Verification code sent via SMS to +91 ${mobile}.`,
+      });
     } catch (error: any) {
       let msg = "Failed to send OTP";
       try { msg = JSON.parse(error.message.split(":").slice(1).join(":").trim()).message; } catch {}
@@ -113,7 +118,12 @@ export default function LoginPage() {
       setCountdown(30);
       if (result.simulated) setSimulatedOtp(result.otp);
       setTimeout(() => inputRefs.current[0]?.focus(), 100);
-      toast({ title: "OTP Resent!", description: `New verification code sent to +91 ${mobile}.` });
+      toast({
+        title: "OTP Resent!",
+        description: result.simulated
+          ? `Demo mode — your new code is shown below.`
+          : `New verification code sent via SMS to +91 ${mobile}.`,
+      });
     } catch {
       toast({ title: "Error", description: "Failed to resend OTP", variant: "destructive" });
     }

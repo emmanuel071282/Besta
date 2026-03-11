@@ -70,7 +70,12 @@ export default function RegisterPage() {
       setStep("otp");
       setResendTimer(30);
       if (data.simulated) setSimulatedOtp(data.otp);
-      toast({ title: "OTP Sent", description: `A 4-digit OTP has been sent to +91${mobile}` });
+      toast({
+        title: "OTP Sent",
+        description: data.simulated
+          ? `Demo mode — your code is shown below.`
+          : `Verification code sent via SMS to +91${mobile}.`,
+      });
     } catch (error: any) {
       let msg = "Failed to send OTP";
       try { msg = JSON.parse(error.message.split(":").slice(1).join(":").trim()).message; } catch {}
@@ -120,7 +125,12 @@ export default function RegisterPage() {
       setResendTimer(30);
       setOtp("");
       if (data.simulated) setSimulatedOtp(data.otp);
-      toast({ title: "OTP Resent", description: `A new OTP has been sent to +91${mobile}` });
+      toast({
+        title: "OTP Resent",
+        description: data.simulated
+          ? `Demo mode — your new code is shown below.`
+          : `New verification code sent via SMS to +91${mobile}.`,
+      });
     } catch (error: any) {
       let msg = "Failed to resend OTP";
       try { msg = JSON.parse(error.message.split(":").slice(1).join(":").trim()).message; } catch {}

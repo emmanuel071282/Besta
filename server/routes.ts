@@ -5,6 +5,7 @@ import { api } from "@shared/routes";
 import { z } from "zod";
 import { registerSchema, loginSchema, ORDER_STATUSES, getSizesForProduct } from "@shared/schema";
 import bcrypt from "bcryptjs";
+import { sendSms } from "./sms";
 
 const otpStore = new Map<string, { otp: string; expiresAt: number }>();
 const registrationOtpStore = new Map<string, { otp: string; expiresAt: number; verified: boolean }>();
@@ -42,9 +43,9 @@ export async function registerRoutes(
       const otp = generateOtp();
       registrationOtpStore.set(mobile, { otp, expiresAt: Date.now() + 5 * 60 * 1000, verified: false });
 
-      console.log(`[SMS SIM] Registration OTP for +91${mobile}: ${otp}`);
+      const { simulated } = await sendSms(mobile, `Your BESTA registration OTP is ${otp}. Valid for 5 minutes. Do not share this code.`);
 
-      res.json({ message: "OTP sent successfully", otp, simulated: true });
+      res.json({ message: "OTP sent successfully", ...(simulated ? { otp, simulated: true } : {}) });
     } catch (error) {
       console.error("Send registration OTP error:", error);
       res.status(500).json({ message: "Failed to send OTP. Please try again." });
@@ -161,9 +162,9 @@ export async function registerRoutes(
       const otp = generateOtp();
       otpStore.set(mobile, { otp, expiresAt: Date.now() + 5 * 60 * 1000 });
 
-      console.log(`[SMS SIM] OTP for +91${mobile}: ${otp}`);
+      const { simulated } = await sendSms(mobile, `Your BESTA login OTP is ${otp}. Valid for 5 minutes. Do not share this code.`);
 
-      res.json({ message: "OTP sent successfully", otp, simulated: true });
+      res.json({ message: "OTP sent successfully", ...(simulated ? { otp, simulated: true } : {}) });
     } catch (error) {
       console.error("Send OTP error:", error);
       res.status(500).json({ message: "Failed to send OTP. Please try again." });
