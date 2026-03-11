@@ -11,17 +11,17 @@ const twilioEnabled =
 
 export async function sendSms(to: string, message: string): Promise<{ simulated: boolean }> {
   if (!twilioEnabled) {
-    console.log(`[SMS SIM] To +91${to}: ${message}`);
+    console.log(`[WA SIM] To +91${to}: ${message}`);
     return { simulated: true };
   }
 
   const client = twilio(accountSid, authToken);
   await client.messages.create({
     body: message,
-    from: fromNumber,
-    to: `+91${to}`,
+    from: `whatsapp:${fromNumber}`,
+    to: `whatsapp:+91${to}`,
   });
 
-  console.log(`[SMS] Sent to +91${to}`);
+  console.log(`[WhatsApp] Sent to +91${to}`);
   return { simulated: false };
 }

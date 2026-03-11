@@ -11,7 +11,7 @@ Full omni-channel fast-fashion e-commerce platform for the Indian market. Featur
 ## Key Features
 - 124 products across 5 categories with grouped subcategories
 - Shopping cart (drawer UI), wishlist (heart toggle)
-- User accounts: registration (mobile + 4-digit PIN), OTP-based login via Twilio SMS, sessions
+- User accounts: registration (mobile + 4-digit PIN), OTP-based login via Twilio WhatsApp, sessions
 - Checkout with shipping address form + Indian payment options (Card, Net Banking, UPI)
 - Order placement via API (POST /api/orders), order history, order detail with status tracking
 - Exchange & Returns policy page
@@ -50,7 +50,7 @@ Full omni-channel fast-fashion e-commerce platform for the Indian market. Featur
 ### Auth
 - `POST /api/auth/register` - Register new user
 - `POST /api/auth/login` - Login (legacy PIN-based, kept as fallback)
-- `POST /api/auth/send-otp` - Send OTP to mobile via Twilio SMS (falls back to simulated mode if Twilio not configured)
+- `POST /api/auth/send-otp` - Send OTP via Twilio WhatsApp (falls back to simulated mode if Twilio not configured)
 - `POST /api/auth/verify-otp` - Verify OTP and login
 - `GET /api/auth/me` - Current user
 - `POST /api/auth/logout` - Logout

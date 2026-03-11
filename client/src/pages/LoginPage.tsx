@@ -55,7 +55,7 @@ export default function LoginPage() {
         title: "OTP Sent!",
         description: result.simulated
           ? `Demo mode — your code is shown below.`
-          : `Verification code sent via SMS to +91 ${mobile}.`,
+          : `Verification code sent via WhatsApp to +91 ${mobile}.`,
       });
     } catch (error: any) {
       let msg = "Failed to send OTP";
@@ -122,7 +122,7 @@ export default function LoginPage() {
         title: "OTP Resent!",
         description: result.simulated
           ? `Demo mode — your new code is shown below.`
-          : `New verification code sent via SMS to +91 ${mobile}.`,
+          : `New verification code sent via WhatsApp to +91 ${mobile}.`,
       });
     } catch {
       toast({ title: "Error", description: "Failed to resend OTP", variant: "destructive" });
