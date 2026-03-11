@@ -386,7 +386,7 @@ async function seedDatabase() {
   try {
     const existingProducts = await storage.getProducts();
     if (existingProducts.length > 0) {
-      const hasV3Subcats = existingProducts.some(p => p.subcategory === "Joggers" || p.subcategory === "Rompers" || p.subcategory === "Sherwanis");
+      const hasV3Subcats = existingProducts.some(p => p.subcategory === "Joggers" || p.subcategory === "Rompers") && !existingProducts.some(p => p.subcategory === "Sherwanis" && p.category === "Mens");
       if (hasV3Subcats) {
         await seedStoresAndInventory();
         await seedAdminUser();
@@ -411,8 +411,6 @@ async function seedDatabase() {
       // ===== MENS - Ethnic Wear =====
       { name: "Cotton Kurta Set", description: "Traditional cotton kurta with embroidered neckline, paired with churidar.", price: "2999", imageUrl: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?q=80&w=800&auto=format&fit=crop", category: "Mens", subcategory: "Kurtas" },
       { name: "Silk Blend Kurta", description: "Festive silk blend kurta with intricate threadwork and mandarin collar.", price: "4499", imageUrl: "https://images.unsplash.com/photo-1598522325074-042db73aa4e6?q=80&w=800&auto=format&fit=crop", category: "Mens", subcategory: "Kurtas" },
-      { name: "Royal Blue Sherwani", description: "Regal sherwani in royal blue with gold embroidery, perfect for weddings.", price: "12999", imageUrl: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?q=80&w=800&auto=format&fit=crop", category: "Mens", subcategory: "Sherwanis" },
-      { name: "Ivory Silk Sherwani", description: "Elegant ivory silk sherwani with intricate zardozi work and pearl buttons.", price: "15999", imageUrl: "https://images.unsplash.com/photo-1598522325074-042db73aa4e6?q=80&w=800&auto=format&fit=crop", category: "Mens", subcategory: "Sherwanis" },
       { name: "Classic Nehru Jacket", description: "Mandarin collar Nehru jacket in textured cotton, versatile layering piece.", price: "3499", imageUrl: "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?q=80&w=800&auto=format&fit=crop", category: "Mens", subcategory: "Nehru Jackets" },
       { name: "Brocade Nehru Jacket", description: "Festive brocade Nehru jacket with silk lining, ideal for celebrations.", price: "4999", imageUrl: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?q=80&w=800&auto=format&fit=crop", category: "Mens", subcategory: "Nehru Jackets" },
       // ===== MENS - Athleisure =====
