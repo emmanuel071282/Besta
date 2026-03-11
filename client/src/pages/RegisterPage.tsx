@@ -1,14 +1,16 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function RegisterPage() {
   const [, navigate] = useLocation();
   const { register, isLoggedIn, isLoading } = useAuth();
   const { toast } = useToast();
 
+  const [step, setStep] = useState<"details" | "otp" | "complete">("details");
   const [name, setName] = useState("");
   const [mobile, setMobile] = useState("");
   const [email, setEmail] = useState("");
@@ -19,9 +21,21 @@ export default function RegisterPage() {
   const [showConfirmPin, setShowConfirmPin] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  const [otp, setOtp] = useState("");
+  const [otpSending, setOtpSending] = useState(false);
+  const [otpVerifying, setOtpVerifying] = useState(false);
+  const [mobileVerified, setMobileVerified] = useState(false);
+  const [resendTimer, setResendTimer] = useState(0);
+
   useEffect(() => {
     if (!isLoading && isLoggedIn) navigate("/account");
   }, [isLoading, isLoggedIn, navigate]);
+
+  useEffect(() => {
+    if (resendTimer <= 0) return;
+    const interval = setInterval(() => setResendTimer((t) => t - 1), 1000);
+    return () => clearInterval(interval);
+  }, [resendTimer]);
 
   if (isLoading) {
     return (
@@ -33,7 +47,7 @@ export default function RegisterPage() {
 
   if (isLoggedIn) return null;
 
-  const validate = () => {
+  const validateDetails = () => {
     const errs: Record<string, string> = {};
     if (name.trim().length < 2) errs.name = "Name must be at least 2 characters";
     if (!/^[6-9]\d{9}$/.test(mobile)) errs.mobile = "Enter a valid 10-digit Indian mobile number";
@@ -45,19 +59,69 @@ export default function RegisterPage() {
     return Object.keys(errs).length === 0;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validate()) return;
+  const handleSendOtp = async () => {
+    if (!validateDetails()) return;
+
+    setOtpSending(true);
+    try {
+      await apiRequest("POST", "/api/auth/send-registration-otp", { mobile });
+      setStep("otp");
+      setResendTimer(30);
+      toast({ title: "OTP Sent", description: `A 4-digit OTP has been sent to +91${mobile}` });
+    } catch (error: any) {
+      let msg = "Failed to send OTP";
+      try { msg = JSON.parse(error.message.split(":").slice(1).join(":").trim()).message; } catch {}
+      toast({ title: "Error", description: msg, variant: "destructive" });
+    } finally {
+      setOtpSending(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!/^\d{4}$/.test(otp)) {
+      setErrors({ otp: "Enter a valid 4-digit OTP" });
+      return;
+    }
+    setErrors({});
+    setOtpVerifying(true);
+    try {
+      await apiRequest("POST", "/api/auth/verify-registration-otp", { mobile, otp });
+      setMobileVerified(true);
+    } catch (error: any) {
+      let msg = "Invalid OTP. Please try again.";
+      try { msg = JSON.parse(error.message.split(":").slice(1).join(":").trim()).message; } catch {}
+      toast({ title: "Verification Failed", description: msg, variant: "destructive" });
+      setOtpVerifying(false);
+      return;
+    }
 
     try {
       await register.mutateAsync({ name: name.trim(), mobile, email: email.trim(), pin, confirmPin, birthday });
       toast({ title: "Welcome to BESTA!", description: "Your account has been created successfully." });
       navigate("/account");
     } catch (error: any) {
-      const msg = error.message?.includes(":") ? error.message.split(":").slice(1).join(":").trim() : "Registration failed. Please try again.";
-      let parsed = msg;
-      try { parsed = JSON.parse(msg).message; } catch {}
-      toast({ title: "Registration failed", description: parsed, variant: "destructive" });
+      let msg = "Registration failed. Please try again.";
+      try { msg = JSON.parse(error.message.split(":").slice(1).join(":").trim()).message; } catch {}
+      toast({ title: "Registration Failed", description: msg, variant: "destructive" });
+    } finally {
+      setOtpVerifying(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (resendTimer > 0) return;
+    setOtpSending(true);
+    try {
+      await apiRequest("POST", "/api/auth/send-registration-otp", { mobile });
+      setResendTimer(30);
+      setOtp("");
+      toast({ title: "OTP Resent", description: `A new OTP has been sent to +91${mobile}` });
+    } catch (error: any) {
+      let msg = "Failed to resend OTP";
+      try { msg = JSON.parse(error.message.split(":").slice(1).join(":").trim()).message; } catch {}
+      toast({ title: "Error", description: msg, variant: "destructive" });
+    } finally {
+      setOtpSending(false);
     }
   };
 
@@ -67,117 +131,200 @@ export default function RegisterPage() {
         <h1 className="text-3xl md:text-4xl font-display font-bold tracking-tighter text-center mb-2 uppercase" data-testid="text-register-title">Create Account</h1>
         <p className="text-center text-muted-foreground text-sm mb-10">Join BESTA for a seamless shopping experience</p>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label className="block text-[10px] uppercase tracking-widest font-semibold mb-2">Full Name</label>
-            <input
-              data-testid="input-name"
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-foreground"
-              placeholder="Enter your full name"
-            />
-            {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
-          </div>
-
-          <div>
-            <label className="block text-[10px] uppercase tracking-widest font-semibold mb-2">Mobile Number</label>
-            <div className="flex">
-              <span className="inline-flex items-center px-3 border border-r-0 border-border bg-secondary text-sm text-muted-foreground">+91</span>
+        {step === "details" && (
+          <form onSubmit={(e) => { e.preventDefault(); handleSendOtp(); }} className="space-y-5">
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest font-semibold mb-2">Full Name</label>
               <input
-                data-testid="input-mobile"
-                type="tel"
-                value={mobile}
-                onChange={(e) => setMobile(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                className="flex-1 border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-foreground"
-                placeholder="10-digit mobile number"
+                data-testid="input-name"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-foreground"
+                placeholder="Enter your full name"
               />
+              {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
             </div>
-            {errors.mobile && <p className="text-red-500 text-xs mt-1">{errors.mobile}</p>}
-          </div>
 
-          <div>
-            <label className="block text-[10px] uppercase tracking-widest font-semibold mb-2">Email Address</label>
-            <input
-              data-testid="input-email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-foreground"
-              placeholder="your@email.com"
-            />
-            {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
-          </div>
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest font-semibold mb-2">Mobile Number</label>
+              <div className="flex">
+                <span className="inline-flex items-center px-3 border border-r-0 border-border bg-secondary text-sm text-muted-foreground">+91</span>
+                <input
+                  data-testid="input-mobile"
+                  type="tel"
+                  value={mobile}
+                  onChange={(e) => setMobile(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                  className="flex-1 border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-foreground"
+                  placeholder="10-digit mobile number"
+                />
+              </div>
+              {errors.mobile && <p className="text-red-500 text-xs mt-1">{errors.mobile}</p>}
+            </div>
 
-          <div>
-            <label className="block text-[10px] uppercase tracking-widest font-semibold mb-2">Birthday</label>
-            <input
-              data-testid="input-birthday"
-              type="date"
-              value={birthday}
-              onChange={(e) => setBirthday(e.target.value)}
-              className="w-full border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-foreground"
-            />
-            {errors.birthday && <p className="text-red-500 text-xs mt-1">{errors.birthday}</p>}
-          </div>
-
-          <div>
-            <label className="block text-[10px] uppercase tracking-widest font-semibold mb-2">4-Digit PIN</label>
-            <div className="relative">
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest font-semibold mb-2">Email Address</label>
               <input
-                data-testid="input-pin"
-                type={showPin ? "text" : "password"}
-                value={pin}
-                onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                className="w-full border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-foreground pr-12"
-                placeholder="••••"
-                maxLength={4}
+                data-testid="input-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-foreground"
+                placeholder="your@email.com"
               />
+              {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
+            </div>
+
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest font-semibold mb-2">Birthday</label>
+              <input
+                data-testid="input-birthday"
+                type="date"
+                value={birthday}
+                onChange={(e) => setBirthday(e.target.value)}
+                className="w-full border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-foreground"
+              />
+              {errors.birthday && <p className="text-red-500 text-xs mt-1">{errors.birthday}</p>}
+            </div>
+
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest font-semibold mb-2">4-Digit PIN</label>
+              <div className="relative">
+                <input
+                  data-testid="input-pin"
+                  type={showPin ? "text" : "password"}
+                  value={pin}
+                  onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                  className="w-full border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-foreground pr-12"
+                  placeholder="••••"
+                  maxLength={4}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPin(!showPin)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showPin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              {errors.pin && <p className="text-red-500 text-xs mt-1">{errors.pin}</p>}
+            </div>
+
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest font-semibold mb-2">Confirm PIN</label>
+              <div className="relative">
+                <input
+                  data-testid="input-confirm-pin"
+                  type={showConfirmPin ? "text" : "password"}
+                  value={confirmPin}
+                  onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                  className="w-full border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-foreground pr-12"
+                  placeholder="••••"
+                  maxLength={4}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPin(!showConfirmPin)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showConfirmPin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              {errors.confirmPin && <p className="text-red-500 text-xs mt-1">{errors.confirmPin}</p>}
+            </div>
+
+            <button
+              data-testid="button-send-otp"
+              type="submit"
+              disabled={otpSending}
+              className="w-full bg-foreground text-background py-3.5 text-xs uppercase tracking-widest font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {otpSending && <Loader2 className="w-4 h-4 animate-spin" />}
+              Verify Mobile & Create Account
+            </button>
+          </form>
+        )}
+
+        {step === "otp" && (
+          <div className="space-y-6">
+            <div className="text-center space-y-2">
+              <p className="text-sm text-muted-foreground">
+                We've sent a 4-digit OTP to
+              </p>
+              <p className="text-sm font-semibold">+91 {mobile}</p>
               <button
+                data-testid="button-change-mobile"
                 type="button"
-                onClick={() => setShowPin(!showPin)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                onClick={() => { setStep("details"); setOtp(""); setMobileVerified(false); }}
+                className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
               >
-                {showPin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                Change number
               </button>
             </div>
-            {errors.pin && <p className="text-red-500 text-xs mt-1">{errors.pin}</p>}
-          </div>
 
-          <div>
-            <label className="block text-[10px] uppercase tracking-widest font-semibold mb-2">Confirm PIN</label>
-            <div className="relative">
-              <input
-                data-testid="input-confirm-pin"
-                type={showConfirmPin ? "text" : "password"}
-                value={confirmPin}
-                onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                className="w-full border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-foreground pr-12"
-                placeholder="••••"
-                maxLength={4}
-              />
-              <button
-                type="button"
-                onClick={() => setShowConfirmPin(!showConfirmPin)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                {showConfirmPin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest font-semibold mb-2 text-center">Enter OTP</label>
+              <div className="flex justify-center gap-2">
+                {[0, 1, 2, 3].map((i) => (
+                  <input
+                    key={i}
+                    data-testid={`input-otp-${i}`}
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={1}
+                    value={otp[i] || ""}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, "");
+                      const newOtp = otp.split("");
+                      newOtp[i] = val;
+                      setOtp(newOtp.join("").slice(0, 4));
+                      if (val && i < 3) {
+                        const next = e.target.parentElement?.children[i + 1] as HTMLInputElement;
+                        next?.focus();
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Backspace" && !otp[i] && i > 0) {
+                        const prev = (e.target as HTMLElement).parentElement?.children[i - 1] as HTMLInputElement;
+                        prev?.focus();
+                      }
+                    }}
+                    className="w-14 h-14 border border-border bg-background text-center text-lg font-semibold focus:outline-none focus:ring-1 focus:ring-foreground"
+                  />
+                ))}
+              </div>
+              {errors.otp && <p className="text-red-500 text-xs mt-1 text-center">{errors.otp}</p>}
             </div>
-            {errors.confirmPin && <p className="text-red-500 text-xs mt-1">{errors.confirmPin}</p>}
-          </div>
 
-          <button
-            data-testid="button-register"
-            type="submit"
-            disabled={register.isPending}
-            className="w-full bg-foreground text-background py-3.5 text-xs uppercase tracking-widest font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            {register.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-            Create Account
-          </button>
-        </form>
+            <button
+              data-testid="button-verify-otp"
+              type="button"
+              onClick={handleVerifyOtp}
+              disabled={otpVerifying || otp.length < 4}
+              className="w-full bg-foreground text-background py-3.5 text-xs uppercase tracking-widest font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {otpVerifying && <Loader2 className="w-4 h-4 animate-spin" />}
+              {otpVerifying ? "Verifying..." : "Verify & Create Account"}
+            </button>
+
+            <p className="text-center text-sm text-muted-foreground">
+              Didn't receive the OTP?{" "}
+              {resendTimer > 0 ? (
+                <span className="text-foreground">Resend in {resendTimer}s</span>
+              ) : (
+                <button
+                  data-testid="button-resend-otp"
+                  type="button"
+                  onClick={handleResendOtp}
+                  disabled={otpSending}
+                  className="text-foreground underline underline-offset-4 hover:opacity-70"
+                >
+                  Resend OTP
+                </button>
+              )}
+            </p>
+          </div>
+        )}
 
         <p className="text-center text-sm text-muted-foreground mt-8">
           Already have an account?{" "}

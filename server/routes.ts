@@ -7,6 +7,7 @@ import { registerSchema, loginSchema, ORDER_STATUSES, getSizesForProduct } from 
 import bcrypt from "bcryptjs";
 
 const otpStore = new Map<string, { otp: string; expiresAt: number }>();
+const registrationOtpStore = new Map<string, { otp: string; expiresAt: number; verified: boolean }>();
 
 function generateOtp(): string {
   return String(Math.floor(1000 + Math.random() * 9000));
@@ -24,6 +25,64 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
 
+  app.post("/api/auth/send-registration-otp", async (req, res) => {
+    try {
+      const schema = z.object({ mobile: z.string().regex(/^[6-9]\d{9}$/, "Invalid mobile number") });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0].message });
+      }
+      const { mobile } = parsed.data;
+
+      const existing = await storage.getUserByMobile(mobile);
+      if (existing) {
+        return res.status(409).json({ message: "An account with this mobile number already exists" });
+      }
+
+      const otp = generateOtp();
+      registrationOtpStore.set(mobile, { otp, expiresAt: Date.now() + 5 * 60 * 1000, verified: false });
+
+      console.log(`[SMS SIM] Registration OTP for +91${mobile}: ${otp}`);
+
+      res.json({ message: "OTP sent successfully" });
+    } catch (error) {
+      console.error("Send registration OTP error:", error);
+      res.status(500).json({ message: "Failed to send OTP. Please try again." });
+    }
+  });
+
+  app.post("/api/auth/verify-registration-otp", async (req, res) => {
+    try {
+      const schema = z.object({
+        mobile: z.string().regex(/^[6-9]\d{9}$/),
+        otp: z.string().regex(/^\d{4}$/),
+      });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0].message });
+      }
+      const { mobile, otp } = parsed.data;
+
+      const stored = registrationOtpStore.get(mobile);
+      if (!stored) {
+        return res.status(400).json({ message: "OTP expired or not requested. Please request a new one." });
+      }
+      if (stored.expiresAt < Date.now()) {
+        registrationOtpStore.delete(mobile);
+        return res.status(400).json({ message: "OTP has expired. Please request a new one." });
+      }
+      if (stored.otp !== otp) {
+        return res.status(401).json({ message: "Invalid OTP. Please try again." });
+      }
+
+      registrationOtpStore.set(mobile, { ...stored, verified: true });
+      res.json({ message: "Mobile number verified successfully" });
+    } catch (error) {
+      console.error("Verify registration OTP error:", error);
+      res.status(500).json({ message: "Something went wrong. Please try again." });
+    }
+  });
+
   app.post("/api/auth/register", async (req, res) => {
     try {
       const parsed = registerSchema.safeParse(req.body);
@@ -31,6 +90,16 @@ export async function registerRoutes(
         return res.status(400).json({ message: parsed.error.errors[0].message });
       }
       const { name, mobile, email, pin, birthday } = parsed.data;
+
+      const storedOtp = registrationOtpStore.get(mobile);
+      if (!storedOtp || !storedOtp.verified) {
+        return res.status(400).json({ message: "Mobile number not verified. Please verify with OTP first." });
+      }
+      if (storedOtp.expiresAt < Date.now()) {
+        registrationOtpStore.delete(mobile);
+        return res.status(400).json({ message: "Verification expired. Please start the registration again." });
+      }
+      registrationOtpStore.delete(mobile);
 
       const existing = await storage.getUserByMobile(mobile);
       if (existing) {
@@ -94,7 +163,7 @@ export async function registerRoutes(
 
       console.log(`[SMS SIM] OTP for +91${mobile}: ${otp}`);
 
-      res.json({ message: "OTP sent successfully", otp });
+      res.json({ message: "OTP sent successfully" });
     } catch (error) {
       console.error("Send OTP error:", error);
       res.status(500).json({ message: "Failed to send OTP. Please try again." });
