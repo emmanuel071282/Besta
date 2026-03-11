@@ -386,7 +386,7 @@ async function seedDatabase() {
   try {
     const existingProducts = await storage.getProducts();
     if (existingProducts.length > 0) {
-      const hasV3Subcats = existingProducts.some(p => p.subcategory === "Joggers" || p.subcategory === "Rompers") && !existingProducts.some(p => p.subcategory === "Sherwanis" && p.category === "Mens");
+      const hasV3Subcats = existingProducts.some(p => p.subcategory === "Joggers" || p.subcategory === "Rompers") && !existingProducts.some(p => p.name === "Boys Sherwani Set");
       if (hasV3Subcats) {
         await seedStoresAndInventory();
         await seedAdminUser();
@@ -487,7 +487,6 @@ async function seedDatabase() {
       { name: "Denim Shorts", description: "Comfortable stretch denim shorts with elastic waistband.", price: "799", imageUrl: "https://images.unsplash.com/photo-1519238263530-99abe11d5163?q=80&w=800&auto=format&fit=crop", category: "Kids", subcategory: "Shorts" },
       { name: "Boys Quilted Jacket", description: "Lightweight quilted jacket with water-repellent finish for boys.", price: "2499", imageUrl: "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?q=80&w=800&auto=format&fit=crop", category: "Kids", subcategory: "Jackets" },
       { name: "Boys Kurta Pyjama Set", description: "Festive cotton kurta pyjama set with embroidered motifs for boys.", price: "1499", imageUrl: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?q=80&w=800&auto=format&fit=crop", category: "Kids", subcategory: "Ethnic Wear" },
-      { name: "Boys Sherwani Set", description: "Mini sherwani set with churidar for festive celebrations.", price: "2299", imageUrl: "https://images.unsplash.com/photo-1598522325074-042db73aa4e6?q=80&w=800&auto=format&fit=crop", category: "Kids", subcategory: "Ethnic Wear" },
       // ===== KIDS - Girls =====
       { name: "Girls Floral Frock", description: "Adorable floral print frock with ruffled hem and bow detail.", price: "1299", imageUrl: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?q=80&w=800&auto=format&fit=crop", category: "Kids", subcategory: "Dresses" },
       { name: "Party Tulle Dress", description: "Sparkly tulle party dress with sequin bodice for special occasions.", price: "1999", imageUrl: "https://images.unsplash.com/photo-1518831959646-742c3a14ebf7?q=80&w=800&auto=format&fit=crop", category: "Kids", subcategory: "Dresses" },
