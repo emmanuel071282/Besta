@@ -26,6 +26,7 @@ export default function RegisterPage() {
   const [otpVerifying, setOtpVerifying] = useState(false);
   const [mobileVerified, setMobileVerified] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
+  const [simulatedOtp, setSimulatedOtp] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isLoading && isLoggedIn) navigate("/account");
@@ -64,9 +65,11 @@ export default function RegisterPage() {
 
     setOtpSending(true);
     try {
-      await apiRequest("POST", "/api/auth/send-registration-otp", { mobile });
+      const result = await apiRequest("POST", "/api/auth/send-registration-otp", { mobile });
+      const data = await result.json();
       setStep("otp");
       setResendTimer(30);
+      if (data.simulated) setSimulatedOtp(data.otp);
       toast({ title: "OTP Sent", description: `A 4-digit OTP has been sent to +91${mobile}` });
     } catch (error: any) {
       let msg = "Failed to send OTP";
@@ -112,9 +115,11 @@ export default function RegisterPage() {
     if (resendTimer > 0) return;
     setOtpSending(true);
     try {
-      await apiRequest("POST", "/api/auth/send-registration-otp", { mobile });
+      const result = await apiRequest("POST", "/api/auth/send-registration-otp", { mobile });
+      const data = await result.json();
       setResendTimer(30);
       setOtp("");
+      if (data.simulated) setSimulatedOtp(data.otp);
       toast({ title: "OTP Resent", description: `A new OTP has been sent to +91${mobile}` });
     } catch (error: any) {
       let msg = "Failed to resend OTP";
@@ -255,12 +260,20 @@ export default function RegisterPage() {
               <button
                 data-testid="button-change-mobile"
                 type="button"
-                onClick={() => { setStep("details"); setOtp(""); setMobileVerified(false); }}
+                onClick={() => { setStep("details"); setOtp(""); setMobileVerified(false); setSimulatedOtp(null); }}
                 className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
               >
                 Change number
               </button>
             </div>
+
+            {simulatedOtp && (
+              <div className="p-4 border border-dashed border-amber-400 bg-amber-50 dark:bg-amber-950/20 text-center rounded-sm">
+                <p className="text-[10px] uppercase tracking-widest text-amber-700 dark:text-amber-400 font-semibold mb-1">Demo Mode — Your OTP</p>
+                <p className="text-3xl font-bold tracking-[0.4em] text-amber-700 dark:text-amber-400">{simulatedOtp}</p>
+                <p className="text-[10px] text-amber-600 dark:text-amber-500 mt-1">SMS delivery requires a connected SMS provider</p>
+              </div>
+            )}
 
             <div>
               <label className="block text-[10px] uppercase tracking-widest font-semibold mb-2 text-center">Enter OTP</label>

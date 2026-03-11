@@ -44,7 +44,7 @@ export async function registerRoutes(
 
       console.log(`[SMS SIM] Registration OTP for +91${mobile}: ${otp}`);
 
-      res.json({ message: "OTP sent successfully" });
+      res.json({ message: "OTP sent successfully", otp, simulated: true });
     } catch (error) {
       console.error("Send registration OTP error:", error);
       res.status(500).json({ message: "Failed to send OTP. Please try again." });
@@ -163,7 +163,7 @@ export async function registerRoutes(
 
       console.log(`[SMS SIM] OTP for +91${mobile}: ${otp}`);
 
-      res.json({ message: "OTP sent successfully" });
+      res.json({ message: "OTP sent successfully", otp, simulated: true });
     } catch (error) {
       console.error("Send OTP error:", error);
       res.status(500).json({ message: "Failed to send OTP. Please try again." });

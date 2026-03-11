@@ -14,6 +14,7 @@ export default function LoginPage() {
   const [otp, setOtp] = useState(["", "", "", ""]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [countdown, setCountdown] = useState(0);
+  const [simulatedOtp, setSimulatedOtp] = useState<string | null>(null);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
@@ -48,13 +49,9 @@ export default function LoginPage() {
       setStep("otp");
       setOtp(["", "", "", ""]);
       setCountdown(30);
+      if (result.simulated) setSimulatedOtp(result.otp);
       setTimeout(() => inputRefs.current[0]?.focus(), 100);
-
-      toast({
-        title: "OTP Sent!",
-        description: `Your verification code is ${result.otp}. In production, this would be sent via SMS to +91 ${mobile}.`,
-        duration: 15000,
-      });
+      toast({ title: "OTP Sent!", description: `Verification code sent to +91 ${mobile}.` });
     } catch (error: any) {
       let msg = "Failed to send OTP";
       try { msg = JSON.parse(error.message.split(":").slice(1).join(":").trim()).message; } catch {}
@@ -114,12 +111,9 @@ export default function LoginPage() {
       const result = await sendOtp.mutateAsync({ mobile });
       setOtp(["", "", "", ""]);
       setCountdown(30);
+      if (result.simulated) setSimulatedOtp(result.otp);
       setTimeout(() => inputRefs.current[0]?.focus(), 100);
-      toast({
-        title: "OTP Resent!",
-        description: `Your new verification code is ${result.otp}. In production, this would be sent via SMS.`,
-        duration: 15000,
-      });
+      toast({ title: "OTP Resent!", description: `New verification code sent to +91 ${mobile}.` });
     } catch {
       toast({ title: "Error", description: "Failed to resend OTP", variant: "destructive" });
     }
@@ -179,6 +173,14 @@ export default function LoginPage() {
               </p>
               <p className="text-sm font-semibold mt-1">+91 {mobile}</p>
             </div>
+
+            {simulatedOtp && (
+              <div className="mb-6 p-4 border border-dashed border-amber-400 bg-amber-50 dark:bg-amber-950/20 text-center rounded-sm">
+                <p className="text-[10px] uppercase tracking-widest text-amber-700 dark:text-amber-400 font-semibold mb-1">Demo Mode — Your OTP</p>
+                <p className="text-3xl font-bold tracking-[0.4em] text-amber-700 dark:text-amber-400">{simulatedOtp}</p>
+                <p className="text-[10px] text-amber-600 dark:text-amber-500 mt-1">SMS delivery requires a connected SMS provider</p>
+              </div>
+            )}
 
             <form onSubmit={handleVerifyOtp} className="space-y-6">
               <div>
