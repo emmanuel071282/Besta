@@ -1,12 +1,13 @@
 import { db } from "./db";
 import {
-  products, users, stores, inventory, orders, orderItems,
+  products, users, stores, inventory, orders, orderItems, supportRequests,
   type Product, type InsertProduct,
   type User, type InsertUser,
   type Store, type InsertStore,
   type Inventory, type InsertInventory,
   type Order, type InsertOrder,
   type OrderItem, type InsertOrderItem,
+  type SupportRequest, type InsertSupportRequest,
   getSizesForProduct,
 } from "@shared/schema";
 import { eq, and, desc, sql, gte, lte, inArray } from "drizzle-orm";
@@ -47,6 +48,10 @@ export interface IStorage {
   getDashboardStats(): Promise<{ totalOrders: number; totalRevenue: number; totalProducts: number; activeStores: number }>;
   getSalesReport(startDate: Date, endDate: Date): Promise<{ date: string; orders: number; revenue: number }[]>;
   getTopSellingProducts(limit: number): Promise<{ productId: number; name: string; totalQuantity: number; totalRevenue: number }[]>;
+
+  createSupportRequest(data: InsertSupportRequest): Promise<SupportRequest>;
+  getSupportRequests(): Promise<SupportRequest[]>;
+  updateSupportRequestStatus(id: number, status: string): Promise<SupportRequest | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -326,6 +331,20 @@ export class DatabaseStorage implements IStorage {
       totalQuantity: Number(r.totalQuantity),
       totalRevenue: Number(r.totalRevenue),
     }));
+  }
+
+  async createSupportRequest(data: InsertSupportRequest): Promise<SupportRequest> {
+    const [req] = await db.insert(supportRequests).values(data).returning();
+    return req;
+  }
+
+  async getSupportRequests(): Promise<SupportRequest[]> {
+    return db.select().from(supportRequests).orderBy(desc(supportRequests.createdAt));
+  }
+
+  async updateSupportRequestStatus(id: number, status: string): Promise<SupportRequest | undefined> {
+    const [updated] = await db.update(supportRequests).set({ status }).where(eq(supportRequests.id, id)).returning();
+    return updated;
   }
 }
 

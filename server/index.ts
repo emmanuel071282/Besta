@@ -100,6 +100,21 @@ app.use((req, res, next) => {
     )
   `);
 
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS support_requests (
+      id SERIAL PRIMARY KEY,
+      ticket_number TEXT NOT NULL,
+      mobile TEXT NOT NULL,
+      type TEXT NOT NULL,
+      order_number TEXT NOT NULL,
+      item_description TEXT NOT NULL,
+      reason TEXT NOT NULL,
+      extra_details TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'pending',
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `);
+
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {

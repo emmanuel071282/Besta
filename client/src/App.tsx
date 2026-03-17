@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { CartDrawer } from "@/components/cart/CartDrawer";
+import { ChatWidget } from "@/components/ChatWidget";
 import NotFound from "@/pages/not-found";
 
 import Home from "@/pages/Home";
@@ -26,6 +27,7 @@ import AdminOrdersPage from "@/pages/admin/OrdersPage";
 import SalesPage from "@/pages/admin/SalesPage";
 import StoresPage from "@/pages/admin/StoresPage";
 import InventoryPage from "@/pages/admin/InventoryPage";
+import AdminSupportPage from "@/pages/admin/SupportPage";
 
 function StorefrontRouter() {
   return (
@@ -49,6 +51,7 @@ function StorefrontRouter() {
       </main>
       <Footer />
       <CartDrawer />
+      <ChatWidget />
     </div>
   );
 }
@@ -64,6 +67,7 @@ function App() {
           <Route path="/admin/sales" component={SalesPage} />
           <Route path="/admin/stores" component={StoresPage} />
           <Route path="/admin/inventory" component={InventoryPage} />
+          <Route path="/admin/support" component={AdminSupportPage} />
           <Route component={StorefrontRouter} />
         </Switch>
       </TooltipProvider>

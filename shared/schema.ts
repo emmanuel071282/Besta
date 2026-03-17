@@ -87,6 +87,23 @@ export const users = pgTable("users", {
   role: text("role").notNull().default("customer"),
 });
 
+export const supportRequests = pgTable("support_requests", {
+  id: serial("id").primaryKey(),
+  ticketNumber: text("ticket_number").notNull(),
+  mobile: text("mobile").notNull(),
+  type: text("type").notNull(),
+  orderNumber: text("order_number").notNull(),
+  itemDescription: text("item_description").notNull(),
+  reason: text("reason").notNull(),
+  extraDetails: text("extra_details").notNull().default(""),
+  status: text("status").notNull().default("pending"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertSupportRequestSchema = createInsertSchema(supportRequests).omit({ id: true, createdAt: true });
+export type InsertSupportRequest = z.infer<typeof insertSupportRequestSchema>;
+export type SupportRequest = typeof supportRequests.$inferSelect;
+
 export const otpVerifications = pgTable("otp_verifications", {
   id: serial("id").primaryKey(),
   mobile: text("mobile").notNull(),
