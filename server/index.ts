@@ -4,6 +4,8 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
+import { db } from "./db";
+import { sql } from "drizzle-orm";
 
 const app = express();
 const httpServer = createServer(app);
@@ -87,6 +89,17 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS otp_verifications (
+      id SERIAL PRIMARY KEY,
+      mobile TEXT NOT NULL,
+      otp TEXT NOT NULL,
+      type TEXT NOT NULL,
+      verified BOOLEAN NOT NULL DEFAULT false,
+      expires_at TIMESTAMP NOT NULL
+    )
+  `);
+
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {

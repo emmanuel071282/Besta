@@ -87,6 +87,15 @@ export const users = pgTable("users", {
   role: text("role").notNull().default("customer"),
 });
 
+export const otpVerifications = pgTable("otp_verifications", {
+  id: serial("id").primaryKey(),
+  mobile: text("mobile").notNull(),
+  otp: text("otp").notNull(),
+  type: text("type").notNull(),
+  verified: boolean("verified").notNull().default(false),
+  expiresAt: timestamp("expires_at").notNull(),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;

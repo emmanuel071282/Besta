@@ -3,22 +3,40 @@ import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
-import { registerSchema, loginSchema, ORDER_STATUSES, getSizesForProduct } from "@shared/schema";
+import { registerSchema, loginSchema, ORDER_STATUSES, getSizesForProduct, otpVerifications } from "@shared/schema";
 import bcrypt from "bcryptjs";
 import { sendSms } from "./sms";
-
-const otpStore = new Map<string, { otp: string; expiresAt: number }>();
-const registrationOtpStore = new Map<string, { otp: string; expiresAt: number; verified: boolean }>();
+import { db } from "./db";
+import { eq, and } from "drizzle-orm";
 
 function generateOtp(): string {
   return String(Math.floor(1000 + Math.random() * 9000));
 }
 
-function cleanExpiredOtps() {
-  const now = Date.now();
-  for (const [key, val] of otpStore) {
-    if (val.expiresAt < now) otpStore.delete(key);
-  }
+async function saveOtp(mobile: string, otp: string, type: string) {
+  await db.delete(otpVerifications).where(and(eq(otpVerifications.mobile, mobile), eq(otpVerifications.type, type)));
+  await db.insert(otpVerifications).values({
+    mobile,
+    otp,
+    type,
+    verified: false,
+    expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+  });
+}
+
+async function getOtp(mobile: string, type: string) {
+  const rows = await db.select().from(otpVerifications)
+    .where(and(eq(otpVerifications.mobile, mobile), eq(otpVerifications.type, type)));
+  return rows[0] ?? null;
+}
+
+async function markOtpVerified(mobile: string, type: string) {
+  await db.update(otpVerifications).set({ verified: true })
+    .where(and(eq(otpVerifications.mobile, mobile), eq(otpVerifications.type, type)));
+}
+
+async function deleteOtp(mobile: string, type: string) {
+  await db.delete(otpVerifications).where(and(eq(otpVerifications.mobile, mobile), eq(otpVerifications.type, type)));
 }
 
 export async function registerRoutes(
@@ -41,7 +59,7 @@ export async function registerRoutes(
       }
 
       const otp = generateOtp();
-      registrationOtpStore.set(mobile, { otp, expiresAt: Date.now() + 5 * 60 * 1000, verified: false });
+      await saveOtp(mobile, otp, "registration");
 
       const { simulated } = await sendSms(mobile, `Your BESTA registration OTP is ${otp}. Valid for 5 minutes. Do not share this code.`);
 
@@ -64,19 +82,19 @@ export async function registerRoutes(
       }
       const { mobile, otp } = parsed.data;
 
-      const stored = registrationOtpStore.get(mobile);
+      const stored = await getOtp(mobile, "registration");
       if (!stored) {
         return res.status(400).json({ message: "OTP expired or not requested. Please request a new one." });
       }
-      if (stored.expiresAt < Date.now()) {
-        registrationOtpStore.delete(mobile);
+      if (stored.expiresAt < new Date()) {
+        await deleteOtp(mobile, "registration");
         return res.status(400).json({ message: "OTP has expired. Please request a new one." });
       }
       if (stored.otp !== otp) {
         return res.status(401).json({ message: "Invalid OTP. Please try again." });
       }
 
-      registrationOtpStore.set(mobile, { ...stored, verified: true });
+      await markOtpVerified(mobile, "registration");
       res.json({ message: "Mobile number verified successfully" });
     } catch (error) {
       console.error("Verify registration OTP error:", error);
@@ -92,15 +110,15 @@ export async function registerRoutes(
       }
       const { name, mobile, email, pin, birthday } = parsed.data;
 
-      const storedOtp = registrationOtpStore.get(mobile);
+      const storedOtp = await getOtp(mobile, "registration");
       if (!storedOtp || !storedOtp.verified) {
         return res.status(400).json({ message: "Mobile number not verified. Please verify with OTP first." });
       }
-      if (storedOtp.expiresAt < Date.now()) {
-        registrationOtpStore.delete(mobile);
+      if (storedOtp.expiresAt < new Date()) {
+        await deleteOtp(mobile, "registration");
         return res.status(400).json({ message: "Verification expired. Please start the registration again." });
       }
-      registrationOtpStore.delete(mobile);
+      await deleteOtp(mobile, "registration");
 
       const existing = await storage.getUserByMobile(mobile);
       if (existing) {
@@ -158,9 +176,8 @@ export async function registerRoutes(
         return res.status(404).json({ message: "No account found with this mobile number" });
       }
 
-      cleanExpiredOtps();
       const otp = generateOtp();
-      otpStore.set(mobile, { otp, expiresAt: Date.now() + 5 * 60 * 1000 });
+      await saveOtp(mobile, otp, "login");
 
       const { simulated } = await sendSms(mobile, `Your BESTA login OTP is ${otp}. Valid for 5 minutes. Do not share this code.`);
 
@@ -183,19 +200,19 @@ export async function registerRoutes(
       }
       const { mobile, otp } = parsed.data;
 
-      const stored = otpStore.get(mobile);
+      const stored = await getOtp(mobile, "login");
       if (!stored) {
         return res.status(400).json({ message: "OTP expired or not requested. Please request a new one." });
       }
-      if (stored.expiresAt < Date.now()) {
-        otpStore.delete(mobile);
+      if (stored.expiresAt < new Date()) {
+        await deleteOtp(mobile, "login");
         return res.status(400).json({ message: "OTP has expired. Please request a new one." });
       }
       if (stored.otp !== otp) {
         return res.status(401).json({ message: "Invalid OTP. Please try again." });
       }
 
-      otpStore.delete(mobile);
+      await deleteOtp(mobile, "login");
 
       const user = await storage.getUserByMobile(mobile);
       if (!user) {
