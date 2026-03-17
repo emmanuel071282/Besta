@@ -29,21 +29,21 @@ export default function Home() {
         <div className="absolute inset-0 flex">
           <div className="relative flex-1">
             <img 
-              src="https://images.unsplash.com/photo-1483985988355-763728e1935b?q=80&w=1000&auto=format&fit=crop" 
+              src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=1200&auto=format&fit=crop" 
               alt="Ladies Fashion" 
               className="absolute inset-0 w-full h-full object-cover object-top"
             />
           </div>
           <div className="relative flex-1 hidden md:block border-l border-white/20">
             <img 
-              src="https://images.unsplash.com/photo-1488161628813-04466f872be2?q=80&w=1000&auto=format&fit=crop" 
+              src="https://images.unsplash.com/photo-1552374196-1ab2a1c593e8?q=80&w=1200&auto=format&fit=crop" 
               alt="Mens Fashion" 
               className="absolute inset-0 w-full h-full object-cover object-top"
             />
           </div>
           <div className="relative flex-1 hidden lg:block border-l border-white/20">
             <img 
-              src="https://images.unsplash.com/photo-1514090458221-65bb69cf63e6?q=80&w=1000&auto=format&fit=crop" 
+              src="https://images.unsplash.com/photo-1622290291468-a28f7a7dc6a8?q=80&w=1200&auto=format&fit=crop" 
               alt="Kids Fashion" 
               className="absolute inset-0 w-full h-full object-cover object-top"
             />
@@ -63,7 +63,7 @@ export default function Home() {
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
           <Link href="/category/Kids" className="group relative aspect-[4/5] overflow-hidden bg-secondary">
             <img 
-              src="https://images.unsplash.com/photo-1519238263530-99abe11d5163?q=80&w=1000&auto=format&fit=crop" 
+              src="https://images.unsplash.com/photo-1471286174890-9c112ffca5b4?q=80&w=1000&auto=format&fit=crop" 
               alt="Kids" 
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
             />
@@ -78,7 +78,7 @@ export default function Home() {
 
           <Link href="/category/Accessories" className="group relative aspect-[4/5] overflow-hidden bg-secondary">
             <img 
-              src="https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=1000&auto=format&fit=crop" 
+              src="https://images.unsplash.com/photo-1492707892479-7bc8d5a4ee93?q=80&w=1000&auto=format&fit=crop" 
               alt="Accessories" 
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
             />
@@ -93,7 +93,7 @@ export default function Home() {
           
           <Link href="/category/Footwear" className="group relative aspect-[4/5] overflow-hidden bg-secondary col-span-2 lg:col-span-1">
             <img 
-              src="https://images.unsplash.com/photo-1614252235316-8c857d38b5f4?q=80&w=1000&auto=format&fit=crop" 
+              src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?q=80&w=1000&auto=format&fit=crop" 
               alt="Footwear" 
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
             />
