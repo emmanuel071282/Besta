@@ -172,6 +172,13 @@ export default function ExchangePolicyPage() {
           <p className="text-sm text-muted-foreground max-w-md mx-auto mb-6">
             Our customer support team is available 7 days a week to help you with returns, exchanges, and any order-related queries.
           </p>
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent("open-besta-chat"))}
+            data-testid="button-start-return-exchange"
+            className="inline-flex items-center gap-2 bg-foreground text-background px-6 py-3 text-sm font-semibold uppercase tracking-widest hover:bg-foreground/80 transition-colors mb-6"
+          >
+            Start a Return or Exchange
+          </button>
           <div className="flex flex-col sm:flex-row gap-4 justify-center text-sm">
             <span className="text-muted-foreground">Email: <span className="text-foreground font-medium">support@besta.in</span></span>
             <span className="hidden sm:inline text-muted-foreground/30">|</span>

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { MessageCircle, X, Send, ChevronLeft } from "lucide-react";
+import { MessageCircle, X, Send } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useQuery } from "@tanstack/react-query";
 
@@ -61,6 +61,14 @@ export function ChatWidget() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const { data: user } = useQuery<any>({ queryKey: ["/api/auth/me"] });
+
+  useEffect(() => {
+    const handler = () => {
+      setIsOpen(true);
+    };
+    window.addEventListener("open-besta-chat", handler);
+    return () => window.removeEventListener("open-besta-chat", handler);
+  }, []);
 
   useEffect(() => {
     if (isOpen && messages.length === 0) {
@@ -159,7 +167,6 @@ export function ChatWidget() {
       }
     } else if (step === "return_reason") {
       addUserMsg(value);
-      const found = RETURN_REASONS.find(r => r.value === value);
       setData(d => ({ ...d, reason: value }));
       setTimeout(() => {
         const mobile = user?.mobile || "";
@@ -293,9 +300,6 @@ export function ChatWidget() {
     } finally {
       setIsSubmitting(false);
     }
-
-    if (step !== "return_done" && step !== "exchange_done") {
-    }
   }
 
   function handleButtonClick(value: string) {
@@ -345,89 +349,83 @@ export function ChatWidget() {
     exchange_mobile: "Enter 10-digit mobile number...",
   };
 
+  if (!isOpen) return null;
+
   return (
-    <>
-      {isOpen && (
-        <div className="fixed bottom-20 right-4 z-50 w-[360px] max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden"
-          style={{ height: "520px" }}>
-          <div className="bg-gradient-to-r from-orange-500 to-pink-500 px-4 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-                <MessageCircle className="w-4 h-4 text-white" />
-              </div>
-              <div>
-                <p className="text-white font-semibold text-sm">BESTA Support</p>
-                <p className="text-white/80 text-xs">Returns & Exchanges</p>
-              </div>
-            </div>
-            <button onClick={() => setIsOpen(false)} className="text-white/80 hover:text-white transition-colors" data-testid="button-close-chat">
-              <X className="w-5 h-5" />
-            </button>
+    <div className="fixed bottom-4 right-4 z-50 w-[360px] max-w-[calc(100vw-2rem)] bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden"
+      style={{ height: "520px" }}>
+      <div className="bg-gradient-to-r from-orange-500 to-pink-500 px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
+            <MessageCircle className="w-4 h-4 text-white" />
           </div>
-
-          <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-gray-50">
-            {messages.map(m => (
-              <div key={m.id} className={`flex flex-col gap-1 ${m.type === "user" ? "items-end" : "items-start"}`}>
-                <div className={`max-w-[85%] px-3 py-2 rounded-2xl text-sm leading-relaxed ${
-                  m.type === "user"
-                    ? "bg-gradient-to-r from-orange-500 to-pink-500 text-white rounded-br-sm"
-                    : "bg-white text-gray-800 shadow-sm border border-gray-100 rounded-bl-sm"
-                }`}>
-                  {renderText(m.text)}
-                </div>
-                {m.buttons && m.buttons.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 max-w-[90%]">
-                    {m.buttons.map(btn => (
-                      <button
-                        key={btn.value}
-                        onClick={() => handleButtonClick(btn.value)}
-                        disabled={isSubmitting}
-                        data-testid={`button-chat-${btn.value}`}
-                        className="text-xs px-3 py-1.5 bg-white border border-orange-400 text-orange-600 rounded-full hover:bg-orange-50 transition-colors font-medium disabled:opacity-50"
-                      >
-                        {btn.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-            <div ref={bottomRef} />
+          <div>
+            <p className="text-white font-semibold text-sm">BESTA Support</p>
+            <p className="text-white/80 text-xs">Returns & Exchanges</p>
           </div>
+        </div>
+        <button
+          onClick={() => setIsOpen(false)}
+          className="text-white/80 hover:text-white transition-colors"
+          data-testid="button-close-chat"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
 
-          {needsInput && (
-            <div className="border-t border-gray-100 bg-white p-2 flex gap-2 items-center">
-              <input
-                ref={inputRef}
-                type="text"
-                value={inputValue}
-                onChange={e => setInputValue(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && handleTextSubmit()}
-                placeholder={inputPlaceholder[step] || "Type your answer..."}
-                disabled={isSubmitting}
-                data-testid="input-chat-message"
-                className="flex-1 text-sm border border-gray-200 rounded-full px-4 py-2 outline-none focus:border-orange-400 transition-colors disabled:opacity-50"
-              />
-              <button
-                onClick={handleTextSubmit}
-                disabled={!inputValue.trim() || isSubmitting}
-                data-testid="button-chat-send"
-                className="w-9 h-9 bg-gradient-to-r from-orange-500 to-pink-500 rounded-full flex items-center justify-center text-white disabled:opacity-40 transition-opacity flex-shrink-0"
-              >
-                <Send className="w-4 h-4" />
-              </button>
+      <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-gray-50">
+        {messages.map(m => (
+          <div key={m.id} className={`flex flex-col gap-1 ${m.type === "user" ? "items-end" : "items-start"}`}>
+            <div className={`max-w-[85%] px-3 py-2 rounded-2xl text-sm leading-relaxed ${
+              m.type === "user"
+                ? "bg-gradient-to-r from-orange-500 to-pink-500 text-white rounded-br-sm"
+                : "bg-white text-gray-800 shadow-sm border border-gray-100 rounded-bl-sm"
+            }`}>
+              {renderText(m.text)}
             </div>
-          )}
+            {m.buttons && m.buttons.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 max-w-[90%]">
+                {m.buttons.map(btn => (
+                  <button
+                    key={btn.value}
+                    onClick={() => handleButtonClick(btn.value)}
+                    disabled={isSubmitting}
+                    data-testid={`button-chat-${btn.value}`}
+                    className="text-xs px-3 py-1.5 bg-white border border-orange-400 text-orange-600 rounded-full hover:bg-orange-50 transition-colors font-medium disabled:opacity-50"
+                  >
+                    {btn.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+        <div ref={bottomRef} />
+      </div>
+
+      {needsInput && (
+        <div className="border-t border-gray-100 bg-white p-2 flex gap-2 items-center">
+          <input
+            ref={inputRef}
+            type="text"
+            value={inputValue}
+            onChange={e => setInputValue(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && handleTextSubmit()}
+            placeholder={inputPlaceholder[step] || "Type your answer..."}
+            disabled={isSubmitting}
+            data-testid="input-chat-message"
+            className="flex-1 text-sm border border-gray-200 rounded-full px-4 py-2 outline-none focus:border-orange-400 transition-colors disabled:opacity-50"
+          />
+          <button
+            onClick={handleTextSubmit}
+            disabled={!inputValue.trim() || isSubmitting}
+            data-testid="button-chat-send"
+            className="w-9 h-9 bg-gradient-to-r from-orange-500 to-pink-500 rounded-full flex items-center justify-center text-white disabled:opacity-40 transition-opacity flex-shrink-0"
+          >
+            <Send className="w-4 h-4" />
+          </button>
         </div>
       )}
-
-      <button
-        onClick={() => setIsOpen(o => !o)}
-        data-testid="button-open-chat"
-        className="fixed bottom-4 right-4 z-50 w-14 h-14 bg-gradient-to-r from-orange-500 to-pink-500 rounded-full shadow-lg flex items-center justify-center text-white hover:shadow-xl transition-all hover:scale-105"
-      >
-        {isOpen ? <X className="w-6 h-6" /> : <MessageCircle className="w-6 h-6" />}
-      </button>
-    </>
+    </div>
   );
 }
