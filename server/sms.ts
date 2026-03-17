@@ -9,19 +9,28 @@ const twilioEnabled =
   accountSid.startsWith("AC") &&
   authToken.length > 10;
 
-export async function sendSms(to: string, message: string): Promise<{ simulated: boolean }> {
+export async function sendSms(
+  to: string,
+  message: string
+): Promise<{ simulated: boolean; error?: string }> {
   if (!twilioEnabled) {
-    console.log(`[WA SIM] To +91${to}: ${message}`);
+    console.log(`[WA SIM] No Twilio credentials — To +91${to}: ${message}`);
     return { simulated: true };
   }
 
-  const client = twilio(accountSid, authToken);
-  await client.messages.create({
-    body: message,
-    from: `whatsapp:${fromNumber}`,
-    to: `whatsapp:+91${to}`,
-  });
-
-  console.log(`[WhatsApp] Sent to +91${to}`);
-  return { simulated: false };
+  try {
+    const client = twilio(accountSid, authToken);
+    const result = await client.messages.create({
+      body: message,
+      from: `whatsapp:${fromNumber}`,
+      to: `whatsapp:+91${to}`,
+    });
+    console.log(`[WhatsApp] Sent to +91${to} — SID: ${result.sid} Status: ${result.status}`);
+    return { simulated: false };
+  } catch (err: any) {
+    console.error(`[WhatsApp ERROR] Failed to send to +91${to}:`, err?.message || err);
+    console.error(`[WhatsApp ERROR] Twilio code: ${err?.code}, status: ${err?.status}`);
+    // Graceful fallback — return OTP in response so it can be shown on screen
+    return { simulated: true, error: err?.message };
+  }
 }
