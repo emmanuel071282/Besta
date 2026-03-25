@@ -36,7 +36,7 @@ export default function Home() {
           </div>
           <div className="relative flex-1 hidden md:block border-l border-white/20">
             <img 
-              src="https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?q=80&w=1200&auto=format&fit=crop" 
+              src="https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?q=80&w=1200&auto=format&fit=crop" 
               alt="Mens Fashion" 
               className="absolute inset-0 w-full h-full object-cover object-center"
             />
