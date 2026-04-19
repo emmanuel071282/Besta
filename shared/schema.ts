@@ -208,7 +208,7 @@ export type SubcategoryConfig = string[] | SubcategorySection[];
 
 export const SUBCATEGORIES: Record<string, SubcategoryConfig> = {
   Mens: [
-    { section: "Casual Wear", items: ["T-Shirts", "Shirts", "Trousers", "Jeans", "Jackets"] },
+    { section: "Casual Wear", items: ["T-Shirts", "Muscle Tees", "Shirts", "Trousers", "Jeans", "Jackets"] },
     { section: "Ethnic Wear", items: ["Kurtas", "Nehru Jackets"] },
     { section: "Athleisure", items: ["Joggers", "Track Pants", "Sports T-Shirts", "Hoodies"] },
     { section: "Accessories", items: ["Watches", "Belts", "Wallets", "Sunglasses"] },

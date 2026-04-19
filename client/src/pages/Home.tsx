@@ -108,6 +108,39 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Muscle Tees Promotional Banner */}
+      <section className="pb-20 md:pb-24 container mx-auto px-4 md:px-6" data-testid="section-muscle-tees-banner">
+        <Link
+          href="/category/Mens?sub=Muscle+Tees"
+          data-testid="link-muscle-tees-banner"
+          className="group relative block w-full aspect-[16/9] md:aspect-[21/9] overflow-hidden bg-secondary"
+        >
+          <img
+            src="https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?q=80&w=1800&auto=format&fit=crop"
+            alt="Muscle Tees Collection"
+            className="absolute inset-0 w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/40 to-transparent" />
+          <div className="absolute inset-0 flex flex-col justify-center px-6 md:px-16 lg:px-24 max-w-2xl">
+            <span data-testid="text-muscle-tees-eyebrow" className="text-white/80 text-[10px] md:text-xs uppercase tracking-[0.3em] font-semibold mb-3 md:mb-4">
+              New Drop · Mens
+            </span>
+            <h2 data-testid="text-muscle-tees-title" className="text-white text-4xl md:text-6xl lg:text-7xl font-display font-bold tracking-tighter leading-[0.95] mb-3 md:mb-5">
+              Muscle Tees
+            </h2>
+            <p data-testid="text-muscle-tees-tagline" className="text-white/90 text-sm md:text-lg font-medium mb-5 md:mb-8 max-w-md">
+              Built for the gym. Made for the streets.
+            </p>
+            <span
+              data-testid="button-muscle-tees-shop"
+              className="inline-flex items-center gap-2 bg-white text-black px-6 md:px-8 py-3 md:py-3.5 text-xs uppercase tracking-widest font-semibold w-fit group-hover:gap-4 transition-all"
+            >
+              Shop Now <ArrowRight className="w-4 h-4" />
+            </span>
+          </div>
+        </Link>
+      </section>
+
       {/* Trending Products */}
       <section className="pb-24 container mx-auto px-4 md:px-6">
         <div className="flex items-end justify-between mb-12 border-b border-border pb-6">

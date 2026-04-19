@@ -512,7 +512,8 @@ async function seedDatabase() {
     const existingProducts = await storage.getProducts();
     if (existingProducts.length > 0) {
       const hasV3Subcats = existingProducts.some(p => p.subcategory === "Joggers" || p.subcategory === "Rompers") && !existingProducts.some(p => p.name === "Boys Sherwani Set");
-      if (hasV3Subcats) {
+      const hasMuscleTees = existingProducts.some(p => p.subcategory === "Muscle Tees");
+      if (hasV3Subcats && hasMuscleTees) {
         await seedStoresAndInventory();
         await seedAdminUser();
         return;
@@ -533,6 +534,15 @@ async function seedDatabase() {
       { name: "Relaxed Fit Light Jeans", description: "Comfortable relaxed-fit jeans in faded light wash denim.", price: "2299", imageUrl: "https://images.unsplash.com/photo-1582552938357-32b906df40cb?q=80&w=800&auto=format&fit=crop", category: "Mens", subcategory: "Jeans" },
       { name: "Leather Biker Jacket", description: "Genuine leather biker jacket with zip detailing and quilted shoulders.", price: "8999", imageUrl: "https://images.unsplash.com/photo-1551028719-00167b16eac5?q=80&w=800&auto=format&fit=crop", category: "Mens", subcategory: "Jackets" },
       { name: "Puffer Winter Jacket", description: "Warm padded puffer jacket with water-resistant shell and hood.", price: "4999", imageUrl: "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?q=80&w=800&auto=format&fit=crop", category: "Mens", subcategory: "Jackets" },
+      // ===== MENS - Muscle Tees =====
+      { name: "Ribbed Black Muscle Tee", description: "Slim-fit ribbed cotton muscle tee in jet black. Cropped armholes, drop shoulders — built for the gym, made for the streets.", price: "899", imageUrl: "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?q=80&w=800&auto=format&fit=crop", category: "Mens", subcategory: "Muscle Tees" },
+      { name: "Olive Drop-Cut Muscle Tee", description: "Heavyweight olive muscle tee with raw-cut armholes and elongated hem. Streetwear staple for layering.", price: "999", imageUrl: "https://images.unsplash.com/photo-1571945153237-4929e783af4a?q=80&w=800&auto=format&fit=crop", category: "Mens", subcategory: "Muscle Tees" },
+      { name: "Stone Wash Vintage Muscle Tee", description: "Sun-faded stone-wash cotton muscle tee with a worn-in feel. Boxy fit, deep arm openings.", price: "1099", imageUrl: "https://images.unsplash.com/photo-1581655353564-df123a1eb820?q=80&w=800&auto=format&fit=crop", category: "Mens", subcategory: "Muscle Tees" },
+      { name: "White Performance Muscle Tee", description: "Quick-dry performance muscle tee in clean white. Mesh-back panel for ventilation during heavy lifts.", price: "1199", imageUrl: "https://images.unsplash.com/photo-1622445275576-721325763afe?q=80&w=800&auto=format&fit=crop", category: "Mens", subcategory: "Muscle Tees" },
+      { name: "Graphic Print Muscle Tee", description: "Bold graphic-print muscle tee in charcoal. Soft-hand cotton, oversized cut, gym-to-street ready.", price: "1299", imageUrl: "https://images.unsplash.com/photo-1618354691373-d851c5c3a990?q=80&w=800&auto=format&fit=crop", category: "Mens", subcategory: "Muscle Tees" },
+      { name: "Burgundy Ribbed Muscle Tee", description: "Deep burgundy ribbed muscle tee with a stretchy fit that hugs the chest and shoulders.", price: "949", imageUrl: "https://images.unsplash.com/photo-1556821840-3a63f95609a7?q=80&w=800&auto=format&fit=crop", category: "Mens", subcategory: "Muscle Tees" },
+      { name: "Acid Wash Muscle Tank", description: "Statement acid-wash muscle tee with extra-deep arm cuts. Made for max gun-show.", price: "1099", imageUrl: "https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?q=80&w=800&auto=format&fit=crop", category: "Mens", subcategory: "Muscle Tees" },
+      { name: "Heavyweight Cropped Muscle Tee", description: "Boxy heavyweight muscle tee with a cropped hem. Pairs perfectly with joggers or cargos.", price: "1199", imageUrl: "https://images.unsplash.com/photo-1617952236317-0bd127407984?q=80&w=800&auto=format&fit=crop", category: "Mens", subcategory: "Muscle Tees" },
       // ===== MENS - Ethnic Wear =====
       { name: "Cotton Kurta Set", description: "Traditional cotton kurta with embroidered neckline, paired with churidar.", price: "2999", imageUrl: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?q=80&w=800&auto=format&fit=crop", category: "Mens", subcategory: "Kurtas" },
       { name: "Silk Blend Kurta", description: "Festive silk blend kurta with intricate threadwork and mandarin collar.", price: "4499", imageUrl: "https://images.unsplash.com/photo-1598522325074-042db73aa4e6?q=80&w=800&auto=format&fit=crop", category: "Mens", subcategory: "Kurtas" },
