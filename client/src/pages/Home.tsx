@@ -29,15 +29,15 @@ export default function Home() {
         <div className="absolute inset-0 flex">
           <div className="relative flex-1">
             <img 
-              src="https://images.unsplash.com/photo-1529139574466-a303027c1d8b?q=80&w=1200&auto=format&fit=crop" 
-              alt="Ladies Fashion" 
-              className="absolute inset-0 w-full h-full object-cover object-center"
+              src="/products/cordset-07-mustard-anarkali.jpeg" 
+              alt="Indian Cord Sets — New Launch" 
+              className="absolute inset-0 w-full h-full object-cover object-top"
             />
           </div>
           <div className="relative flex-1 hidden md:block border-l border-white/20">
             <img 
-              src="https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?q=80&w=1200&auto=format&fit=crop" 
-              alt="Mens Fashion" 
+              src="/products/jewel-02-square-stud-model.png" 
+              alt="Gold Statement Jewellery — New Launch" 
               className="absolute inset-0 w-full h-full object-cover object-center"
             />
           </div>
