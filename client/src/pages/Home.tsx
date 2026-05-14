@@ -26,7 +26,7 @@ export default function Home() {
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
       <section className="relative h-[85vh] w-full bg-secondary overflow-hidden pt-20">
-        <div className="absolute inset-0 flex">
+        <div className="absolute top-20 inset-x-0 bottom-0 flex">
           <div className="relative flex-1">
             <img 
               src="/products/cordset-07-mustard-anarkali.jpeg" 
