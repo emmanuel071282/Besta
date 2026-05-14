@@ -41,13 +41,6 @@ export default function Home() {
               className="absolute inset-0 w-full h-full object-cover object-center"
             />
           </div>
-          <div className="relative flex-1 hidden lg:block border-l border-white/20">
-            <img 
-              src="https://images.unsplash.com/photo-1567858736428-bfe91a30e08a?q=80&w=1200&auto=format&fit=crop" 
-              alt="Kids Fashion" 
-              className="absolute inset-0 w-full h-full object-cover object-center"
-            />
-          </div>
         </div>
         <div className="absolute inset-0 bg-black/20" />
         
