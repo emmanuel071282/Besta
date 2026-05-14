@@ -513,7 +513,8 @@ async function seedDatabase() {
     if (existingProducts.length > 0) {
       const hasV3Subcats = existingProducts.some(p => p.subcategory === "Joggers" || p.subcategory === "Rompers") && !existingProducts.some(p => p.name === "Boys Sherwani Set");
       const hasMuscleTees = existingProducts.some(p => p.subcategory === "Muscle Tees");
-      if (hasV3Subcats && hasMuscleTees) {
+      const hasIndianCordSets = existingProducts.some(p => p.subcategory === "Cord Sets" && p.category === "Ladies" && p.name.startsWith("Prisha"));
+      if (hasV3Subcats && hasMuscleTees && hasIndianCordSets) {
         await seedStoresAndInventory();
         await seedAdminUser();
         return;
@@ -593,6 +594,18 @@ async function seedDatabase() {
       { name: "Cotton Kurta Pyjama Set", description: "Comfortable cotton kurta and pyjama set with contrast piping.", price: "2499", imageUrl: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?q=80&w=800&auto=format&fit=crop", category: "Ladies", subcategory: "Kurta Sets" },
       { name: "Bridal Lehenga Choli", description: "Stunning bridal lehenga with heavy embroidery, sequins and dupatta.", price: "14999", imageUrl: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?q=80&w=800&auto=format&fit=crop", category: "Ladies", subcategory: "Lehengas" },
       { name: "Flared Party Lehenga", description: "Vibrant flared lehenga with foil print and contrast choli.", price: "6999", imageUrl: "https://images.unsplash.com/photo-1598522325074-042db73aa4e6?q=80&w=800&auto=format&fit=crop", category: "Ladies", subcategory: "Lehengas" },
+      // ===== LADIES - Indian Cord Sets =====
+      { name: "Crimson Embroidered Cord Set", description: "Vibrant crimson kurta with delicate floral embroidery, paired with matching palazzo. Perfect for festive occasions.", price: "899", imageUrl: "/products/cordset-01-red-embroidered.jpeg", category: "Ladies", subcategory: "Cord Sets" },
+      { name: "Olive Collared Cord Set", description: "Olive green collared kurta with traditional cream motif border, paired with straight-fit palazzo. Effortless ethnic charm.", price: "899", imageUrl: "/products/cordset-02-olive-collared.jpeg", category: "Ladies", subcategory: "Cord Sets" },
+      { name: "Coral Pink Collared Cord Set", description: "Bright coral pink kurta with collared neckline and intricate cream motif hem, paired with straight palazzo.", price: "899", imageUrl: "/products/cordset-03-coral-collared.jpeg", category: "Ladies", subcategory: "Cord Sets" },
+      { name: "Sage Green Collared Cord Set", description: "Soothing sage green collared kurta with elegant cream embroidery, paired with matching palazzo. A graceful daywear pick.", price: "899", imageUrl: "/products/cordset-04-sage-collared.jpeg", category: "Ladies", subcategory: "Cord Sets" },
+      { name: "Off-White Tassel Kurta Set", description: "Pristine off-white kurta with tassel detailing and contrast border, paired with palazzo and printed dupatta.", price: "899", imageUrl: "/products/cordset-05-offwhite-tassel.jpeg", category: "Ladies", subcategory: "Cord Sets" },
+      { name: "Prisha Pink Floral Kurta Set", description: "Soft pink kurta with delicate floral embroidery, paired with palazzo and matching dupatta. Light, breezy and graceful.", price: "899", imageUrl: "/products/cordset-06-pink-floral.jpeg", category: "Ladies", subcategory: "Cord Sets" },
+      { name: "Mustard Anarkali Cord Set", description: "Statement mustard yellow Anarkali kurta with intricate floral yoke embroidery, paired with palazzo and embroidered dupatta.", price: "899", imageUrl: "/products/cordset-07-mustard-anarkali.jpeg", category: "Ladies", subcategory: "Cord Sets" },
+      { name: "Rust Red Anarkali Cord Set", description: "Rich rust red Anarkali with floral thread work, paired with cigarette pants and embroidered dupatta. Festive and feminine.", price: "899", imageUrl: "/products/cordset-08-rust-anarkali.jpeg", category: "Ladies", subcategory: "Cord Sets" },
+      { name: "Prisha White Floral Shirt Set", description: "Crisp white shirt-style kurta with hand-painted floral motif, paired with breezy palazzo. Modern fusion ethnic wear.", price: "899", imageUrl: "/products/cordset-09-white-floral-shirt.jpeg", category: "Ladies", subcategory: "Cord Sets" },
+      { name: "Prisha Sage Floral Shirt Set", description: "Sage green shirt-style kurta with floral thread embroidery, paired with palazzo. Effortless contemporary ethnic style.", price: "899", imageUrl: "/products/cordset-10-sage-floral-shirt.jpeg", category: "Ladies", subcategory: "Cord Sets" },
+      { name: "Prisha Mustard Motif Cord Set", description: "Mustard yellow A-line kurta with traditional ajrakh-inspired motifs, paired with pants and printed dupatta. Heritage meets everyday.", price: "899", imageUrl: "/products/cordset-11-mustard-motif.jpeg", category: "Ladies", subcategory: "Cord Sets" },
       // ===== LADIES - Sleepwear =====
       { name: "Satin Nightdress", description: "Luxurious satin nightdress with lace trim and adjustable straps.", price: "1799", imageUrl: "https://images.unsplash.com/photo-1485462537746-965f33f7f6a7?q=80&w=800&auto=format&fit=crop", category: "Ladies", subcategory: "Nightdresses" },
       { name: "Cotton Maxi Nightdress", description: "Breathable cotton maxi nightdress with delicate floral print.", price: "1299", imageUrl: "https://images.unsplash.com/photo-1564257631407-4deb1f99d992?q=80&w=800&auto=format&fit=crop", category: "Ladies", subcategory: "Nightdresses" },
