@@ -514,7 +514,8 @@ async function seedDatabase() {
       const hasV3Subcats = existingProducts.some(p => p.subcategory === "Joggers" || p.subcategory === "Rompers") && !existingProducts.some(p => p.name === "Boys Sherwani Set");
       const hasMuscleTees = existingProducts.some(p => p.subcategory === "Muscle Tees");
       const hasIndianCordSets = existingProducts.some(p => p.subcategory === "Cord Sets" && p.category === "Ladies" && p.name.startsWith("Prisha"));
-      if (hasV3Subcats && hasMuscleTees && hasIndianCordSets) {
+      const hasGoldEarrings = existingProducts.some(p => p.name === "Hammered Gold Square Stud Earrings");
+      if (hasV3Subcats && hasMuscleTees && hasIndianCordSets && hasGoldEarrings) {
         await seedStoresAndInventory();
         await seedAdminUser();
         return;
@@ -673,6 +674,11 @@ async function seedDatabase() {
       { name: "Cat Eye Sunglasses", description: "Retro cat-eye sunglasses with gradient lenses and acetate frame.", price: "2499", imageUrl: "https://images.unsplash.com/photo-1511499767150-a48a237f0083?q=80&w=800&auto=format&fit=crop", category: "Accessories", subcategory: "Sunglasses" },
       { name: "Gold Layered Necklace", description: "Delicate gold-plated layered necklace with dainty pendants.", price: "1299", imageUrl: "https://images.unsplash.com/photo-1515562141589-67f0d569b6c6?q=80&w=800&auto=format&fit=crop", category: "Accessories", subcategory: "Jewellery" },
       { name: "Silver Hoop Earrings", description: "Sterling silver hoop earrings with brushed finish, everyday elegance.", price: "899", imageUrl: "https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?q=80&w=800&auto=format&fit=crop", category: "Accessories", subcategory: "Jewellery" },
+      { name: "Hammered Gold Square Stud Earrings", description: "Statement hammered gold-tone square stud earrings with a luxe textured finish. Lightweight and effortlessly elegant.", price: "299", imageUrl: "/products/jewel-01-square-stud.png", category: "Accessories", subcategory: "Jewellery" },
+      { name: "Gold Square Stud Earrings (On Model)", description: "Hammered gold-tone square studs styled for everyday luxe. Pairs with both ethnic and western looks.", price: "299", imageUrl: "/products/jewel-02-square-stud-model.png", category: "Accessories", subcategory: "Jewellery" },
+      { name: "Twisted Gold Doorknocker Earrings", description: "Bold twisted-rope doorknocker hoops in polished gold tone. A modern take on a classic silhouette.", price: "299", imageUrl: "/products/jewel-03-twisted-hoop.png", category: "Accessories", subcategory: "Jewellery" },
+      { name: "Hammered Gold Teardrop Earrings", description: "Sculptural teardrop earrings with intricate hammered detailing. A statement-making everyday piece.", price: "299", imageUrl: "/products/jewel-04-teardrop.png", category: "Accessories", subcategory: "Jewellery" },
+      { name: "Gold Teardrop Earrings (On Model)", description: "Hammered gold-tone teardrop earrings styled for an editorial look. Lightweight, polished, versatile.", price: "299", imageUrl: "/products/jewel-05-teardrop-model.png", category: "Accessories", subcategory: "Jewellery" },
       { name: "Cashmere Wool Scarf", description: "Ultra-soft cashmere wool scarf in classic plaid pattern.", price: "3499", imageUrl: "https://images.unsplash.com/photo-1520903920243-00d872a2d1c9?q=80&w=800&auto=format&fit=crop", category: "Accessories", subcategory: "Scarves" },
       { name: "Silk Print Scarf", description: "Luxurious silk scarf with artistic floral print, versatile styling.", price: "2499", imageUrl: "https://images.unsplash.com/photo-1601924921557-45e8e0e78e68?q=80&w=800&auto=format&fit=crop", category: "Accessories", subcategory: "Scarves" },
 
