@@ -108,6 +108,76 @@ export default function Home() {
         </div>
       </section>
 
+      {/* New Launches Banner */}
+      <section className="pb-20 md:pb-24 container mx-auto px-4 md:px-6" data-testid="section-new-launches">
+        <div className="flex items-end justify-between mb-8 md:mb-10 border-b border-border pb-6">
+          <div>
+            <span className="text-[10px] md:text-xs uppercase tracking-[0.3em] font-semibold text-muted-foreground block mb-2">
+              Just Dropped
+            </span>
+            <h2 data-testid="text-new-launches-title" className="text-3xl md:text-4xl font-display font-bold tracking-tight">
+              New Launches
+            </h2>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+          <Link
+            href="/category/Ladies?sub=Cord+Sets"
+            data-testid="link-launch-cord-sets"
+            className="group relative block aspect-[4/5] md:aspect-[4/5] overflow-hidden bg-secondary"
+          >
+            <img
+              src="/products/cordset-07-mustard-anarkali.jpeg"
+              alt="Indian Cord Sets Collection"
+              className="absolute inset-0 w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-700"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
+            <div className="absolute bottom-0 left-0 right-0 p-6 md:p-10">
+              <span className="text-white/85 text-[10px] md:text-xs uppercase tracking-[0.3em] font-semibold mb-2 md:mb-3 block">
+                New Drop · Ladies
+              </span>
+              <h3 className="text-white text-3xl md:text-5xl font-display font-bold tracking-tighter leading-[0.95] mb-2 md:mb-3">
+                Indian Cord Sets
+              </h3>
+              <p className="text-white/90 text-sm md:text-base font-medium mb-4 md:mb-6 max-w-md">
+                Festive embroidered kurta sets — starting at ₹899.
+              </p>
+              <span className="inline-flex items-center gap-2 bg-white text-black px-5 md:px-7 py-2.5 md:py-3 text-xs uppercase tracking-widest font-semibold w-fit group-hover:gap-4 transition-all">
+                Shop Now <ArrowRight className="w-4 h-4" />
+              </span>
+            </div>
+          </Link>
+
+          <Link
+            href="/category/Accessories?sub=Jewellery"
+            data-testid="link-launch-jewellery"
+            className="group relative block aspect-[4/5] md:aspect-[4/5] overflow-hidden bg-secondary"
+          >
+            <img
+              src="/products/jewel-02-square-stud-model.png"
+              alt="Gold Jewellery Collection"
+              className="absolute inset-0 w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
+            <div className="absolute bottom-0 left-0 right-0 p-6 md:p-10">
+              <span className="text-white/85 text-[10px] md:text-xs uppercase tracking-[0.3em] font-semibold mb-2 md:mb-3 block">
+                New Drop · Accessories
+              </span>
+              <h3 className="text-white text-3xl md:text-5xl font-display font-bold tracking-tighter leading-[0.95] mb-2 md:mb-3">
+                Gold Statement Jewellery
+              </h3>
+              <p className="text-white/90 text-sm md:text-base font-medium mb-4 md:mb-6 max-w-md">
+                Hammered studs, hoops & teardrops — only ₹299.
+              </p>
+              <span className="inline-flex items-center gap-2 bg-white text-black px-5 md:px-7 py-2.5 md:py-3 text-xs uppercase tracking-widest font-semibold w-fit group-hover:gap-4 transition-all">
+                Shop Now <ArrowRight className="w-4 h-4" />
+              </span>
+            </div>
+          </Link>
+        </div>
+      </section>
+
       {/* Muscle Tees Promotional Banner */}
       <section className="pb-20 md:pb-24 container mx-auto px-4 md:px-6" data-testid="section-muscle-tees-banner">
         <Link
