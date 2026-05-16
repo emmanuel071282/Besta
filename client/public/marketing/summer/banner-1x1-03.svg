@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080" width="1080" height="1080">
+  <rect width="1080" height="1080" fill="#0a0a0a"/>
+  <circle cx="540" cy="540" r="380" fill="#e6b85c"/>
+  <text x="540" y="520" text-anchor="middle" font-family="Outfit, Helvetica, Arial, sans-serif" font-weight="900" font-size="200" fill="#0a0a0a" letter-spacing="-10">15%</text>
+  <text x="540" y="620" text-anchor="middle" font-family="Outfit, Helvetica, Arial, sans-serif" font-weight="800" font-size="72" fill="#0a0a0a" letter-spacing="2">OFF EVERYTHING</text>
+  <text x="540" y="200" text-anchor="middle" font-family="Outfit, Helvetica, Arial, sans-serif" font-weight="800" font-size="64" fill="#fff" letter-spacing="-2">BESTA SUMMER</text>
+  <text x="540" y="980" text-anchor="middle" font-family="DM Sans, Helvetica, Arial, sans-serif" font-size="28" fill="#fff" letter-spacing="6">CODE: BESTASUMMER · MIN ₹999</text>
+</svg>

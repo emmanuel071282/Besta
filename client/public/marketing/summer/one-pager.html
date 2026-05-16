@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>BESTA Summer ’26 — One-Pager</title>
+  <style>
+    @page { size: A4; margin: 18mm; }
+    body { font-family: "Helvetica Neue", Arial, sans-serif; color: #0a0a0a; margin: 0; padding: 24px; max-width: 800px; margin-inline: auto; }
+    h1 { font-size: 56px; letter-spacing: -2px; margin: 0; text-transform: uppercase; font-weight: 900; }
+    h2 { font-size: 14px; letter-spacing: 8px; text-transform: uppercase; color: #6b6b6b; font-weight: 700; margin: 0 0 8px; }
+    h3 { font-size: 20px; letter-spacing: -.5px; margin: 24px 0 8px; text-transform: uppercase; }
+    p { font-size: 14px; line-height: 1.55; }
+    .hero { background: #0a0a0a; color: #fff; padding: 40px; margin: 24px 0; }
+    .hero .badge { display:inline-block; background:#e6b85c; color:#0a0a0a; padding:6px 14px; font-weight:800; letter-spacing:4px; font-size:12px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .card { border: 1px solid #0a0a0a; padding: 18px; }
+    .code { background:#0a0a0a; color:#e6b85c; padding:14px 18px; font-weight: 900; letter-spacing: 6px; display:inline-block; font-size: 22px; }
+    ul { padding-left: 18px; font-size: 14px; line-height: 1.6; }
+    .footer { border-top:1px solid #0a0a0a; padding-top: 12px; margin-top: 28px; font-size: 11px; color: #6b6b6b; letter-spacing: 2px; text-transform: uppercase; }
+  </style>
+</head>
+<body>
+  <h2>BESTA · Summer ’26</h2>
+  <h1>The Summer App Push</h1>
+  <p>An always-on, admin-toggleable summer campaign across BESTA web &amp; mobile — promo code, in-app surfaces, /summer landing, WhatsApp blasts, and shareable referrals.</p>
+
+  <div class="hero">
+    <div class="badge">LIMITED TIME · SUMMER ’26</div>
+    <h1 style="color:#fff; margin-top: 14px;">Up to 50% Off.<br/>Free Shipping Pan India.</h1>
+    <p style="color:#ddd; margin-top: 14px;">Linens, cord sets, muscle tees &amp; gold studs. Use code below at checkout.</p>
+    <div class="code">BESTASUMMER</div>
+  </div>
+
+  <h3>What Ships in This Push</h3>
+  <div class="grid">
+    <div class="card"><h2>In-app</h2><p>Dismissible summer strip, hero banner on home, one-time popup for returning users.</p></div>
+    <div class="card"><h2>/summer</h2><p>Dedicated landing page — hero, 6 category tiles, best-sellers, CTA.</p></div>
+    <div class="card"><h2>Checkout</h2><p>Promo input with live validation and discount line on order summary.</p></div>
+    <div class="card"><h2>Referral</h2><p>Account → Share BESTA card. Auto-applies the promo via deep-link.</p></div>
+    <div class="card"><h2>WhatsApp Blast</h2><p>Admin pushes the campaign to every opted-in customer with one click.</p></div>
+    <div class="card"><h2>Admin Toggle</h2><p>Activate, edit, or rotate the campaign at <code>/admin/campaigns</code>.</p></div>
+  </div>
+
+  <h3>Channels</h3>
+  <ul>
+    <li>Meta + Google ads (3 variants — discount, edit, re-engage)</li>
+    <li>WhatsApp blast to opted-in users via Twilio</li>
+    <li>Email sequence (4 subject lines, hero body)</li>
+    <li>App push notifications (3 variants)</li>
+    <li>Referral link sharing from Account page</li>
+  </ul>
+
+  <h3>KPIs</h3>
+  <ul>
+    <li>Promo redemption rate (orders with <code>promoCode</code> ≠ NULL ÷ total orders)</li>
+    <li>/summer → checkout conversion</li>
+    <li>WhatsApp blast CTR (track via UTM on cta link)</li>
+    <li>Referral installs (track via <code>?ref=</code> param)</li>
+  </ul>
+
+  <div class="footer">BESTA · Summer ’26 · besta.in/summer</div>
+</body>
+</html>

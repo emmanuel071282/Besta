@@ -22,10 +22,18 @@ Full omni-channel fast-fashion e-commerce platform for the Indian market. Featur
 - **Admin Stores**: add/edit/toggle 10 retail outlets across India
 - **Admin Inventory**: omni-channel stock management, inline qty editing, low stock alerts, filter by store
 
+## Summer ’26 Marketing Push
+- Admin-toggleable campaign system powers a promo strip, hero banner, popup, /summer landing, checkout discount, account referral card and WhatsApp re-engagement blast.
+- Default campaign: slug `summer-2026`, code `BESTASUMMER`, 15% off ≥ ₹999, 60-day window.
+- Manage at `/admin/campaigns` (create / edit / activate / WhatsApp blast).
+- Marketing asset pack in `client/public/marketing/summer/` (5× 1:1 SVG, 2× 9:16 SVG, `copy.md`, `one-pager.html`).
+- ASO refresh (title, descriptions, keywords, screenshot spec) lives in `MOBILE_BUILD_GUIDE.md`.
+
 ## Routes
 
 ### Storefront
-- `/` - Home (hero, categories, best sellers)
+- `/` - Home (hero, summer banner, categories, best sellers)
+- `/summer` - Summer ’26 landing (hero, quick tiles, best sellers, CTA)
 - `/category/:category` - Category listing with subcategory filters
 - `/category/:category?sub=X` - Filtered by subcategory
 - `/product/:id` - Product detail
@@ -44,6 +52,7 @@ Full omni-channel fast-fashion e-commerce platform for the Indian market. Featur
 - `/admin/sales` - Sales report (bar chart, top products)
 - `/admin/stores` - Store management (CRUD, activate/deactivate)
 - `/admin/inventory` - Inventory management (inline edit, low stock alerts)
+- `/admin/campaigns` - Campaign management (promo code, in-app surfaces, WhatsApp blast)
 
 ## API Endpoints
 
@@ -59,8 +68,16 @@ Full omni-channel fast-fashion e-commerce platform for the Indian market. Featur
 - `GET /api/products` - All products
 - `GET /api/products/category/:category` - By category (optional ?subcategory=)
 
+### Campaigns
+- `GET /api/campaigns/active` - Currently active campaign (or null)
+- `GET /api/campaigns/validate?code=&subtotal=` - Validate promo + compute discount
+- `GET /api/admin/campaigns` - List all campaigns (admin)
+- `POST /api/admin/campaigns` - Create campaign (admin)
+- `PATCH /api/admin/campaigns/:id` - Update / toggle (admin)
+- `POST /api/admin/campaigns/:id/blast` - WhatsApp blast to opted-in users (admin)
+
 ### Customer Orders
-- `POST /api/orders` - Place order (requires auth)
+- `POST /api/orders` - Place order (requires auth, accepts optional `promoCode`)
 - `GET /api/orders` - User's order history
 - `GET /api/orders/:id` - Order detail with items
 
@@ -82,7 +99,9 @@ Full omni-channel fast-fashion e-commerce platform for the Indian market. Featur
 - `users` - id, name, mobile (unique), email, pin (bcrypt), birthday, role (customer/admin)
 - `stores` - id, name, city, state, pincode, address, phone, isActive
 - `inventory` - id, productId, storeId, quantity, reservedQty
-- `orders` - id, userId, orderNumber (unique), status, totalAmount, shipping fields, paymentMethod, createdAt
+- `campaigns` - id, slug, title, subtitle, eyebrow, ctaLabel, ctaLink, heroImageUrl, promoCode, discountType (percent/flat/shipping), discountValue, minOrder, startDate, endDate, isActive
+- `users` - … + `marketingOptIn` (boolean, used by WhatsApp blast targeting)
+- `orders` - id, userId, orderNumber (unique), status, totalAmount, shipping fields, paymentMethod, promoCode, discountAmount, createdAt
 - `order_items` - id, orderId, productId, storeId, quantity, price
 - `session` - managed by connect-pg-simple
 

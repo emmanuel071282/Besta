@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920" width="1080" height="1920">
+  <rect width="1080" height="1920" fill="#f5e6c8"/>
+  <rect x="60" y="60" width="960" height="1800" fill="none" stroke="#0a0a0a" stroke-width="6"/>
+  <text x="540" y="320" text-anchor="middle" font-family="Outfit, Helvetica, Arial, sans-serif" font-weight="800" font-size="96" fill="#0a0a0a" letter-spacing="-4">BESTA</text>
+  <text x="540" y="400" text-anchor="middle" font-family="DM Sans, Helvetica, Arial, sans-serif" font-size="32" fill="#0a0a0a" letter-spacing="10">SUMMER ’26 EDIT</text>
+  <line x1="240" y1="500" x2="840" y2="500" stroke="#0a0a0a" stroke-width="4"/>
+  <text x="540" y="800" text-anchor="middle" font-family="Outfit, Helvetica, Arial, sans-serif" font-weight="900" font-size="160" fill="#0a0a0a" letter-spacing="-8">FREE</text>
+  <text x="540" y="960" text-anchor="middle" font-family="Outfit, Helvetica, Arial, sans-serif" font-weight="900" font-size="160" fill="#0a0a0a" letter-spacing="-8">SHIPPING</text>
+  <text x="540" y="1080" text-anchor="middle" font-family="Outfit, Helvetica, Arial, sans-serif" font-weight="900" font-size="160" fill="#0a0a0a" letter-spacing="-8">PAN INDIA</text>
+  <text x="540" y="1260" text-anchor="middle" font-family="DM Sans, Helvetica, Arial, sans-serif" font-size="32" fill="#0a0a0a" letter-spacing="6">+ 15% OFF FIRST ORDER</text>
+  <g transform="translate(540,1620)">
+    <rect x="-300" y="-70" width="600" height="140" fill="#0a0a0a"/>
+    <text x="0" y="-2" text-anchor="middle" font-family="DM Sans, Helvetica, Arial, sans-serif" font-size="22" fill="#e6b85c" letter-spacing="6">USE CODE</text>
+    <text x="0" y="48" text-anchor="middle" font-family="Outfit, Helvetica, Arial, sans-serif" font-weight="800" font-size="56" fill="#fff" letter-spacing="8">BESTASUMMER</text>
+  </g>
+</svg>

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080" width="1080" height="1080">
+  <rect width="1080" height="1080" fill="#e6b85c"/>
+  <g fill="#0a0a0a">
+    <text x="540" y="240" text-anchor="middle" font-family="Outfit, Helvetica, Arial, sans-serif" font-weight="800" font-size="60" letter-spacing="8">REFER A FRIEND</text>
+    <text x="540" y="500" text-anchor="middle" font-family="Outfit, Helvetica, Arial, sans-serif" font-weight="900" font-size="200" letter-spacing="-8">GIVE 15%</text>
+    <text x="540" y="700" text-anchor="middle" font-family="Outfit, Helvetica, Arial, sans-serif" font-weight="900" font-size="200" letter-spacing="-8">GET 15%</text>
+    <text x="540" y="900" text-anchor="middle" font-family="DM Sans, Helvetica, Arial, sans-serif" font-size="32" letter-spacing="6">SHARE YOUR BESTA LINK</text>
+    <text x="540" y="980" text-anchor="middle" font-family="Outfit, Helvetica, Arial, sans-serif" font-weight="800" font-size="40">BESTA SUMMER ’26</text>
+  </g>
+</svg>

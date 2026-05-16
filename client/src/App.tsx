@@ -8,6 +8,8 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { CartDrawer } from "@/components/cart/CartDrawer";
 import { ChatWidget } from "@/components/ChatWidget";
+import { SummerHeaderStrip } from "@/components/summer/SummerHeaderStrip";
+import { SummerPopup } from "@/components/summer/SummerPopup";
 import NotFound from "@/pages/not-found";
 
 import Home from "@/pages/Home";
@@ -28,14 +30,18 @@ import SalesPage from "@/pages/admin/SalesPage";
 import StoresPage from "@/pages/admin/StoresPage";
 import InventoryPage from "@/pages/admin/InventoryPage";
 import AdminSupportPage from "@/pages/admin/SupportPage";
+import CampaignsPage from "@/pages/admin/CampaignsPage";
+import SummerPage from "@/pages/SummerPage";
 
 function StorefrontRouter() {
   return (
     <div className="flex flex-col min-h-screen">
+      <SummerHeaderStrip />
       <Navbar />
       <main className="flex-grow">
         <Switch>
           <Route path="/" component={Home} />
+          <Route path="/summer" component={SummerPage} />
           <Route path="/category/:category" component={CategoryPage} />
           <Route path="/product/:id" component={ProductPage} />
           <Route path="/wishlist" component={WishlistPage} />
@@ -52,6 +58,7 @@ function StorefrontRouter() {
       <Footer />
       <CartDrawer />
       <ChatWidget />
+      <SummerPopup />
     </div>
   );
 }
@@ -68,6 +75,7 @@ function App() {
           <Route path="/admin/stores" component={StoresPage} />
           <Route path="/admin/inventory" component={InventoryPage} />
           <Route path="/admin/support" component={AdminSupportPage} />
+          <Route path="/admin/campaigns" component={CampaignsPage} />
           <Route component={StorefrontRouter} />
         </Switch>
       </TooltipProvider>

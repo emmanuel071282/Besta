@@ -1,6 +1,6 @@
 import { db } from "./db";
 import {
-  products, users, stores, inventory, orders, orderItems, supportRequests,
+  products, users, stores, inventory, orders, orderItems, supportRequests, campaigns,
   type Product, type InsertProduct,
   type User, type InsertUser,
   type Store, type InsertStore,
@@ -8,6 +8,7 @@ import {
   type Order, type InsertOrder,
   type OrderItem, type InsertOrderItem,
   type SupportRequest, type InsertSupportRequest,
+  type Campaign, type InsertCampaign,
   getSizesForProduct,
 } from "@shared/schema";
 import { eq, and, desc, sql, gte, lte, inArray } from "drizzle-orm";
@@ -52,6 +53,16 @@ export interface IStorage {
   createSupportRequest(data: InsertSupportRequest): Promise<SupportRequest>;
   getSupportRequests(): Promise<SupportRequest[]>;
   updateSupportRequestStatus(id: number, status: string): Promise<SupportRequest | undefined>;
+
+  getCampaigns(): Promise<Campaign[]>;
+  getActiveCampaign(): Promise<Campaign | undefined>;
+  getCampaignBySlug(slug: string): Promise<Campaign | undefined>;
+  getCampaignByPromoCode(code: string): Promise<Campaign | undefined>;
+  createCampaign(data: InsertCampaign): Promise<Campaign>;
+  updateCampaign(id: number, data: Partial<InsertCampaign>): Promise<Campaign | undefined>;
+  deactivateAllCampaigns(): Promise<void>;
+
+  getMarketingOptInMobiles(): Promise<string[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -345,6 +356,47 @@ export class DatabaseStorage implements IStorage {
   async updateSupportRequestStatus(id: number, status: string): Promise<SupportRequest | undefined> {
     const [updated] = await db.update(supportRequests).set({ status }).where(eq(supportRequests.id, id)).returning();
     return updated;
+  }
+
+  async getCampaigns(): Promise<Campaign[]> {
+    return db.select().from(campaigns).orderBy(desc(campaigns.id));
+  }
+
+  async getActiveCampaign(): Promise<Campaign | undefined> {
+    const now = new Date();
+    const rows = await db.select().from(campaigns).where(eq(campaigns.isActive, true));
+    return rows.find((c) => c.startDate <= now && c.endDate >= now);
+  }
+
+  async getCampaignBySlug(slug: string): Promise<Campaign | undefined> {
+    const [c] = await db.select().from(campaigns).where(eq(campaigns.slug, slug));
+    return c;
+  }
+
+  async getCampaignByPromoCode(code: string): Promise<Campaign | undefined> {
+    const [c] = await db.select().from(campaigns).where(eq(campaigns.promoCode, code.toUpperCase()));
+    return c;
+  }
+
+  async createCampaign(data: InsertCampaign): Promise<Campaign> {
+    const [c] = await db.insert(campaigns).values({ ...data, promoCode: data.promoCode.toUpperCase() }).returning();
+    return c;
+  }
+
+  async updateCampaign(id: number, data: Partial<InsertCampaign>): Promise<Campaign | undefined> {
+    const payload: any = { ...data };
+    if (payload.promoCode) payload.promoCode = String(payload.promoCode).toUpperCase();
+    const [updated] = await db.update(campaigns).set(payload).where(eq(campaigns.id, id)).returning();
+    return updated;
+  }
+
+  async deactivateAllCampaigns(): Promise<void> {
+    await db.update(campaigns).set({ isActive: false });
+  }
+
+  async getMarketingOptInMobiles(): Promise<string[]> {
+    const rows = await db.select({ mobile: users.mobile, optIn: users.marketingOptIn }).from(users);
+    return rows.filter((r) => r.optIn).map((r) => r.mobile);
   }
 }
 

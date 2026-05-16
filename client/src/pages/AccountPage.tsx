@@ -1,13 +1,15 @@
 import { useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
-import { User, Mail, Phone, Calendar, LogOut, Loader2, Package, ShieldCheck } from "lucide-react";
+import { User, Mail, Phone, Calendar, LogOut, Loader2, Package, ShieldCheck, Share2, Copy, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useActiveCampaign } from "@/hooks/use-campaign";
 
 export default function AccountPage() {
   const [, navigate] = useLocation();
   const { user, isLoading, isLoggedIn, logout } = useAuth();
   const { toast } = useToast();
+  const { data: campaign } = useActiveCampaign();
 
   useEffect(() => {
     if (!isLoading && !isLoggedIn) navigate("/login");
@@ -93,6 +95,55 @@ export default function AccountPage() {
             </div>
           </div>
         </div>
+
+        {campaign && (() => {
+          const origin = typeof window !== "undefined" ? window.location.origin : "";
+          const referralUrl = `${origin}/summer?ref=${user.id}&promo=${campaign.promoCode}`;
+          const shareText = `Hey! Join me on BESTA — use my code ${campaign.promoCode} for ${campaign.discountType === "percent" ? `${campaign.discountValue}% OFF` : `₹${campaign.discountValue} OFF`} (min ₹${campaign.minOrder}). ${referralUrl}`;
+          const handleShare = async () => {
+            if (navigator.share) {
+              try { await navigator.share({ title: "BESTA Summer", text: shareText, url: referralUrl }); } catch {}
+            } else {
+              await navigator.clipboard.writeText(shareText);
+              toast({ title: "Copied!", description: "Share message copied to clipboard." });
+            }
+          };
+          const handleCopy = async () => {
+            await navigator.clipboard.writeText(referralUrl);
+            toast({ title: "Link copied", description: referralUrl });
+          };
+          return (
+            <div className="border border-foreground p-5 mb-6 bg-secondary/30" data-testid="card-referral">
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles className="w-4 h-4" />
+                <span className="text-[10px] uppercase tracking-widest font-bold">Share BESTA</span>
+              </div>
+              <h3 className="font-display text-lg font-bold tracking-tighter mb-1">Get friends ₹{campaign.discountType === "percent" ? `${campaign.discountValue}% off` : campaign.discountValue + " off"}</h3>
+              <p className="text-xs text-muted-foreground mb-4">
+                Send your link — they get the {campaign.promoCode} code auto-applied.
+              </p>
+              <div className="flex items-center gap-2 mb-3 border border-border bg-background px-3 py-2 text-xs truncate" data-testid="text-referral-url">
+                {referralUrl}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleShare}
+                  data-testid="button-share-referral"
+                  className="flex-1 bg-foreground text-background py-2.5 text-[11px] uppercase tracking-widest font-semibold hover:opacity-90 flex items-center justify-center gap-2"
+                >
+                  <Share2 className="w-3.5 h-3.5" /> Share
+                </button>
+                <button
+                  onClick={handleCopy}
+                  data-testid="button-copy-referral"
+                  className="flex-1 border border-foreground py-2.5 text-[11px] uppercase tracking-widest font-semibold hover:bg-foreground hover:text-background flex items-center justify-center gap-2"
+                >
+                  <Copy className="w-3.5 h-3.5" /> Copy Link
+                </button>
+              </div>
+            </div>
+          );
+        })()}
 
         <div className="space-y-3 mb-6">
           <Link

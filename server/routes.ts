@@ -3,7 +3,7 @@ import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
-import { registerSchema, loginSchema, ORDER_STATUSES, getSizesForProduct, otpVerifications } from "@shared/schema";
+import { registerSchema, loginSchema, ORDER_STATUSES, getSizesForProduct, otpVerifications, insertCampaignSchema } from "@shared/schema";
 import bcrypt from "bcryptjs";
 import { sendSms } from "./sms";
 import { db } from "./db";
@@ -398,6 +398,96 @@ export async function registerRoutes(
     shippingPincode: z.string().regex(/^\d{6}$/, "Invalid pincode"),
     shippingPhone: z.string().regex(/^[6-9]\d{9}$/, "Invalid phone"),
     paymentMethod: z.string().min(1, "Payment method required"),
+    promoCode: z.string().optional(),
+  });
+
+  function computeDiscount(campaign: { discountType: string; discountValue: string; minOrder: string }, subtotal: number): number {
+    const min = Number(campaign.minOrder ?? 0);
+    if (subtotal < min) return 0;
+    const value = Number(campaign.discountValue);
+    if (campaign.discountType === "percent") {
+      return Math.round((subtotal * value) / 100);
+    }
+    if (campaign.discountType === "flat") {
+      return Math.min(Math.round(value), subtotal);
+    }
+    return 0;
+  }
+
+  app.get("/api/campaigns/active", async (_req, res) => {
+    const campaign = await storage.getActiveCampaign();
+    if (!campaign) return res.json(null);
+    res.json(campaign);
+  });
+
+  app.get("/api/campaigns/validate", async (req, res) => {
+    const code = String(req.query.code || "").trim();
+    const subtotal = Number(req.query.subtotal || 0);
+    if (!code) return res.status(400).json({ valid: false, message: "Promo code required" });
+    const campaign = await storage.getCampaignByPromoCode(code);
+    const now = new Date();
+    if (!campaign || !campaign.isActive || campaign.startDate > now || campaign.endDate < now) {
+      return res.status(404).json({ valid: false, message: "Promo code not valid" });
+    }
+    if (Number(campaign.minOrder) > subtotal) {
+      return res.status(400).json({ valid: false, message: `Minimum order ₹${campaign.minOrder} required` });
+    }
+    const discount = computeDiscount(campaign, subtotal);
+    res.json({
+      valid: true,
+      promoCode: campaign.promoCode,
+      discountType: campaign.discountType,
+      discountValue: campaign.discountValue,
+      discountAmount: discount,
+      title: campaign.title,
+    });
+  });
+
+  app.get("/api/admin/campaigns", requireAdmin, async (_req, res) => {
+    const list = await storage.getCampaigns();
+    res.json(list);
+  });
+
+  app.post("/api/admin/campaigns", requireAdmin, async (req, res) => {
+    try {
+      const parsed = insertCampaignSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
+      if (parsed.data.isActive) await storage.deactivateAllCampaigns();
+      const created = await storage.createCampaign(parsed.data);
+      res.json(created);
+    } catch (e: any) {
+      res.status(500).json({ message: e?.message || "Failed to create campaign" });
+    }
+  });
+
+  app.patch("/api/admin/campaigns/:id", requireAdmin, async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const partial = insertCampaignSchema.partial().safeParse(req.body);
+      if (!partial.success) return res.status(400).json({ message: partial.error.errors[0].message });
+      if (partial.data.isActive) await storage.deactivateAllCampaigns();
+      const updated = await storage.updateCampaign(id, partial.data);
+      if (!updated) return res.status(404).json({ message: "Campaign not found" });
+      res.json(updated);
+    } catch (e: any) {
+      res.status(500).json({ message: e?.message || "Failed to update campaign" });
+    }
+  });
+
+  app.post("/api/admin/campaigns/:id/blast", requireAdmin, async (req, res) => {
+    const id = Number(req.params.id);
+    const campaign = (await storage.getCampaigns()).find(c => c.id === id);
+    if (!campaign) return res.status(404).json({ message: "Campaign not found" });
+    const mobiles = await storage.getMarketingOptInMobiles();
+    const body = `BESTA ${campaign.title}\n\n${campaign.subtitle}\nUse code ${campaign.promoCode} — ${campaign.discountType === "percent" ? campaign.discountValue + "% OFF" : "₹" + campaign.discountValue + " OFF"}.\n\nShop: https://besta.in${campaign.ctaLink}`;
+    let sent = 0, simulated = 0, failed = 0;
+    for (const mobile of mobiles) {
+      try {
+        const r = await sendSms(mobile, body);
+        if (r.simulated) simulated++; else sent++;
+      } catch { failed++; }
+    }
+    res.json({ recipients: mobiles.length, sent, simulated, failed });
   });
 
   app.post("/api/orders", requireAuth, async (req, res) => {
@@ -407,12 +497,25 @@ export async function registerRoutes(
         return res.status(400).json({ message: parsed.error.errors[0].message });
       }
       const user = (req as any).user;
-      const { items, shippingName, shippingAddress, shippingCity, shippingState, shippingPincode, shippingPhone, paymentMethod } = parsed.data;
+      const { items, shippingName, shippingAddress, shippingCity, shippingState, shippingPincode, shippingPhone, paymentMethod, promoCode } = parsed.data;
 
-      let totalAmount = 0;
+      let subtotal = 0;
       for (const item of items) {
-        totalAmount += Number(item.price) * item.quantity;
+        subtotal += Number(item.price) * item.quantity;
       }
+
+      let discountAmount = 0;
+      let appliedPromo: string | null = null;
+      if (promoCode) {
+        const campaign = await storage.getCampaignByPromoCode(promoCode);
+        const now = new Date();
+        if (campaign && campaign.isActive && campaign.startDate <= now && campaign.endDate >= now && subtotal >= Number(campaign.minOrder)) {
+          discountAmount = computeDiscount(campaign, subtotal);
+          appliedPromo = campaign.promoCode;
+        }
+      }
+
+      const totalAmount = Math.max(0, subtotal - discountAmount);
 
       const orderNumber = `BESTA-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
       const order = await storage.createOrder({
@@ -427,6 +530,8 @@ export async function registerRoutes(
         shippingPincode,
         shippingPhone,
         paymentMethod,
+        promoCode: appliedPromo,
+        discountAmount: discountAmount.toString(),
       });
 
       for (const item of items) {
@@ -518,6 +623,7 @@ async function seedDatabase() {
       if (hasV3Subcats && hasMuscleTees && hasIndianCordSets && hasGoldEarrings) {
         await seedStoresAndInventory();
         await seedAdminUser();
+        await seedSummerCampaign();
         return;
       }
 
@@ -702,8 +808,39 @@ async function seedDatabase() {
 
     await seedStoresAndInventory();
     await seedAdminUser();
+    await seedSummerCampaign();
   } catch (error) {
     console.error("Error seeding database:", error);
+  }
+}
+
+async function seedSummerCampaign() {
+  try {
+    const existing = await storage.getCampaignBySlug?.("summer-2026");
+    if (existing) return;
+    const list = await storage.getCampaigns();
+    if (list.some(c => c.slug === "summer-2026")) return;
+    const now = new Date();
+    const end = new Date(now.getTime() + 60 * 24 * 3600 * 1000);
+    await storage.createCampaign({
+      slug: "summer-2026",
+      title: "Summer Sale Up to 50% Off",
+      subtitle: "Linens, breezy dresses & holiday edits — free shipping on every order.",
+      eyebrow: "Limited Time · Summer '26",
+      ctaLabel: "Shop Summer",
+      ctaLink: "/summer",
+      heroImageUrl: "/marketing/summer/banner-1x1-01.svg",
+      promoCode: "BESTASUMMER",
+      discountType: "percent",
+      discountValue: "15",
+      minOrder: "999",
+      startDate: now,
+      endDate: end,
+      isActive: true,
+    } as any);
+    console.log("Seeded default Summer '26 campaign");
+  } catch (e) {
+    console.error("Failed to seed summer campaign:", e);
   }
 }
 

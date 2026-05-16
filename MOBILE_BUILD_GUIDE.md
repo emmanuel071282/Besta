@@ -212,3 +212,71 @@ npx cap open android  # or ios
 ### iOS build fails
 - Run `cd ios/App && pod install` to install CocoaPods dependencies
 - Make sure Xcode command line tools are installed: `xcode-select --install`
+
+---
+
+## App Store Optimization (ASO) — Summer ’26 Refresh
+
+Use the copy below when refreshing the Google Play + App Store listings alongside the BESTA Summer push.
+
+### New App Title (≤30 chars)
+**BESTA — Indian Fashion Sale**
+
+### Short Description (≤80 chars, Play Store)
+Linens, cord sets, sneakers & gold studs. Free shipping pan India. Up to 50% off.
+
+### Long Description (Play Store / App Store full description)
+> BESTA is India’s fast-fashion app for the everyday wardrobe — built for the heat, festivals and everything in between.
+>
+> 🌞 **Summer ’26 is here.** Use code **BESTASUMMER** at checkout for 15% off your first order over ₹999. Free shipping across India.
+>
+> **Shop the BESTA edit**
+> • Mens — muscle tees, linen shirts, ethnic kurtas, sneakers
+> • Ladies — cord sets, breezy dresses, intimate wear, heels
+> • Kids & Infants — soft basics and party fits, age 0–13
+> • Accessories — hammered gold studs, sunglasses, scarves
+> • Footwear — sneakers, loafers, sandals, boots
+>
+> **What’s inside the app**
+> • One-tap WhatsApp OTP login (no passwords)
+> • Wishlist + cart that syncs across web and app
+> • Live promo strip + checkout discount with `BESTASUMMER`
+> • Order tracking with delivery status per store
+> • Refer friends from your account and unlock more rewards
+>
+> **Why shoppers love BESTA**
+> ✓ Free shipping pan-India, no minimums
+> ✓ 15-day easy returns, sale items included
+> ✓ Multi-store inventory from 10+ Indian retail outlets
+> ✓ Pay with UPI, Net Banking, Card — all major Indian options
+>
+> Download BESTA and shop the Summer ’26 edit today.
+
+### ASO Keyword List (Play Store keyword fields + App Store keywords field, 100 chars)
+`fashion,shopping,sale,kurta,saree,cord set,sneakers,upi,linen,dress,kids,mens,ladies,accessories,india`
+
+### Promotional Text (App Store, 170 chars — updatable without resubmission)
+> Summer ’26 is live — flat 15% off + free shipping pan-India. Use BESTASUMMER at checkout. New cord sets, linen edits & gold studs added weekly.
+
+### What’s New in This Version
+- New Summer ’26 storefront with auto-applied promo code
+- /summer landing experience inside the app
+- Share BESTA — refer friends and auto-apply discounts
+- Promo input + discount line on checkout
+- Admin can launch WhatsApp re-engagement blasts (internal)
+
+### Screenshot Spec (6 deliverables, 1284×2778 / 1080×1920)
+1. **Hero** — `story-9x16-01.svg` styling — “BESTA Summer ’26 · Up to 50% off”
+2. **Category grid** — Home page screenshot showing Mens / Ladies / Kids tiles
+3. **Product detail** — a cord set with price, sizes and add-to-cart
+4. **Checkout discount** — promo `BESTASUMMER` applied with green discount line
+5. **/summer landing** — hero banner + 6 category tiles
+6. **Account share** — “Share BESTA” referral card
+
+### Suggested Capture URLs (use the in-app screenshot mode)
+- `/` (hero with summer banner)
+- `/category/Ladies?sub=Cord+Sets`
+- `/product/<any-cord-set-id>`
+- `/checkout` (with BESTASUMMER applied)
+- `/summer`
+- `/account` (logged-in user with active campaign)

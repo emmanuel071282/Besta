@@ -85,7 +85,40 @@ export const users = pgTable("users", {
   pin: text("pin").notNull(),
   birthday: text("birthday").notNull(),
   role: text("role").notNull().default("customer"),
+  marketingOptIn: boolean("marketing_opt_in").notNull().default(true),
 });
+
+export const campaigns = pgTable("campaigns", {
+  id: serial("id").primaryKey(),
+  slug: text("slug").notNull().unique(),
+  title: text("title").notNull(),
+  subtitle: text("subtitle").notNull().default(""),
+  eyebrow: text("eyebrow").notNull().default(""),
+  ctaLabel: text("cta_label").notNull().default("Shop Now"),
+  ctaLink: text("cta_link").notNull().default("/summer"),
+  heroImageUrl: text("hero_image_url").notNull().default(""),
+  promoCode: text("promo_code").notNull(),
+  discountType: text("discount_type").notNull().default("percent"),
+  discountValue: numeric("discount_value").notNull().default("10"),
+  minOrder: numeric("min_order").notNull().default("0"),
+  startDate: timestamp("start_date").notNull().defaultNow(),
+  endDate: timestamp("end_date").notNull(),
+  isActive: boolean("is_active").notNull().default(false),
+});
+
+export const insertCampaignSchema = createInsertSchema(campaigns)
+  .omit({ id: true })
+  .extend({
+    startDate: z.coerce.date(),
+    endDate: z.coerce.date(),
+    discountValue: z.union([z.string(), z.number()]).transform((v) => String(v)),
+    minOrder: z.union([z.string(), z.number()]).transform((v) => String(v)),
+  });
+export type InsertCampaign = z.infer<typeof insertCampaignSchema>;
+export type Campaign = typeof campaigns.$inferSelect;
+
+export const DISCOUNT_TYPES = ["percent", "flat", "shipping"] as const;
+export type DiscountType = typeof DISCOUNT_TYPES[number];
 
 export const supportRequests = pgTable("support_requests", {
   id: serial("id").primaryKey(),
@@ -158,6 +191,8 @@ export const orders = pgTable("orders", {
   shippingPincode: text("shipping_pincode").notNull(),
   shippingPhone: text("shipping_phone").notNull(),
   paymentMethod: text("payment_method").notNull(),
+  promoCode: text("promo_code"),
+  discountAmount: numeric("discount_amount").notNull().default("0"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

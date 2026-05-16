@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080" width="1080" height="1080">
+  <rect width="1080" height="1080" fill="#f5e6c8"/>
+  <rect x="60" y="60" width="960" height="960" fill="none" stroke="#0a0a0a" stroke-width="6"/>
+  <text x="540" y="280" text-anchor="middle" font-family="Outfit, Helvetica, Arial, sans-serif" font-weight="800" font-size="96" fill="#0a0a0a" letter-spacing="-4">BESTA</text>
+  <text x="540" y="440" text-anchor="middle" font-family="Outfit, Helvetica, Arial, sans-serif" font-weight="900" font-size="180" fill="#0a0a0a" letter-spacing="-8">CORD SETS</text>
+  <text x="540" y="510" text-anchor="middle" font-family="Outfit, Helvetica, Arial, sans-serif" font-weight="900" font-size="180" fill="#0a0a0a" letter-spacing="-8">FROM ₹899</text>
+  <text x="540" y="660" text-anchor="middle" font-family="DM Sans, Helvetica, Arial, sans-serif" font-size="28" fill="#0a0a0a" letter-spacing="6">FESTIVE · BREEZY · NEW DROP</text>
+  <g transform="translate(540,860)">
+    <rect x="-260" y="-50" width="520" height="100" fill="#0a0a0a"/>
+    <text x="0" y="18" text-anchor="middle" font-family="Outfit, Helvetica, Arial, sans-serif" font-weight="800" font-size="40" fill="#f5e6c8" letter-spacing="6">SHOP THE EDIT</text>
+  </g>
+</svg>

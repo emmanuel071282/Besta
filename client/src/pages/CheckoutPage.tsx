@@ -8,6 +8,8 @@ import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { useActiveCampaign } from "@/hooks/use-campaign";
+import { Tag, Check } from "lucide-react";
 import { 
   CreditCard, 
   Building2, 
@@ -74,6 +76,45 @@ export default function CheckoutPage() {
     pincode: "",
   });
 
+  const { data: activeCampaign } = useActiveCampaign();
+  const readPromoFromUrl = () => {
+    if (typeof window === "undefined") return "";
+    const fromQuery = new URLSearchParams(window.location.search).get("promo");
+    if (fromQuery) return fromQuery.toUpperCase();
+    const fromStorage = sessionStorage.getItem("besta-promo-code");
+    return fromStorage ? fromStorage.toUpperCase() : "";
+  };
+  const [promoInput, setPromoInput] = useState(readPromoFromUrl);
+  const [appliedPromo, setAppliedPromo] = useState<{ code: string; discount: number } | null>(null);
+  const [promoError, setPromoError] = useState<string | null>(null);
+  const [autoTriedPromo, setAutoTriedPromo] = useState(false);
+
+  const validatePromo = useMutation({
+    mutationFn: async (code: string) => {
+      const res = await fetch(`/api/campaigns/validate?code=${encodeURIComponent(code)}&subtotal=${cartTotal}`, { credentials: "include" });
+      const data = await res.json();
+      if (!res.ok || !data.valid) throw new Error(data.message || "Invalid code");
+      return data;
+    },
+    onSuccess: (data) => {
+      setAppliedPromo({ code: data.promoCode, discount: data.discountAmount });
+      setPromoError(null);
+      toast({ title: "Promo applied", description: `Saved ₹${data.discountAmount.toLocaleString("en-IN")} with ${data.promoCode}` });
+    },
+    onError: (e: any) => {
+      setAppliedPromo(null);
+      setPromoError(e.message || "Promo code not valid");
+    },
+  });
+
+  const discountAmount = appliedPromo?.discount || 0;
+  const finalTotal = Math.max(0, cartTotal - discountAmount);
+
+  if (typeof window !== "undefined" && !autoTriedPromo && promoInput && !appliedPromo && cartTotal > 0 && !validatePromo.isPending) {
+    setAutoTriedPromo(true);
+    validatePromo.mutate(promoInput.trim().toUpperCase());
+  }
+
   const placeOrderMutation = useMutation({
     mutationFn: async () => {
       const paymentLabel = paymentMethod === "card" ? "card" : paymentMethod === "netbanking" ? `netbanking-${selectedBank}` : upiApp === "upi_id" ? `upi-${upiId}` : `upi-${upiApp}`;
@@ -91,6 +132,7 @@ export default function CheckoutPage() {
         shippingPincode: shipping.pincode,
         shippingPhone: shipping.phone,
         paymentMethod: paymentLabel,
+        promoCode: appliedPromo?.code,
       });
       return res.json();
     },
@@ -460,18 +502,74 @@ export default function CheckoutPage() {
                 ))}
               </ul>
 
+              <div className="border-t border-border pt-4 mb-4" data-testid="section-promo">
+                <label className="block text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Promo Code</label>
+                {appliedPromo ? (
+                  <div className="flex items-center justify-between gap-2 border border-foreground/40 px-3 py-2 bg-secondary/40">
+                    <span className="text-xs font-semibold flex items-center gap-2" data-testid="text-applied-promo">
+                      <Check className="w-3.5 h-3.5 text-green-600" />
+                      {appliedPromo.code} applied
+                    </span>
+                    <button
+                      type="button"
+                      data-testid="button-remove-promo"
+                      onClick={() => { setAppliedPromo(null); setPromoInput(""); setPromoError(null); }}
+                      className="text-[10px] uppercase tracking-widest text-muted-foreground hover:text-foreground"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex gap-2">
+                      <Input
+                        data-testid="input-promo-code"
+                        value={promoInput}
+                        onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
+                        placeholder={activeCampaign?.promoCode || "Enter code"}
+                        className="rounded-none h-10 text-sm"
+                      />
+                      <button
+                        type="button"
+                        data-testid="button-apply-promo"
+                        disabled={!promoInput.trim() || validatePromo.isPending}
+                        onClick={() => validatePromo.mutate(promoInput.trim().toUpperCase())}
+                        className="bg-foreground text-background px-4 text-[11px] uppercase tracking-widest font-semibold hover:opacity-90 disabled:opacity-40 flex items-center gap-1"
+                      >
+                        {validatePromo.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Tag className="w-3 h-3" />}
+                        Apply
+                      </button>
+                    </div>
+                    {promoError && (
+                      <p className="text-[11px] text-red-600 mt-1" data-testid="text-promo-error">{promoError}</p>
+                    )}
+                    {!promoError && activeCampaign && (
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        Try <button type="button" className="underline" onClick={() => setPromoInput(activeCampaign.promoCode)}>{activeCampaign.promoCode}</button> · min ₹{activeCampaign.minOrder}
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+
               <div className="space-y-2 text-sm border-t border-border pt-4">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Subtotal</span>
                   <span>₹{cartTotal.toLocaleString('en-IN')}</span>
                 </div>
+                {discountAmount > 0 && (
+                  <div className="flex justify-between text-green-700">
+                    <span>Discount ({appliedPromo?.code})</span>
+                    <span data-testid="text-discount-amount">- ₹{discountAmount.toLocaleString('en-IN')}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Delivery</span>
                   <span className="text-green-600 font-medium">Free</span>
                 </div>
                 <div className="flex justify-between font-semibold text-lg pt-3 border-t border-border">
                   <span>Total</span>
-                  <span>₹{cartTotal.toLocaleString('en-IN')}</span>
+                  <span data-testid="text-final-total">₹{finalTotal.toLocaleString('en-IN')}</span>
                 </div>
               </div>
 
@@ -487,7 +585,7 @@ export default function CheckoutPage() {
                   ) : (
                     <Lock className="w-4 h-4 mr-2" />
                   )}
-                  Pay ₹{cartTotal.toLocaleString('en-IN')}
+                  Pay ₹{finalTotal.toLocaleString('en-IN')}
                 </Button>
               )}
 

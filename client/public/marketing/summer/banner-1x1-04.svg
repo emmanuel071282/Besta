@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080" width="1080" height="1080">
+  <rect width="1080" height="540" fill="#fff"/>
+  <rect y="540" width="1080" height="540" fill="#0a0a0a"/>
+  <text x="60" y="240" font-family="Outfit, Helvetica, Arial, sans-serif" font-weight="900" font-size="120" fill="#0a0a0a" letter-spacing="-6">SUMMER</text>
+  <text x="60" y="360" font-family="Outfit, Helvetica, Arial, sans-serif" font-weight="900" font-size="120" fill="#0a0a0a" letter-spacing="-6">DROPS.</text>
+  <text x="60" y="720" font-family="Outfit, Helvetica, Arial, sans-serif" font-weight="900" font-size="120" fill="#fff" letter-spacing="-6">FREE</text>
+  <text x="60" y="840" font-family="Outfit, Helvetica, Arial, sans-serif" font-weight="900" font-size="120" fill="#e6b85c" letter-spacing="-6">SHIPPING.</text>
+  <text x="60" y="1000" font-family="DM Sans, Helvetica, Arial, sans-serif" font-size="26" fill="#fff" letter-spacing="4">CODE BESTASUMMER · SHOP IN APP</text>
+</svg>

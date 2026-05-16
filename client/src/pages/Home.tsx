@@ -2,6 +2,7 @@ import { Link } from "wouter";
 import { useProducts } from "@/hooks/use-products";
 import { ProductCard, ProductCardSkeleton } from "@/components/product/ProductCard";
 import { ArrowRight } from "lucide-react";
+import { SummerHeroBanner } from "@/components/summer/SummerHeroBanner";
 
 export default function Home() {
   const { data: products, isLoading } = useProducts();
@@ -50,6 +51,8 @@ export default function Home() {
           </h1>
         </div>
       </section>
+
+      <SummerHeroBanner />
 
       {/* Featured Categories */}
       <section className="py-20 md:py-32 container mx-auto px-4 md:px-6">
