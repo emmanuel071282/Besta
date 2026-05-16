@@ -3,7 +3,7 @@ import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
-import { registerSchema, loginSchema, ORDER_STATUSES, getSizesForProduct, otpVerifications, insertCampaignSchema } from "@shared/schema";
+import { registerSchema, loginSchema, ORDER_STATUSES, getSizesForProduct, otpVerifications, insertCampaignSchema, type InsertCampaign } from "@shared/schema";
 import bcrypt from "bcryptjs";
 import { sendSms } from "./sms";
 import { db } from "./db";
@@ -816,13 +816,11 @@ async function seedDatabase() {
 
 async function seedSummerCampaign() {
   try {
-    const existing = await storage.getCampaignBySlug?.("summer-2026");
+    const existing = await storage.getCampaignBySlug("summer-2026");
     if (existing) return;
-    const list = await storage.getCampaigns();
-    if (list.some(c => c.slug === "summer-2026")) return;
     const now = new Date();
     const end = new Date(now.getTime() + 60 * 24 * 3600 * 1000);
-    await storage.createCampaign({
+    const payload: InsertCampaign = {
       slug: "summer-2026",
       title: "Summer Sale Up to 50% Off",
       subtitle: "Linens, breezy dresses & holiday edits — free shipping on every order.",
@@ -837,7 +835,8 @@ async function seedSummerCampaign() {
       startDate: now,
       endDate: end,
       isActive: true,
-    } as any);
+    };
+    await storage.createCampaign(payload);
     console.log("Seeded default Summer '26 campaign");
   } catch (e) {
     console.error("Failed to seed summer campaign:", e);

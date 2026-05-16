@@ -85,7 +85,7 @@ export const users = pgTable("users", {
   pin: text("pin").notNull(),
   birthday: text("birthday").notNull(),
   role: text("role").notNull().default("customer"),
-  marketingOptIn: boolean("marketing_opt_in").notNull().default(true),
+  marketingOptIn: boolean("marketing_opt_in").notNull().default(false),
 });
 
 export const campaigns = pgTable("campaigns", {

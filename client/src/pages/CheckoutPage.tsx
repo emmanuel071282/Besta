@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { useMutation } from "@tanstack/react-query";
@@ -101,7 +101,7 @@ export default function CheckoutPage() {
       setPromoError(null);
       toast({ title: "Promo applied", description: `Saved ₹${data.discountAmount.toLocaleString("en-IN")} with ${data.promoCode}` });
     },
-    onError: (e: any) => {
+    onError: (e: Error) => {
       setAppliedPromo(null);
       setPromoError(e.message || "Promo code not valid");
     },
@@ -110,10 +110,15 @@ export default function CheckoutPage() {
   const discountAmount = appliedPromo?.discount || 0;
   const finalTotal = Math.max(0, cartTotal - discountAmount);
 
-  if (typeof window !== "undefined" && !autoTriedPromo && promoInput && !appliedPromo && cartTotal > 0 && !validatePromo.isPending) {
+  useEffect(() => {
+    if (autoTriedPromo) return;
+    if (!promoInput) return;
+    if (appliedPromo) return;
+    if (cartTotal <= 0) return;
+    if (validatePromo.isPending) return;
     setAutoTriedPromo(true);
     validatePromo.mutate(promoInput.trim().toUpperCase());
-  }
+  }, [autoTriedPromo, promoInput, appliedPromo, cartTotal, validatePromo]);
 
   const placeOrderMutation = useMutation({
     mutationFn: async () => {

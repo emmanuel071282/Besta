@@ -6,7 +6,41 @@ import { Loader2, Plus, Send, Power } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { Campaign } from "@shared/schema";
 
-const EMPTY_FORM = {
+type DiscountType = "percent" | "flat" | "shipping";
+
+interface CampaignForm {
+  slug: string;
+  title: string;
+  subtitle: string;
+  eyebrow: string;
+  ctaLabel: string;
+  ctaLink: string;
+  heroImageUrl: string;
+  promoCode: string;
+  discountType: DiscountType;
+  discountValue: string;
+  minOrder: string;
+  startDate: string;
+  endDate: string;
+  isActive: boolean;
+}
+
+type CampaignFormStringKey =
+  | "slug" | "title" | "subtitle" | "eyebrow" | "ctaLabel"
+  | "ctaLink" | "heroImageUrl" | "promoCode";
+
+const TEXT_FIELDS: ReadonlyArray<{ key: CampaignFormStringKey; label: string; fullWidth?: boolean }> = [
+  { key: "slug", label: "Slug (unique)" },
+  { key: "promoCode", label: "Promo Code" },
+  { key: "title", label: "Title" },
+  { key: "eyebrow", label: "Eyebrow / Badge" },
+  { key: "subtitle", label: "Subtitle", fullWidth: true },
+  { key: "ctaLabel", label: "CTA Label" },
+  { key: "ctaLink", label: "CTA Link" },
+  { key: "heroImageUrl", label: "Hero Image URL" },
+];
+
+const EMPTY_FORM: CampaignForm = {
   slug: "summer-2026",
   title: "Summer Sale Up to 50% Off",
   subtitle: "Linens, breezy dresses & holiday edits — free shipping on every order.",
@@ -15,7 +49,7 @@ const EMPTY_FORM = {
   ctaLink: "/summer",
   heroImageUrl: "/marketing/summer/banner-1x1-01.svg",
   promoCode: "BESTASUMMER",
-  discountType: "percent" as "percent" | "flat" | "shipping",
+  discountType: "percent",
   discountValue: "15",
   minOrder: "999",
   startDate: new Date().toISOString().slice(0, 10),
@@ -42,7 +76,7 @@ export default function CampaignsPage() {
         ctaLink: editing.ctaLink,
         heroImageUrl: editing.heroImageUrl,
         promoCode: editing.promoCode,
-        discountType: editing.discountType as any,
+        discountType: editing.discountType as DiscountType,
         discountValue: String(editing.discountValue),
         minOrder: String(editing.minOrder),
         startDate: new Date(editing.startDate).toISOString().slice(0, 10),
@@ -73,7 +107,7 @@ export default function CampaignsPage() {
       setEditing(null);
       setForm(EMPTY_FORM);
     },
-    onError: (e: any) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
   });
 
   const toggleActive = useMutation({
@@ -91,13 +125,13 @@ export default function CampaignsPage() {
       const res = await apiRequest("POST", `/api/admin/campaigns/${id}/blast`);
       return res.json();
     },
-    onSuccess: (data) => {
+    onSuccess: (data: { recipients: number; sent: number; simulated: number }) => {
       toast({
         title: "WhatsApp blast queued",
         description: `${data.recipients} recipients · ${data.sent} sent · ${data.simulated} simulated`,
       });
     },
-    onError: (e: any) => toast({ title: "Blast failed", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Blast failed", description: e.message, variant: "destructive" }),
   });
 
   return (
@@ -121,21 +155,12 @@ export default function CampaignsPage() {
           onSubmit={(e) => { e.preventDefault(); upsert.mutate(); }}
           className="bg-background border border-border p-6 mb-8 grid grid-cols-1 md:grid-cols-2 gap-4"
         >
-          {[
-            ["slug", "Slug (unique)"],
-            ["promoCode", "Promo Code"],
-            ["title", "Title"],
-            ["eyebrow", "Eyebrow / Badge"],
-            ["subtitle", "Subtitle"],
-            ["ctaLabel", "CTA Label"],
-            ["ctaLink", "CTA Link"],
-            ["heroImageUrl", "Hero Image URL"],
-          ].map(([key, label]) => (
-            <div key={key} className={key === "subtitle" ? "md:col-span-2" : ""}>
+          {TEXT_FIELDS.map(({ key, label, fullWidth }) => (
+            <div key={key} className={fullWidth ? "md:col-span-2" : ""}>
               <label className="block text-[10px] uppercase tracking-widest font-semibold mb-2">{label}</label>
               <input
                 data-testid={`input-campaign-${key}`}
-                value={(form as any)[key]}
+                value={form[key]}
                 onChange={(e) => setForm({ ...form, [key]: e.target.value })}
                 className="w-full border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-foreground"
                 required
@@ -147,7 +172,7 @@ export default function CampaignsPage() {
             <select
               data-testid="select-campaign-discount-type"
               value={form.discountType}
-              onChange={(e) => setForm({ ...form, discountType: e.target.value as any })}
+              onChange={(e) => setForm({ ...form, discountType: e.target.value as DiscountType })}
               className="w-full border border-border bg-background px-3 py-2 text-sm"
             >
               <option value="percent">Percent</option>

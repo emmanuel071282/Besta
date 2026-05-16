@@ -20,17 +20,52 @@ export default function SummerPage() {
   const bestSellers = products?.slice(0, 8) || [];
 
   useEffect(() => {
-    const prev = document.title;
-    document.title = "Summer Sale — Up to 50% Off | BESTA";
-    const meta = document.querySelector('meta[name="description"]');
-    const prevDesc = meta?.getAttribute("content") || "";
-    meta?.setAttribute("content", "BESTA Summer Sale — flat discounts on linen, dresses, cord sets, sneakers and more. Free shipping across India.");
-    const params = new URLSearchParams(window.location.search);
-    const promo = params.get("promo");
+    const TITLE = "Summer Sale — Up to 50% Off | BESTA";
+    const DESC = "BESTA Summer Sale — flat discounts on linen, dresses, cord sets, sneakers and more. Free shipping across India.";
+    const ogImage = `${window.location.origin}/marketing/summer/banner-1x1-01.svg`;
+    const canonicalUrl = `${window.location.origin}/summer`;
+
+    const prev = {
+      title: document.title,
+      desc: document.querySelector('meta[name="description"]')?.getAttribute("content") || "",
+    };
+    document.title = TITLE;
+
+    const setMeta = (selector: string, attr: string, name: string, content: string) => {
+      let el = document.querySelector(selector) as HTMLMetaElement | HTMLLinkElement | null;
+      if (!el) {
+        if (selector.startsWith("link")) {
+          el = document.createElement("link");
+          (el as HTMLLinkElement).rel = name;
+        } else {
+          el = document.createElement("meta");
+          el.setAttribute(attr, name);
+        }
+        document.head.appendChild(el);
+      }
+      if (el instanceof HTMLLinkElement) el.href = content;
+      else el.setAttribute("content", content);
+    };
+
+    setMeta('meta[name="description"]', "name", "description", DESC);
+    setMeta('meta[property="og:title"]', "property", "og:title", TITLE);
+    setMeta('meta[property="og:description"]', "property", "og:description", DESC);
+    setMeta('meta[property="og:image"]', "property", "og:image", ogImage);
+    setMeta('meta[property="og:url"]', "property", "og:url", canonicalUrl);
+    setMeta('meta[property="og:type"]', "property", "og:type", "website");
+    setMeta('meta[name="twitter:card"]', "name", "twitter:card", "summary_large_image");
+    setMeta('meta[name="twitter:title"]', "name", "twitter:title", TITLE);
+    setMeta('meta[name="twitter:description"]', "name", "twitter:description", DESC);
+    setMeta('meta[name="twitter:image"]', "name", "twitter:image", ogImage);
+    setMeta('link[rel="canonical"]', "rel", "canonical", canonicalUrl);
+
+    const promo = new URLSearchParams(window.location.search).get("promo");
     if (promo) sessionStorage.setItem("besta-promo-code", promo.toUpperCase());
+
     return () => {
-      document.title = prev;
-      if (meta) meta.setAttribute("content", prevDesc);
+      document.title = prev.title;
+      const desc = document.querySelector('meta[name="description"]');
+      if (desc) desc.setAttribute("content", prev.desc);
     };
   }, []);
 
