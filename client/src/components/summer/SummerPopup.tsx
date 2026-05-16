@@ -24,10 +24,6 @@ export function SummerPopup() {
 
   if (!campaign || !open) return null;
 
-  const discountLabel = campaign.discountType === "percent"
-    ? `${campaign.discountValue}% OFF`
-    : `₹${campaign.discountValue} OFF`;
-
   return (
     <div
       className="fixed inset-0 z-[80] bg-black/60 flex items-center justify-center p-4"
@@ -63,11 +59,11 @@ export function SummerPopup() {
           </h2>
           <p className="text-sm text-muted-foreground mt-3">{campaign.subtitle}</p>
           <div className="border border-dashed border-foreground/40 mt-5 py-3">
-            <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Your code</p>
-            <p className="font-display text-2xl font-bold tracking-tighter mt-1" data-testid="text-summer-popup-code">
-              {campaign.promoCode}
+            <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Now in store</p>
+            <p className="font-display text-xl font-bold tracking-tighter mt-1" data-testid="text-summer-popup-headline">
+              The Summer ’26 Range
             </p>
-            <p className="text-xs text-muted-foreground mt-1">{discountLabel} · min ₹{campaign.minOrder}</p>
+            <p className="text-xs text-muted-foreground mt-1">Free shipping across India · easy 15-day returns</p>
           </div>
           <Link
             href={campaign.ctaLink}

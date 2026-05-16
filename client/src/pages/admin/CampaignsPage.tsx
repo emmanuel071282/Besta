@@ -42,10 +42,10 @@ const TEXT_FIELDS: ReadonlyArray<{ key: CampaignFormStringKey; label: string; fu
 
 const EMPTY_FORM: CampaignForm = {
   slug: "summer-2026",
-  title: "Summer Sale Up to 50% Off",
-  subtitle: "Linens, breezy dresses & holiday edits — free shipping on every order.",
-  eyebrow: "Limited Time · Summer '26",
-  ctaLabel: "Shop Summer",
+  title: "Hello Summer",
+  subtitle: "The new Summer '26 range has landed — linens, cord sets, holiday dresses & breezy footwear.",
+  eyebrow: "New Range · Summer '26",
+  ctaLabel: "Explore The Range",
   ctaLink: "/summer",
   heroImageUrl: "/marketing/summer/banner-1x1-01.svg",
   promoCode: "BESTASUMMER",

@@ -7,10 +7,10 @@
   <text x="540" y="800" text-anchor="middle" font-family="Outfit, Helvetica, Arial, sans-serif" font-weight="900" font-size="160" fill="#0a0a0a" letter-spacing="-8">FREE</text>
   <text x="540" y="960" text-anchor="middle" font-family="Outfit, Helvetica, Arial, sans-serif" font-weight="900" font-size="160" fill="#0a0a0a" letter-spacing="-8">SHIPPING</text>
   <text x="540" y="1080" text-anchor="middle" font-family="Outfit, Helvetica, Arial, sans-serif" font-weight="900" font-size="160" fill="#0a0a0a" letter-spacing="-8">PAN INDIA</text>
-  <text x="540" y="1260" text-anchor="middle" font-family="DM Sans, Helvetica, Arial, sans-serif" font-size="32" fill="#0a0a0a" letter-spacing="6">+ 15% OFF FIRST ORDER</text>
+  <text x="540" y="1260" text-anchor="middle" font-family="DM Sans, Helvetica, Arial, sans-serif" font-size="32" fill="#0a0a0a" letter-spacing="6">THE NEW SUMMER ’26 RANGE</text>
   <g transform="translate(540,1620)">
     <rect x="-300" y="-70" width="600" height="140" fill="#0a0a0a"/>
-    <text x="0" y="-2" text-anchor="middle" font-family="DM Sans, Helvetica, Arial, sans-serif" font-size="22" fill="#e6b85c" letter-spacing="6">USE CODE</text>
-    <text x="0" y="48" text-anchor="middle" font-family="Outfit, Helvetica, Arial, sans-serif" font-weight="800" font-size="56" fill="#fff" letter-spacing="8">BESTASUMMER</text>
+    <text x="0" y="-2" text-anchor="middle" font-family="DM Sans, Helvetica, Arial, sans-serif" font-size="22" fill="#e6b85c" letter-spacing="6">NOW LIVE</text>
+    <text x="0" y="48" text-anchor="middle" font-family="Outfit, Helvetica, Arial, sans-serif" font-weight="800" font-size="56" fill="#fff" letter-spacing="8">HELLO SUMMER</text>
   </g>
 </svg>

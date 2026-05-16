@@ -22,9 +22,10 @@ Full omni-channel fast-fashion e-commerce platform for the Indian market. Featur
 - **Admin Stores**: add/edit/toggle 10 retail outlets across India
 - **Admin Inventory**: omni-channel stock management, inline qty editing, low stock alerts, filter by store
 
-## Summer ’26 Marketing Push
-- Admin-toggleable campaign system powers a promo strip, hero banner, popup, /summer landing, checkout discount, account referral card and WhatsApp re-engagement blast.
-- Default campaign: slug `summer-2026`, code `BESTASUMMER`, 15% off ≥ ₹999, 60-day window.
+## Hello Summer — Summer ’26 Range Push
+- Admin-toggleable campaign system powers a header strip, hero banner, popup, /summer landing, account referral card and WhatsApp re-engagement blast.
+- Messaging is **range-led, not discount-led** — in-app surfaces communicate "Hello Summer / The new Summer ’26 range has landed" with no % off on the page.
+- Default campaign: slug `summer-2026`, CTA `Explore The Range`, 60-day window. A silent promo code (`BESTASUMMER`, 15% off ≥ ₹999) is kept for checkout/referral deep-links and is only revealed once the customer enters it at checkout — never advertised in banners/popups.
 - Manage at `/admin/campaigns` (create / edit / activate / WhatsApp blast).
 - Marketing asset pack in `client/public/marketing/summer/` (5× 1:1 SVG, 2× 9:16 SVG, `copy.md`, `one-pager.html`).
 - ASO refresh (title, descriptions, keywords, screenshot spec) lives in `MOBILE_BUILD_GUIDE.md`.

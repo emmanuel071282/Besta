@@ -6,10 +6,6 @@ export function SummerHeroBanner() {
   const { data: campaign } = useActiveCampaign();
   if (!campaign) return null;
 
-  const discountLabel = campaign.discountType === "percent"
-    ? `${campaign.discountValue}% OFF`
-    : `₹${campaign.discountValue} OFF`;
-
   return (
     <section
       data-testid="section-summer-banner"
@@ -41,7 +37,7 @@ export function SummerHeroBanner() {
               {campaign.ctaLabel} <ArrowRight className="w-4 h-4" />
             </span>
             <span className="text-[10px] md:text-xs uppercase tracking-widest text-white/80 font-semibold">
-              Code <span className="text-white underline">{campaign.promoCode}</span> · {discountLabel}
+              New In · Free Shipping Pan India
             </span>
           </div>
         </div>

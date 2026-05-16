@@ -822,10 +822,10 @@ async function seedSummerCampaign() {
     const end = new Date(now.getTime() + 60 * 24 * 3600 * 1000);
     const payload: InsertCampaign = {
       slug: "summer-2026",
-      title: "Summer Sale Up to 50% Off",
-      subtitle: "Linens, breezy dresses & holiday edits — free shipping on every order.",
-      eyebrow: "Limited Time · Summer '26",
-      ctaLabel: "Shop Summer",
+      title: "Hello Summer",
+      subtitle: "The new Summer '26 range has landed — linens, cord sets, holiday dresses & breezy footwear.",
+      eyebrow: "New Range · Summer '26",
+      ctaLabel: "Explore The Range",
       ctaLink: "/summer",
       heroImageUrl: "/marketing/summer/banner-1x1-01.svg",
       promoCode: "BESTASUMMER",

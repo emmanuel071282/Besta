@@ -20,10 +20,6 @@ export function SummerHeaderStrip() {
     localStorage.setItem(`besta-summer-strip-dismissed-${campaign.id}`, "1");
   };
 
-  const discountLabel = campaign.discountType === "percent"
-    ? `${campaign.discountValue}% OFF`
-    : `₹${campaign.discountValue} OFF`;
-
   return (
     <div
       data-testid="summer-header-strip"
@@ -38,8 +34,7 @@ export function SummerHeaderStrip() {
         >
           <Sparkles className="w-3.5 h-3.5 shrink-0" />
           <span className="truncate">
-            {campaign.eyebrow || "Summer ’26"} · {campaign.title} — use code{" "}
-            <span className="underline">{campaign.promoCode}</span> for {discountLabel}
+            {campaign.eyebrow || "Summer ’26"} · {campaign.title} — <span className="underline">{campaign.ctaLabel || "Explore the range"}</span>
           </span>
         </Link>
         <button
