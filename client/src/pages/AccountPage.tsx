@@ -99,10 +99,10 @@ export default function AccountPage() {
         {campaign && (() => {
           const origin = typeof window !== "undefined" ? window.location.origin : "";
           const referralUrl = `${origin}/summer?ref=${user.id}&promo=${campaign.promoCode}`;
-          const shareText = `Hey! Join me on BESTA — use my code ${campaign.promoCode} for ${campaign.discountType === "percent" ? `${campaign.discountValue}% OFF` : `₹${campaign.discountValue} OFF`} (min ₹${campaign.minOrder}). ${referralUrl}`;
+          const shareText = `Say hello to summer with me on BESTA — the new Summer ’26 range has landed. ${referralUrl}`;
           const handleShare = async () => {
             if (navigator.share) {
-              try { await navigator.share({ title: "BESTA Summer", text: shareText, url: referralUrl }); } catch {}
+              try { await navigator.share({ title: "BESTA — Hello Summer", text: shareText, url: referralUrl }); } catch {}
             } else {
               await navigator.clipboard.writeText(shareText);
               toast({ title: "Copied!", description: "Share message copied to clipboard." });
@@ -118,9 +118,9 @@ export default function AccountPage() {
                 <Sparkles className="w-4 h-4" />
                 <span className="text-[10px] uppercase tracking-widest font-bold">Share BESTA</span>
               </div>
-              <h3 className="font-display text-lg font-bold tracking-tighter mb-1">Get friends ₹{campaign.discountType === "percent" ? `${campaign.discountValue}% off` : campaign.discountValue + " off"}</h3>
+              <h3 className="font-display text-lg font-bold tracking-tighter mb-1">Share the new Summer ’26 range</h3>
               <p className="text-xs text-muted-foreground mb-4">
-                Send your link — they get the {campaign.promoCode} code auto-applied.
+                Send your link — friends land straight on the new range.
               </p>
               <div className="flex items-center gap-2 mb-3 border border-border bg-background px-3 py-2 text-xs truncate" data-testid="text-referral-url">
                 {referralUrl}

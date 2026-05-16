@@ -8,7 +8,6 @@ import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { useActiveCampaign } from "@/hooks/use-campaign";
 import { Tag, Check } from "lucide-react";
 import { 
   CreditCard, 
@@ -76,7 +75,6 @@ export default function CheckoutPage() {
     pincode: "",
   });
 
-  const { data: activeCampaign } = useActiveCampaign();
   const readPromoFromUrl = () => {
     if (typeof window === "undefined") return "";
     const fromQuery = new URLSearchParams(window.location.search).get("promo");
@@ -531,7 +529,7 @@ export default function CheckoutPage() {
                         data-testid="input-promo-code"
                         value={promoInput}
                         onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
-                        placeholder={activeCampaign?.promoCode || "Enter code"}
+                        placeholder="Enter code"
                         className="rounded-none h-10 text-sm"
                       />
                       <button
@@ -547,11 +545,6 @@ export default function CheckoutPage() {
                     </div>
                     {promoError && (
                       <p className="text-[11px] text-red-600 mt-1" data-testid="text-promo-error">{promoError}</p>
-                    )}
-                    {!promoError && activeCampaign && (
-                      <p className="text-[11px] text-muted-foreground mt-1">
-                        Try <button type="button" className="underline" onClick={() => setPromoInput(activeCampaign.promoCode)}>{activeCampaign.promoCode}</button> · min ₹{activeCampaign.minOrder}
-                      </p>
                     )}
                   </>
                 )}

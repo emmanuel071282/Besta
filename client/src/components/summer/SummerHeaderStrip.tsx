@@ -13,6 +13,17 @@ export function SummerHeaderStrip() {
     setDismissed(localStorage.getItem(key) === "1");
   }, [campaign?.id]);
 
+  const visible = !!campaign && !dismissed;
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (visible) root.style.setProperty("--besta-strip-h", "36px");
+    else root.style.setProperty("--besta-strip-h", "0px");
+    return () => {
+      root.style.setProperty("--besta-strip-h", "0px");
+    };
+  }, [visible]);
+
   if (!campaign || dismissed) return null;
 
   const dismiss = () => {
