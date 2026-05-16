@@ -6,7 +6,7 @@ import { Loader2, Plus, Send, Power } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { Campaign } from "@shared/schema";
 
-type DiscountType = "percent" | "flat" | "shipping";
+type DiscountType = "percent" | "flat";
 
 interface CampaignForm {
   slug: string;
@@ -177,7 +177,6 @@ export default function CampaignsPage() {
             >
               <option value="percent">Percent</option>
               <option value="flat">Flat ₹</option>
-              <option value="shipping">Free Shipping</option>
             </select>
           </div>
           <div>

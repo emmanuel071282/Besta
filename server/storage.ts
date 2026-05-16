@@ -384,8 +384,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateCampaign(id: number, data: Partial<InsertCampaign>): Promise<Campaign | undefined> {
-    const payload: any = { ...data };
-    if (payload.promoCode) payload.promoCode = String(payload.promoCode).toUpperCase();
+    const payload: Partial<InsertCampaign> = {
+      ...data,
+      ...(data.promoCode ? { promoCode: data.promoCode.toUpperCase() } : {}),
+    };
     const [updated] = await db.update(campaigns).set(payload).where(eq(campaigns.id, id)).returning();
     return updated;
   }
