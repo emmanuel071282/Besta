@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920" width="1080" height="1920">
+  <rect width="1080" height="1920" fill="#fff"/>
+  <rect x="0" y="0" width="1080" height="120" fill="#fff" stroke="#0a0a0a" stroke-width="2"/>
+  <text x="540" y="85" text-anchor="middle" font-family="Outfit, Arial, sans-serif" font-weight="800" font-size="46" fill="#0a0a0a" letter-spacing="-2">ORDER #BST-10248</text>
+  <rect x="60" y="180" width="960" height="220" fill="#0a0a0a"/>
+  <text x="90" y="260" font-family="DM Sans, Arial, sans-serif" font-size="22" fill="#aaa" letter-spacing="4">PLACED 14 MAY · 2 ITEMS</text>
+  <text x="90" y="330" font-family="Outfit, Arial, sans-serif" font-weight="900" font-size="64" fill="#fff" letter-spacing="-2">OUT FOR DELIVERY</text>
+  <text x="90" y="380" font-family="DM Sans, Arial, sans-serif" font-size="26" fill="#e6b85c" letter-spacing="4">ARRIVES TOMORROW · MUMBAI</text>
+  <text x="100" y="500" font-family="DM Sans, Arial, sans-serif" font-size="22" fill="#777" letter-spacing="4">STATUS TIMELINE</text>
+  <g font-family="DM Sans, Arial, sans-serif" font-size="28" fill="#0a0a0a">
+    <circle cx="130" cy="600" r="22" fill="#0a8a3a"/><text x="190" y="610">Order Placed · 14 May, 10:24</text>
+    <line x1="130" y1="630" x2="130" y2="720" stroke="#0a0a0a" stroke-width="2"/>
+    <circle cx="130" cy="730" r="22" fill="#0a8a3a"/><text x="190" y="740">Packed · 14 May, 18:10</text>
+    <line x1="130" y1="760" x2="130" y2="850" stroke="#0a0a0a" stroke-width="2"/>
+    <circle cx="130" cy="860" r="22" fill="#0a8a3a"/><text x="190" y="870">Shipped · 15 May, 09:02</text>
+    <line x1="130" y1="890" x2="130" y2="980" stroke="#0a0a0a" stroke-width="2"/>
+    <circle cx="130" cy="990" r="22" fill="#e6b85c"/><text x="190" y="1000" font-weight="700">Out for Delivery · today</text>
+    <line x1="130" y1="1020" x2="130" y2="1110" stroke="#ddd" stroke-width="2"/>
+    <circle cx="130" cy="1120" r="22" fill="none" stroke="#ddd" stroke-width="2"/><text x="190" y="1130" fill="#aaa">Delivered</text>
+  </g>
+  <rect x="60" y="1200" width="960" height="320" fill="#f6f4f0"/>
+  <text x="90" y="1270" font-family="DM Sans, Arial, sans-serif" font-size="22" fill="#777" letter-spacing="4">ITEMS</text>
+  <g font-family="DM Sans, Arial, sans-serif" font-size="28" fill="#0a0a0a">
+    <text x="90" y="1340">Mustard Cord Set · Size S</text><text x="990" y="1340" text-anchor="end">₹1,899</text>
+    <text x="90" y="1400">Linen Shirt · Size M</text><text x="990" y="1400" text-anchor="end">₹1,199</text>
+    <text x="90" y="1470" font-weight="700">Paid · UPI</text><text x="990" y="1470" text-anchor="end" font-weight="700">₹2,633</text>
+  </g>
+  <rect x="60" y="1620" width="960" height="120" fill="#0a0a0a"/>
+  <text x="540" y="1695" text-anchor="middle" font-family="Outfit, Arial, sans-serif" font-weight="800" font-size="34" fill="#fff" letter-spacing="6">TRACK SHIPMENT</text>
+</svg>

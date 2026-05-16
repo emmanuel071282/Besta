@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920" width="1080" height="1920">
+  <rect width="1080" height="1920" fill="#0a0a0a"/>
+  <rect x="0" y="0" width="1080" height="80" fill="#0a0a0a"/>
+  <text x="540" y="55" text-anchor="middle" font-family="Outfit, Arial, sans-serif" font-size="22" fill="#fff" letter-spacing="6">NEW RANGE · SUMMER ’26 · HELLO SUMMER</text>
+  <rect x="0" y="80" width="1080" height="160" fill="#fff"/>
+  <text x="540" y="180" text-anchor="middle" font-family="Outfit, Arial, sans-serif" font-weight="800" font-size="64" fill="#0a0a0a" letter-spacing="-2">BESTA</text>
+  <rect x="60" y="280" width="960" height="1080" fill="#1a1a1a"/>
+  <text x="120" y="500" font-family="DM Sans, Arial, sans-serif" font-size="22" fill="#f5d97a" letter-spacing="6">NEW RANGE · SUMMER ’26</text>
+  <text x="120" y="700" font-family="Outfit, Arial, sans-serif" font-weight="900" font-size="180" fill="#fff" letter-spacing="-10">HELLO</text>
+  <text x="120" y="880" font-family="Outfit, Arial, sans-serif" font-weight="900" font-size="180" fill="#fff" letter-spacing="-10">SUMMER.</text>
+  <text x="120" y="960" font-family="DM Sans, Arial, sans-serif" font-size="32" fill="#ddd">Linens, cord sets &amp; holiday dresses.</text>
+  <rect x="120" y="1080" width="440" height="100" fill="#fff"/>
+  <text x="340" y="1142" text-anchor="middle" font-family="Outfit, Arial, sans-serif" font-weight="800" font-size="34" fill="#0a0a0a" letter-spacing="6">EXPLORE THE RANGE</text>
+  <rect x="60" y="1420" width="960" height="380" fill="#fff"/>
+  <text x="540" y="1550" text-anchor="middle" font-family="Outfit, Arial, sans-serif" font-weight="800" font-size="42" fill="#0a0a0a" letter-spacing="6">SHOP BY CATEGORY</text>
+  <g fill="#0a0a0a">
+    <rect x="100" y="1600" width="260" height="160"/>
+    <rect x="410" y="1600" width="260" height="160"/>
+    <rect x="720" y="1600" width="260" height="160"/>
+  </g>
+  <text x="230" y="1700" text-anchor="middle" font-family="Outfit, Arial, sans-serif" font-weight="800" font-size="28" fill="#fff" letter-spacing="4">MENS</text>
+  <text x="540" y="1700" text-anchor="middle" font-family="Outfit, Arial, sans-serif" font-weight="800" font-size="28" fill="#fff" letter-spacing="4">LADIES</text>
+  <text x="850" y="1700" text-anchor="middle" font-family="Outfit, Arial, sans-serif" font-weight="800" font-size="28" fill="#fff" letter-spacing="4">KIDS</text>
+  <rect x="0" y="1820" width="1080" height="100" fill="#fff"/>
+  <text x="540" y="1880" text-anchor="middle" font-family="DM Sans, Arial, sans-serif" font-size="24" fill="#0a0a0a" letter-spacing="6">FREE SHIPPING · 15-DAY RETURNS</text>
+</svg>

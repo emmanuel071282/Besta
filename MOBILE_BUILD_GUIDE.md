@@ -265,18 +265,22 @@ Linens, cord sets, sneakers & gold studs. Free shipping pan India. Up to 50% off
 - Promo input + discount line on checkout
 - Admin can launch WhatsApp re-engagement blasts (internal)
 
-### Screenshot Spec (6 deliverables, 1284×2778 / 1080×1920)
-1. **Hero** — `story-9x16-01.svg` styling — “BESTA Summer ’26 · Up to 50% off”
-2. **Category grid** — Home page screenshot showing Mens / Ladies / Kids tiles
-3. **Product detail** — a cord set with price, sizes and add-to-cart
-4. **Checkout discount** — promo `BESTASUMMER` applied with green discount line
-5. **/summer landing** — hero banner + 6 category tiles
-6. **Account share** — “Share BESTA” referral card
+### Screenshot Spec (6 deliverables, 1080×1920 / upscale to 1284×2778 for iOS)
 
-### Suggested Capture URLs (use the in-app screenshot mode)
-- `/` (hero with summer banner)
-- `/category/Ladies?sub=Cord+Sets`
-- `/product/<any-cord-set-id>`
-- `/checkout` (with BESTASUMMER applied)
-- `/summer`
-- `/account` (logged-in user with active campaign)
+Mockup files live in `client/public/marketing/summer/screenshots/`. They follow the
+BESTA typography-only black/white system and serve as the source-of-truth for the
+final store-listing screenshots.
+
+| # | Mockup file | Purpose | Capture URL (in-app) |
+|---|---|---|---|
+| 1 | `screenshots/01-home-hero.svg` | Home / Summer hero — "Hello Summer" range CTA | `/` |
+| 2 | `screenshots/02-category-grid.svg` | Category grid — Ladies · Cord Sets | `/category/Ladies?sub=Cord+Sets` |
+| 3 | `screenshots/03-product-detail.svg` | Product detail — price, sizes, add-to-bag | `/product/<any-cord-set-id>` |
+| 4 | `screenshots/04-checkout-promo.svg` | Checkout — BESTASUMMER applied + UPI | `/checkout` |
+| 5 | `screenshots/05-order-tracking.svg` | Order detail — status timeline | `/orders/<latest-id>` |
+| 6 | `screenshots/06-store-locator.svg` | Store locator — 10 omni-channel stores | `/admin/stores` (public store list page) |
+
+Workflow:
+1. Open each capture URL in the app and take a clean device screenshot.
+2. Overlay against the matching mockup SVG (e.g. in Figma) to match copy, badges and crop.
+3. Export at 1080×1920 PNG for Play Store, 1284×2778 PNG for App Store.

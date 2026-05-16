@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
-import { X, Sparkles } from "lucide-react";
+import { X, Sparkles, Copy } from "lucide-react";
 import { useActiveCampaign } from "@/hooks/use-campaign";
+import { useToast } from "@/hooks/use-toast";
 
 export function SummerHeaderStrip() {
   const { data: campaign } = useActiveCampaign();
+  const { toast } = useToast();
   const [dismissed, setDismissed] = useState(true);
 
   useEffect(() => {
@@ -31,6 +33,15 @@ export function SummerHeaderStrip() {
     localStorage.setItem(`besta-summer-strip-dismissed-${campaign.id}`, "1");
   };
 
+  const copyCode = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(campaign.promoCode);
+      toast({ title: "Code copied", description: campaign.promoCode });
+    } catch {}
+  };
+
   return (
     <div
       data-testid="summer-header-strip"
@@ -48,6 +59,16 @@ export function SummerHeaderStrip() {
             {campaign.eyebrow || "Summer ’26"} · {campaign.title} — <span className="underline">{campaign.ctaLabel || "Explore the range"}</span>
           </span>
         </Link>
+        <button
+          type="button"
+          onClick={copyCode}
+          data-testid="button-copy-summer-code"
+          className="hidden sm:inline-flex items-center gap-1.5 border border-background/40 px-2.5 py-1 text-[10px] uppercase tracking-widest font-semibold hover:bg-background hover:text-foreground transition-colors shrink-0"
+          aria-label={`Copy code ${campaign.promoCode}`}
+        >
+          <span>Code {campaign.promoCode}</span>
+          <Copy className="w-3 h-3" />
+        </button>
         <button
           onClick={dismiss}
           data-testid="button-dismiss-summer-strip"

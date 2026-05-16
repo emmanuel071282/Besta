@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920" width="1080" height="1920">
+  <rect width="1080" height="1920" fill="#fff"/>
+  <rect x="0" y="0" width="1080" height="120" fill="#fff" stroke="#0a0a0a" stroke-width="2"/>
+  <text x="540" y="85" text-anchor="middle" font-family="Outfit, Arial, sans-serif" font-weight="800" font-size="46" fill="#0a0a0a" letter-spacing="-2">FIND A STORE</text>
+  <text x="540" y="240" text-anchor="middle" font-family="Outfit, Arial, sans-serif" font-weight="900" font-size="80" fill="#0a0a0a" letter-spacing="-3">10 STORES · INDIA</text>
+  <text x="540" y="300" text-anchor="middle" font-family="DM Sans, Arial, sans-serif" font-size="26" fill="#777" letter-spacing="4">OMNI-CHANNEL · CHECK STOCK LIVE</text>
+  <rect x="60" y="380" width="960" height="540" fill="#f0ece2"/>
+  <g fill="#0a0a0a">
+    <circle cx="280" cy="540" r="14"/><text x="310" y="548" font-family="DM Sans, Arial, sans-serif" font-size="22">DELHI</text>
+    <circle cx="380" cy="700" r="14"/><text x="410" y="708" font-family="DM Sans, Arial, sans-serif" font-size="22">JAIPUR</text>
+    <circle cx="500" cy="780" r="14"/><text x="530" y="788" font-family="DM Sans, Arial, sans-serif" font-size="22">MUMBAI</text>
+    <circle cx="640" cy="820" r="14"/><text x="670" y="828" font-family="DM Sans, Arial, sans-serif" font-size="22">PUNE</text>
+    <circle cx="780" cy="690" r="14"/><text x="810" y="698" font-family="DM Sans, Arial, sans-serif" font-size="22">HYD</text>
+    <circle cx="700" cy="540" r="14"/><text x="730" y="548" font-family="DM Sans, Arial, sans-serif" font-size="22">KOLKATA</text>
+    <circle cx="800" cy="850" r="14"/><text x="830" y="858" font-family="DM Sans, Arial, sans-serif" font-size="22">CHENNAI</text>
+    <circle cx="720" cy="880" r="14"/><text x="750" y="918" font-family="DM Sans, Arial, sans-serif" font-size="22">BENGALURU</text>
+  </g>
+  <g font-family="DM Sans, Arial, sans-serif" font-size="28" fill="#0a0a0a">
+    <rect x="60" y="980" width="960" height="140" fill="none" stroke="#0a0a0a" stroke-width="2"/>
+    <text x="100" y="1030" font-weight="700">BESTA Bandra</text><text x="100" y="1080" fill="#777" font-size="24">Linking Road · Mumbai · 4.2 km</text>
+    <text x="990" y="1030" text-anchor="end" fill="#0a8a3a" font-weight="700">IN STOCK</text>
+
+    <rect x="60" y="1140" width="960" height="140" fill="none" stroke="#0a0a0a" stroke-width="2"/>
+    <text x="100" y="1190" font-weight="700">BESTA Khan Market</text><text x="100" y="1240" fill="#777" font-size="24">New Delhi · 1,402 km</text>
+    <text x="990" y="1190" text-anchor="end" fill="#0a8a3a" font-weight="700">IN STOCK</text>
+
+    <rect x="60" y="1300" width="960" height="140" fill="none" stroke="#0a0a0a" stroke-width="2"/>
+    <text x="100" y="1350" font-weight="700">BESTA Indiranagar</text><text x="100" y="1400" fill="#777" font-size="24">Bengaluru · 985 km</text>
+    <text x="990" y="1350" text-anchor="end" fill="#cc7a00" font-weight="700">LOW STOCK</text>
+
+    <rect x="60" y="1460" width="960" height="140" fill="none" stroke="#0a0a0a" stroke-width="2"/>
+    <text x="100" y="1510" font-weight="700">BESTA Park Street</text><text x="100" y="1560" fill="#777" font-size="24">Kolkata · 1,650 km</text>
+    <text x="990" y="1510" text-anchor="end" fill="#0a8a3a" font-weight="700">IN STOCK</text>
+  </g>
+  <rect x="60" y="1700" width="960" height="130" fill="#0a0a0a"/>
+  <text x="540" y="1780" text-anchor="middle" font-family="Outfit, Arial, sans-serif" font-weight="800" font-size="36" fill="#fff" letter-spacing="6">RESERVE IN STORE</text>
+</svg>

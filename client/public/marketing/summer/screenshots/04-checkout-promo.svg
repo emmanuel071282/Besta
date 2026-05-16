@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920" width="1080" height="1920">
+  <rect width="1080" height="1920" fill="#f6f4f0"/>
+  <rect x="0" y="0" width="1080" height="120" fill="#fff" stroke="#0a0a0a" stroke-width="2"/>
+  <text x="540" y="85" text-anchor="middle" font-family="Outfit, Arial, sans-serif" font-weight="800" font-size="46" fill="#0a0a0a" letter-spacing="-2">CHECKOUT</text>
+  <rect x="60" y="180" width="960" height="380" fill="#fff" stroke="#0a0a0a" stroke-width="2"/>
+  <text x="100" y="250" font-family="DM Sans, Arial, sans-serif" font-size="22" fill="#777" letter-spacing="4">ORDER SUMMARY</text>
+  <g font-family="DM Sans, Arial, sans-serif" font-size="30" fill="#0a0a0a">
+    <text x="100" y="320">Mustard Cord Set × 1</text><text x="980" y="320" text-anchor="end">₹1,899</text>
+    <text x="100" y="380">Linen Shirt × 1</text><text x="980" y="380" text-anchor="end">₹1,199</text>
+    <text x="100" y="440">Subtotal</text><text x="980" y="440" text-anchor="end">₹3,098</text>
+  </g>
+  <text x="100" y="510" font-family="DM Sans, Arial, sans-serif" font-size="30" fill="#0a8a3a" font-weight="700">Discount (BESTASUMMER)</text>
+  <text x="980" y="510" text-anchor="end" font-family="DM Sans, Arial, sans-serif" font-size="30" fill="#0a8a3a" font-weight="700">- ₹465</text>
+  <rect x="60" y="620" width="960" height="200" fill="#fff" stroke="#0a0a0a" stroke-width="2"/>
+  <text x="100" y="690" font-family="DM Sans, Arial, sans-serif" font-size="22" fill="#777" letter-spacing="4">PROMO CODE</text>
+  <rect x="100" y="720" width="640" height="70" fill="#f6f4f0" stroke="#0a0a0a"/>
+  <text x="120" y="767" font-family="DM Sans, Arial, sans-serif" font-size="30" fill="#0a0a0a" font-weight="700">BESTASUMMER ✓</text>
+  <rect x="760" y="720" width="220" height="70" fill="#0a0a0a"/>
+  <text x="870" y="767" text-anchor="middle" font-family="Outfit, Arial, sans-serif" font-weight="800" font-size="26" fill="#fff" letter-spacing="4">APPLIED</text>
+  <rect x="60" y="880" width="960" height="160" fill="#0a0a0a"/>
+  <text x="100" y="950" font-family="DM Sans, Arial, sans-serif" font-size="26" fill="#aaa" letter-spacing="4">TOTAL PAYABLE</text>
+  <text x="980" y="985" text-anchor="end" font-family="Outfit, Arial, sans-serif" font-weight="900" font-size="72" fill="#fff" letter-spacing="-2">₹2,633</text>
+  <rect x="60" y="1100" width="960" height="120" fill="#fff" stroke="#0a0a0a" stroke-width="2"/>
+  <text x="540" y="1175" text-anchor="middle" font-family="Outfit, Arial, sans-serif" font-weight="800" font-size="34" fill="#0a0a0a" letter-spacing="6">PAY VIA UPI</text>
+  <text x="540" y="1380" text-anchor="middle" font-family="DM Sans, Arial, sans-serif" font-size="26" fill="#777" letter-spacing="4">CARD · NET BANKING · UPI · GPAY</text>
+  <rect x="60" y="1700" width="960" height="130" fill="#0a0a0a"/>
+  <text x="540" y="1780" text-anchor="middle" font-family="Outfit, Arial, sans-serif" font-weight="800" font-size="40" fill="#fff" letter-spacing="6">PLACE ORDER</text>
+</svg>

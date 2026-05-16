@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920" width="1080" height="1920">
+  <rect width="1080" height="1920" fill="#fff"/>
+  <rect x="0" y="0" width="1080" height="160" fill="#fff" stroke="#0a0a0a" stroke-width="2"/>
+  <text x="540" y="105" text-anchor="middle" font-family="Outfit, Arial, sans-serif" font-weight="800" font-size="58" fill="#0a0a0a" letter-spacing="-2">BESTA</text>
+  <text x="540" y="280" text-anchor="middle" font-family="Outfit, Arial, sans-serif" font-weight="900" font-size="84" fill="#0a0a0a" letter-spacing="-4">LADIES · CORD SETS</text>
+  <text x="540" y="340" text-anchor="middle" font-family="DM Sans, Arial, sans-serif" font-size="26" fill="#777" letter-spacing="4">24 STYLES · SUMMER ’26</text>
+  <g>
+    <rect x="60" y="420" width="460" height="540" fill="#e6b85c"/>
+    <rect x="560" y="420" width="460" height="540" fill="#0a0a0a"/>
+    <rect x="60" y="1000" width="460" height="540" fill="#1a1a1a"/>
+    <rect x="560" y="1000" width="460" height="540" fill="#d2c0a0"/>
+  </g>
+  <text x="80" y="1000" font-family="DM Sans, Arial, sans-serif" font-size="28" fill="#0a0a0a" font-weight="700">Anarkali Cord Set</text>
+  <text x="80" y="1040" font-family="DM Sans, Arial, sans-serif" font-size="28" fill="#0a0a0a">₹1,599</text>
+  <text x="580" y="1000" font-family="DM Sans, Arial, sans-serif" font-size="28" fill="#0a0a0a" font-weight="700">Linen Cord Set</text>
+  <text x="580" y="1040" font-family="DM Sans, Arial, sans-serif" font-size="28" fill="#0a0a0a">₹1,799</text>
+  <text x="80" y="1580" font-family="DM Sans, Arial, sans-serif" font-size="28" fill="#0a0a0a" font-weight="700">Cotton Co-ord</text>
+  <text x="80" y="1620" font-family="DM Sans, Arial, sans-serif" font-size="28" fill="#0a0a0a">₹1,299</text>
+  <text x="580" y="1580" font-family="DM Sans, Arial, sans-serif" font-size="28" fill="#0a0a0a" font-weight="700">Mustard Anarkali</text>
+  <text x="580" y="1620" font-family="DM Sans, Arial, sans-serif" font-size="28" fill="#0a0a0a">₹1,899</text>
+  <rect x="0" y="1780" width="1080" height="140" fill="#0a0a0a"/>
+  <text x="540" y="1855" text-anchor="middle" font-family="Outfit, Arial, sans-serif" font-weight="800" font-size="36" fill="#fff" letter-spacing="6">SHOP THE FULL RANGE</text>
+</svg>
