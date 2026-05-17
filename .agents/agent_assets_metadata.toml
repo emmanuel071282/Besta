@@ -1,5 +1,4 @@
 uploads = []
-outputs = []
 
 [[generated]]
 id = "icS3r2tGD1X9THwrKQh07"
@@ -126,3 +125,9 @@ id = "9T2n1Q8FvynLnWwsq9f8I"
 uri = "file://artifacts/mockup-sandbox/public/images/besta-editor.png"
 type = "image"
 title = "Editor portrait"
+
+[[outputs]]
+id = "Hq8s4KJEQ3dNxz-mJFBKY"
+uri = "file://dist/besta-project.zip"
+type = "unspecified"
+title = "BESTA Project (source, ~105 MB)"
