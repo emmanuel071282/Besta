@@ -2,13 +2,14 @@ import { Link, useLocation } from "wouter";
 import { useCart } from "@/hooks/use-cart";
 import { useWishlist } from "@/hooks/use-wishlist";
 import { useAuth } from "@/hooks/use-auth";
-import { ShoppingBag, Search, Menu, X, Heart, ChevronDown, ChevronRight, User } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useSearch } from "@/hooks/use-search";
+import { ShoppingBag, Search, Menu, X, Heart, ChevronDown, User, Loader2 } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { SUBCATEGORIES, isGroupedSubcategories } from "@shared/schema";
 import type { SubcategorySection } from "@shared/schema";
 
-const CATEGORIES = ["Mens", "Ladies", "Kids", "Accessories", "Footwear"];
+const CATEGORIES = ["Mens", "Ladies", "Kids", "Accessories", "Footwear", "Cosmetics"];
 
 export function Navbar() {
   const [location, navigate] = useLocation();
@@ -18,11 +19,13 @@ export function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [expandedMobileCategory, setExpandedMobileCategory] = useState<string | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [activeResult, setActiveResult] = useState(-1);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const { query, setQuery, results, isFetching, hasQuery } = useSearch();
 
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
-    };
+    const handleScroll = () => setIsScrolled(window.scrollY > 20);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
@@ -30,7 +33,29 @@ export function Navbar() {
   useEffect(() => {
     setMobileMenuOpen(false);
     setExpandedMobileCategory(null);
+    setSearchOpen(false);
+    setQuery("");
   }, [location]);
+
+  // Auto-focus the search input when opened
+  useEffect(() => {
+    if (searchOpen) {
+      setTimeout(() => searchInputRef.current?.focus(), 50);
+    } else {
+      setQuery("");
+      setActiveResult(-1);
+    }
+  }, [searchOpen]);
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape") { setSearchOpen(false); return; }
+    if (e.key === "ArrowDown") { e.preventDefault(); setActiveResult(i => Math.min(i + 1, results.length - 1)); }
+    if (e.key === "ArrowUp") { e.preventDefault(); setActiveResult(i => Math.max(i - 1, -1)); }
+    if (e.key === "Enter" && activeResult >= 0 && results[activeResult]) {
+      navigate(`/product/${results[activeResult].id}`);
+      setSearchOpen(false);
+    }
+  };
 
   const renderDesktopDropdown = (cat: string) => {
     const config = SUBCATEGORIES[cat];
@@ -38,7 +63,7 @@ export function Navbar() {
 
     if (isGroupedSubcategories(config)) {
       return (
-        <div className="absolute top-full left-0 pt-4 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+        <div className="absolute top-full left-0 pt-4 opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus-within:opacity-100 group-focus-within:visible transition-all duration-200 z-50">
           <div className="bg-background border border-border shadow-lg py-4 px-6 flex gap-8 min-w-[480px]">
             {(config as SubcategorySection[]).map((group) => (
               <div key={group.section} className="min-w-[120px]">
@@ -63,7 +88,7 @@ export function Navbar() {
     }
 
     return (
-      <div className="absolute top-full left-0 pt-4 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+      <div className="absolute top-full left-0 pt-4 opacity-0 invisible group-hover:opacity-100 group-hover:visible group-focus-within:opacity-100 group-focus-within:visible transition-all duration-200 z-50">
         <div className="bg-background border border-border shadow-lg min-w-[200px] py-3">
           <Link
             href={`/category/${cat}`}
@@ -103,10 +128,7 @@ export function Navbar() {
                 {group.items.map((sub) => (
                   <button
                     key={sub}
-                    onClick={() => {
-                      navigate(`/category/${cat}?sub=${encodeURIComponent(sub)}`);
-                      setMobileMenuOpen(false);
-                    }}
+                    onClick={() => { navigate(`/category/${cat}?sub=${encodeURIComponent(sub)}`); setMobileMenuOpen(false); }}
                     className="block w-full text-left py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
                   >
                     {sub}
@@ -124,10 +146,7 @@ export function Navbar() {
         {(config as string[]).map((sub) => (
           <button
             key={sub}
-            onClick={() => {
-              navigate(`/category/${cat}?sub=${encodeURIComponent(sub)}`);
-              setMobileMenuOpen(false);
-            }}
+            onClick={() => { navigate(`/category/${cat}?sub=${encodeURIComponent(sub)}`); setMobileMenuOpen(false); }}
             className="block w-full text-left py-2.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             {sub}
@@ -138,18 +157,19 @@ export function Navbar() {
   };
 
   return (
-    <header 
+    <header
       className={cn(
         "fixed inset-x-0 z-50 transition-all duration-300 border-b",
-        isScrolled 
-          ? "bg-background/90 backdrop-blur-md border-border py-4 shadow-sm" 
+        isScrolled
+          ? "bg-background/90 backdrop-blur-md border-border py-4 shadow-sm"
           : "bg-background border-transparent py-6"
       )}
       style={{ top: "var(--besta-strip-h, 0px)" }}
     >
       <div className="container mx-auto px-4 md:px-6 flex items-center justify-between">
-        <button 
+        <button
           data-testid="button-mobile-menu"
+          aria-label="Open navigation menu"
           className="md:hidden p-2 -ml-2"
           onClick={() => setMobileMenuOpen(true)}
         >
@@ -159,7 +179,7 @@ export function Navbar() {
         <nav className="hidden md:flex items-center gap-6 lg:gap-8 flex-1">
           {CATEGORIES.map((cat) => (
             <div key={cat} className="relative group">
-              <Link 
+              <Link
                 href={`/category/${cat}`}
                 className={cn(
                   "text-xs uppercase tracking-widest font-medium transition-colors hover:text-foreground py-2",
@@ -173,16 +193,21 @@ export function Navbar() {
           ))}
         </nav>
 
-        <Link 
-          href="/" 
+        <Link
+          href="/"
           className="font-display text-2xl md:text-3xl font-bold tracking-tighter text-center flex-1 md:flex-none"
         >
           BESTA
         </Link>
 
         <div className="flex items-center justify-end gap-2 sm:gap-4 lg:gap-6 flex-1">
-          <button className="hidden sm:block p-2 text-muted-foreground hover:text-foreground transition-colors">
-            <Search className="w-5 h-5" />
+          <button
+            aria-label={searchOpen ? "Close search" : "Open search"}
+            aria-expanded={searchOpen}
+            className="hidden sm:block p-2 text-muted-foreground hover:text-foreground transition-colors"
+            onClick={() => setSearchOpen(!searchOpen)}
+          >
+            {searchOpen ? <X className="w-5 h-5" /> : <Search className="w-5 h-5" />}
           </button>
 
           <Link
@@ -192,7 +217,7 @@ export function Navbar() {
           >
             <User className={cn("w-5 h-5", isLoggedIn && "fill-foreground text-foreground")} />
           </Link>
-          
+
           <Link href="/wishlist" className="p-2 relative text-foreground hover:opacity-70 transition-opacity">
             <Heart className={cn("w-5 h-5", wishlistItems.length > 0 && "fill-foreground")} />
             {wishlistItems.length > 0 && (
@@ -202,7 +227,7 @@ export function Navbar() {
             )}
           </Link>
 
-          <button 
+          <button
             data-testid="button-cart"
             className="p-2 relative text-foreground hover:opacity-70 transition-opacity"
             onClick={() => setCartOpen(true)}
@@ -217,11 +242,80 @@ export function Navbar() {
         </div>
       </div>
 
+      {/* Search bar — slides in below the nav row */}
+      {searchOpen && (
+        <div className="border-t border-border bg-background">
+          <div className="container mx-auto px-4 md:px-6 py-3 relative">
+            <div className="flex items-center gap-3">
+              {isFetching
+                ? <Loader2 className="w-4 h-4 text-muted-foreground animate-spin shrink-0" />
+                : <Search className="w-4 h-4 text-muted-foreground shrink-0" />
+              }
+              <input
+                ref={searchInputRef}
+                type="search"
+                value={query}
+                onChange={(e) => { setQuery(e.target.value); setActiveResult(-1); }}
+                onKeyDown={handleSearchKeyDown}
+                placeholder="Search for products…"
+                aria-label="Search products"
+                aria-autocomplete="list"
+                aria-expanded={hasQuery && results.length > 0}
+                className="flex-1 bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground"
+              />
+              <button
+                onClick={() => setSearchOpen(false)}
+                aria-label="Close search"
+                className="text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground"
+              >
+                Cancel
+              </button>
+            </div>
+
+            {/* Results dropdown */}
+            {hasQuery && (
+              <ul
+                role="listbox"
+                aria-label="Search results"
+                className="absolute left-0 right-0 top-full bg-background border border-border shadow-lg z-50 max-h-80 overflow-y-auto"
+              >
+                {results.length === 0 && !isFetching && (
+                  <li className="px-5 py-4 text-sm text-muted-foreground">No results for "{query}"</li>
+                )}
+                {results.slice(0, 6).map((product, i) => (
+                  <li key={product.id} role="option" aria-selected={activeResult === i}>
+                    <button
+                      onClick={() => { navigate(`/product/${product.id}`); setSearchOpen(false); }}
+                      className={cn(
+                        "flex items-center gap-4 w-full px-5 py-3 text-left hover:bg-secondary transition-colors",
+                        activeResult === i && "bg-secondary"
+                      )}
+                    >
+                      <img
+                        src={product.imageUrl}
+                        alt={product.name}
+                        width={40} height={53}
+                        className="w-10 h-14 object-cover bg-secondary shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{product.name}</p>
+                        <p className="text-xs text-muted-foreground">{product.category} · ₹{Number(product.price).toLocaleString("en-IN")}</p>
+                      </div>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Mobile menu */}
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 bg-background md:hidden flex flex-col">
           <div className="flex items-center justify-between p-4 border-b border-border">
             <span className="font-display text-xl font-bold tracking-tighter">BESTA</span>
-            <button onClick={() => setMobileMenuOpen(false)} className="p-2" data-testid="button-close-mobile-menu">
+            <button onClick={() => setMobileMenuOpen(false)} aria-label="Close navigation menu" className="p-2" data-testid="button-close-mobile-menu">
               <X className="w-6 h-6" />
             </button>
           </div>
@@ -229,7 +323,7 @@ export function Navbar() {
             {CATEGORIES.map((cat) => (
               <div key={cat} className="border-b border-border/50">
                 <div className="flex items-center justify-between">
-                  <Link 
+                  <Link
                     href={`/category/${cat}`}
                     className="flex-1 text-xl font-display font-light tracking-tight py-4"
                   >
@@ -237,13 +331,11 @@ export function Navbar() {
                   </Link>
                   {SUBCATEGORIES[cat] && (
                     <button
+                      aria-label={`${expandedMobileCategory === cat ? "Collapse" : "Expand"} ${cat} subcategories`}
                       onClick={() => setExpandedMobileCategory(expandedMobileCategory === cat ? null : cat)}
                       className="p-3"
                     >
-                      <ChevronDown className={cn(
-                        "w-4 h-4 transition-transform",
-                        expandedMobileCategory === cat && "rotate-180"
-                      )} />
+                      <ChevronDown className={cn("w-4 h-4 transition-transform", expandedMobileCategory === cat && "rotate-180")} />
                     </button>
                   )}
                 </div>

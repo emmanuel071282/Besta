@@ -30,6 +30,25 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return;
+          // Core React runtime — always needed, load first
+          if (id.includes("react-dom") || id.includes("react/") || id.includes("wouter") || id.includes("@tanstack")) {
+            return "vendor";
+          }
+          // Radix UI primitives — large, shared across many pages
+          if (id.includes("@radix-ui")) {
+            return "radix-ui";
+          }
+          // Icon libraries — medium-size, defer until needed
+          if (id.includes("lucide-react") || id.includes("react-icons")) {
+            return "icons";
+          }
+        },
+      },
+    },
   },
   server: {
     fs: {

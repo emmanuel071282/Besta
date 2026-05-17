@@ -151,7 +151,7 @@ export default function LoginPage() {
                   autoFocus
                 />
               </div>
-              {errors.mobile && <p className="text-red-500 text-xs mt-1">{errors.mobile}</p>}
+              {errors.mobile && <p className="text-red-700 text-xs mt-1">{errors.mobile}</p>}
             </div>
 
             <button
@@ -211,7 +211,7 @@ export default function LoginPage() {
                     />
                   ))}
                 </div>
-                {errors.otp && <p className="text-red-500 text-xs mt-2 text-center">{errors.otp}</p>}
+                {errors.otp && <p className="text-red-700 text-xs mt-2 text-center">{errors.otp}</p>}
               </div>
 
               <button
@@ -233,7 +233,7 @@ export default function LoginPage() {
                 disabled={countdown > 0 || sendOtp.isPending}
                 className="text-xs font-semibold uppercase tracking-widest text-foreground underline underline-offset-4 hover:opacity-70 disabled:opacity-40 disabled:no-underline"
               >
-                {countdown > 0 ? `Resend in ${countdown}s` : "Resend OTP"}
+                {countdown > 0 ? <span aria-live="polite">Resend in {countdown}s</span> : "Resend OTP"}
               </button>
             </div>
           </div>

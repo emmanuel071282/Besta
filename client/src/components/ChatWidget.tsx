@@ -130,7 +130,7 @@ export function ChatWidget() {
       } else if (value === "contact") {
         addUserMsg("📞 Contact us");
         setTimeout(() => {
-          addBotMsg("You can reach our support team:\n\n📞 Phone: +91 98765 43210\n📧 Email: support@besta.in\n⏰ Hours: Mon–Sat, 10 AM – 7 PM\n\nOr submit a return/exchange request and we'll call you back!", [
+          addBotMsg("You can reach our support team:\n\n📞 Phone: +91-9377637787\n📧 Email: customercare@bestafashion.in\n⏰ Hours: Mon–Sat, 10 AM – 7 PM\n\nOr submit a return/exchange request and we'll call you back!", [
             { label: "↩ Start a return", value: "go_return" },
             { label: "🔄 Start an exchange", value: "go_exchange" },
             { label: "🏠 Back to menu", value: "back" },
@@ -293,7 +293,7 @@ export function ChatWidget() {
       setStep("return_done");
     } catch (err: any) {
       setMessages(prev => prev.filter(m => m.text !== "Submitting your request..."));
-      addBotMsg("Sorry, something went wrong. Please try again or contact us directly at support@besta.in", [
+      addBotMsg("Sorry, something went wrong. Please try again or contact us directly at customercare@bestafashion.in", [
         { label: "🔄 Try again", value: "restart" },
       ]);
       setStep("menu");

@@ -3,18 +3,14 @@ import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useEffect, useState } from "react";
-import { Link, useLocation } from "wouter";
+import { useEffect, useState, useCallback } from "react";
+import { Link } from "wouter";
 import { cn } from "@/lib/utils";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Tag, Check } from "lucide-react";
-import { 
-  CreditCard, 
-  Building2, 
-  Smartphone, 
-  ChevronRight, 
-  ShieldCheck, 
+import {
+  ShieldCheck,
   Lock,
   CheckCircle2,
   ArrowLeft,
@@ -24,21 +20,12 @@ import { SiVisa, SiMastercard, SiGooglepay, SiPaytm } from "react-icons/si";
 import { FaAmazonPay } from "react-icons/fa";
 import { useToast } from "@/hooks/use-toast";
 
-type PaymentMethod = "card" | "netbanking" | "upi";
-type UpiApp = "paytm" | "gpay" | "amazonpay" | "upi_id";
-
-const BANKS = [
-  { id: "sbi", name: "State Bank of India" },
-  { id: "hdfc", name: "HDFC Bank" },
-  { id: "icici", name: "ICICI Bank" },
-  { id: "axis", name: "Axis Bank" },
-  { id: "kotak", name: "Kotak Mahindra Bank" },
-  { id: "pnb", name: "Punjab National Bank" },
-  { id: "bob", name: "Bank of Baroda" },
-  { id: "canara", name: "Canara Bank" },
-  { id: "union", name: "Union Bank of India" },
-  { id: "idbi", name: "IDBI Bank" },
-];
+// Extend window for Razorpay
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
 
 const INDIAN_STATES = [
   "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Delhi", "Goa",
@@ -51,20 +38,14 @@ const INDIAN_STATES = [
 export default function CheckoutPage() {
   const { items, cartTotal, clearCart } = useCart();
   const { isLoggedIn, user } = useAuth();
-  const [, navigate] = useLocation();
   const { toast } = useToast();
 
   const [step, setStep] = useState<"shipping" | "payment">("shipping");
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card");
-  const [selectedBank, setSelectedBank] = useState("");
-  const [upiApp, setUpiApp] = useState<UpiApp>("gpay");
-  const [upiId, setUpiId] = useState("");
-  const [cardNumber, setCardNumber] = useState("");
-  const [cardExpiry, setCardExpiry] = useState("");
-  const [cardCvv, setCardCvv] = useState("");
-  const [cardName, setCardName] = useState("");
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [placedOrderNumber, setPlacedOrderNumber] = useState("");
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [pincodeStatus, setPincodeStatus] = useState<{ serviceable: boolean; message: string; estimatedDays?: string } | null>(null);
+  const [pincodeChecking, setPincodeChecking] = useState(false);
 
   const [shipping, setShipping] = useState({
     name: user?.name || "",
@@ -74,6 +55,21 @@ export default function CheckoutPage() {
     state: "",
     pincode: "",
   });
+
+  // Auto-check pincode serviceability when 6 digits entered
+  const checkPincode = useCallback(async (pin: string) => {
+    if (!/^\d{6}$/.test(pin)) { setPincodeStatus(null); return; }
+    setPincodeChecking(true);
+    try {
+      const res = await fetch(`/api/pincode/check?pincode=${pin}`, { credentials: "include" });
+      const data = await res.json();
+      setPincodeStatus(data);
+    } catch {
+      setPincodeStatus(null);
+    } finally {
+      setPincodeChecking(false);
+    }
+  }, []);
 
   const readPromoFromUrl = () => {
     if (typeof window === "undefined") return "";
@@ -118,10 +114,35 @@ export default function CheckoutPage() {
     validatePromo.mutate(promoInput.trim().toUpperCase());
   }, [autoTriedPromo, promoInput, appliedPromo, cartTotal, validatePromo]);
 
-  const placeOrderMutation = useMutation({
-    mutationFn: async () => {
-      const paymentLabel = paymentMethod === "card" ? "card" : paymentMethod === "netbanking" ? `netbanking-${selectedBank}` : upiApp === "upi_id" ? `upi-${upiId}` : `upi-${upiApp}`;
-      const res = await apiRequest("POST", "/api/orders", {
+  // Load Razorpay checkout.js dynamically
+  const loadRazorpayScript = useCallback((): Promise<boolean> => {
+    return new Promise((resolve) => {
+      if (window.Razorpay) { resolve(true); return; }
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  }, []);
+
+  // After Razorpay succeeds: verify signature server-side + create DB order
+  const verifyAndConfirm = useCallback(async (
+    razorpayOrderId: string,
+    razorpayPaymentId: string,
+    razorpaySignature: string,
+    totalAmount: number,
+    discountAmt: number,
+    appliedPromoCode: string | null,
+  ) => {
+    try {
+      const res = await apiRequest("POST", "/api/payment/verify", {
+        razorpayOrderId,
+        razorpayPaymentId,
+        razorpaySignature,
+        totalAmount,
+        discountAmount: discountAmt,
+        appliedPromo: appliedPromoCode,
         items: items.map((item) => ({
           productId: item.product.id,
           quantity: item.quantity,
@@ -134,20 +155,18 @@ export default function CheckoutPage() {
         shippingState: shipping.state,
         shippingPincode: shipping.pincode,
         shippingPhone: shipping.phone,
-        paymentMethod: paymentLabel,
-        promoCode: appliedPromo?.code,
+        paymentMethod: "razorpay",
       });
-      return res.json();
-    },
-    onSuccess: (data) => {
+      const data = await res.json();
       setPlacedOrderNumber(data.orderNumber);
       clearCart();
       setOrderPlaced(true);
-    },
-    onError: () => {
-      toast({ title: "Failed to place order", description: "Please try again.", variant: "destructive" });
-    },
-  });
+    } catch (err: any) {
+      toast({ title: "Payment verification failed", description: err.message || "Please contact support.", variant: "destructive" });
+    } finally {
+      setIsProcessingPayment(false);
+    }
+  }, [items, shipping, clearCart, toast]);
 
   if (items.length === 0 && !orderPlaced) {
     return (
@@ -167,7 +186,7 @@ export default function CheckoutPage() {
     return (
       <div className="min-h-screen bg-background pt-28 pb-20">
         <div className="container mx-auto px-4 md:px-6 max-w-lg text-center py-20">
-          <CheckCircle2 className="w-20 h-20 mx-auto text-green-600 mb-6" />
+          <CheckCircle2 className="w-20 h-20 mx-auto text-green-800 mb-6" />
           <h1 className="text-3xl font-display font-bold tracking-tighter mb-4">Order Confirmed!</h1>
           <p className="text-muted-foreground mb-2">
             Thank you for shopping with BESTA. Your order has been placed successfully.
@@ -220,44 +239,102 @@ export default function CheckoutPage() {
       toast({ title: "Please enter a valid 6-digit pincode", variant: "destructive" });
       return false;
     }
+    if (pincodeStatus && !pincodeStatus.serviceable) {
+      toast({ title: "We don't deliver to this pincode yet", description: "Please try a different delivery address.", variant: "destructive" });
+      return false;
+    }
     return true;
   };
 
-  const handlePlaceOrder = () => {
-    if (paymentMethod === "card" && (!cardNumber || !cardExpiry || !cardCvv || !cardName)) {
-      toast({ title: "Please fill in all card details", variant: "destructive" });
-      return;
-    }
-    if (paymentMethod === "netbanking" && !selectedBank) {
-      toast({ title: "Please select a bank", variant: "destructive" });
-      return;
-    }
-    if (paymentMethod === "upi" && upiApp === "upi_id" && !upiId) {
-      toast({ title: "Please enter your UPI ID", variant: "destructive" });
-      return;
-    }
+  const handlePlaceOrder = useCallback(async () => {
+    setIsProcessingPayment(true);
+    try {
+      // Step 1: Create Razorpay order server-side
+      const createRes = await apiRequest("POST", "/api/payment/create-order", {
+        items: items.map((item) => ({
+          productId: item.product.id,
+          quantity: item.quantity,
+          price: item.product.price,
+          size: item.selectedSize || undefined,
+        })),
+        shippingName: shipping.name,
+        shippingAddress: shipping.address,
+        shippingCity: shipping.city,
+        shippingState: shipping.state,
+        shippingPincode: shipping.pincode,
+        shippingPhone: shipping.phone,
+        paymentMethod: "razorpay",
+        promoCode: appliedPromo?.code,
+      });
+      const orderInfo = await createRes.json();
+      const { razorpayOrderId, amount, currency, keyId, totalAmount, discountAmount: discountAmt, appliedPromo: appliedPromoCode } = orderInfo;
 
-    placeOrderMutation.mutate();
-  };
+      // Demo mode: no Razorpay keys configured — skip popup, go straight to verify
+      if (!keyId) {
+        await verifyAndConfirm(
+          razorpayOrderId,
+          `demo_pay_${Date.now()}`,
+          "demo_signature",
+          totalAmount,
+          discountAmt,
+          appliedPromoCode,
+        );
+        return;
+      }
 
-  const formatCardNumber = (value: string) => {
-    const v = value.replace(/\s+/g, "").replace(/[^0-9]/gi, "");
-    const matches = v.match(/\d{4,16}/g);
-    const match = (matches && matches[0]) || "";
-    const parts = [];
-    for (let i = 0, len = match.length; i < len; i += 4) {
-      parts.push(match.substring(i, i + 4));
-    }
-    return parts.length ? parts.join(" ") : value;
-  };
+      // Step 2: Load Razorpay checkout.js and open the popup
+      const loaded = await loadRazorpayScript();
+      if (!loaded) {
+        throw new Error("Failed to load payment gateway. Please check your connection and try again.");
+      }
 
-  const formatExpiry = (value: string) => {
-    const v = value.replace(/\s+/g, "").replace(/[^0-9]/gi, "");
-    if (v.length >= 2) {
-      return v.substring(0, 2) + "/" + v.substring(2, 4);
+      const options = {
+        key: keyId,
+        amount,
+        currency,
+        order_id: razorpayOrderId,
+        name: "BESTA Fashion",
+        description: `Order — ${items.length} item${items.length !== 1 ? "s" : ""}`,
+        image: "/favicon.ico",
+        prefill: {
+          name: user?.name || shipping.name,
+          email: user?.email || "",
+          contact: shipping.phone,
+        },
+        theme: { color: "#111111" },
+        handler: async (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
+          await verifyAndConfirm(
+            response.razorpay_order_id,
+            response.razorpay_payment_id,
+            response.razorpay_signature,
+            totalAmount,
+            discountAmt,
+            appliedPromoCode,
+          );
+        },
+        modal: {
+          ondismiss: () => {
+            setIsProcessingPayment(false);
+            toast({ title: "Payment cancelled", description: "You can try again when ready." });
+          },
+        },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on("payment.failed", (response: any) => {
+        setIsProcessingPayment(false);
+        toast({
+          title: "Payment failed",
+          description: response?.error?.description || "Please try a different payment method.",
+          variant: "destructive",
+        });
+      });
+      rzp.open();
+    } catch (err: any) {
+      setIsProcessingPayment(false);
+      toast({ title: "Could not initiate payment", description: err.message || "Please try again.", variant: "destructive" });
     }
-    return v;
-  };
+  }, [items, shipping, appliedPromo, user, loadRazorpayScript, verifyAndConfirm, toast]);
 
   return (
     <div className="min-h-screen bg-background pt-28 pb-20">
@@ -330,7 +407,29 @@ export default function CheckoutPage() {
                   </div>
                   <div>
                     <Label htmlFor="shippingPincode" className="text-xs uppercase tracking-widest text-muted-foreground">Pincode</Label>
-                    <Input data-testid="input-shipping-pincode" id="shippingPincode" value={shipping.pincode} onChange={(e) => setShipping({ ...shipping, pincode: e.target.value.replace(/\D/g, "").slice(0, 6) })} className="mt-2 rounded-none h-12" placeholder="6-digit pincode" />
+                    <Input
+                      data-testid="input-shipping-pincode"
+                      id="shippingPincode"
+                      value={shipping.pincode}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, "").slice(0, 6);
+                        setShipping({ ...shipping, pincode: val });
+                        checkPincode(val);
+                      }}
+                      className="mt-2 rounded-none h-12"
+                      placeholder="6-digit pincode"
+                    />
+                    {pincodeChecking && (
+                      <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                        <Loader2 className="w-3 h-3 animate-spin" /> Checking delivery...
+                      </p>
+                    )}
+                    {pincodeStatus && !pincodeChecking && (
+                      <p className={cn("text-xs mt-1 flex items-center gap-1", pincodeStatus.serviceable ? "text-green-700" : "text-red-700")} data-testid="text-pincode-status">
+                        {pincodeStatus.serviceable ? <CheckCircle2 className="w-3 h-3" /> : null}
+                        {pincodeStatus.message}
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -345,140 +444,32 @@ export default function CheckoutPage() {
             )}
 
             {step === "payment" && (
-              <>
-                <h2 className="text-sm uppercase tracking-widest font-semibold mb-6">Payment Method</h2>
+              <div data-testid="section-payment">
+                <h2 className="text-sm uppercase tracking-widest font-semibold mb-6">Secure Payment</h2>
 
-                <div className="flex border border-border mb-8">
-                  <button
-                    data-testid="button-payment-card"
-                    className={cn(
-                      "flex-1 flex items-center justify-center gap-2 py-4 px-3 text-xs uppercase tracking-wider font-semibold transition-colors border-b-2",
-                      paymentMethod === "card" ? "border-foreground bg-secondary/50" : "border-transparent text-muted-foreground"
-                    )}
-                    onClick={() => setPaymentMethod("card")}
-                  >
-                    <CreditCard className="w-4 h-4" />
-                    <span className="hidden sm:inline">Card</span>
-                  </button>
-                  <button
-                    data-testid="button-payment-netbanking"
-                    className={cn(
-                      "flex-1 flex items-center justify-center gap-2 py-4 px-3 text-xs uppercase tracking-wider font-semibold transition-colors border-b-2",
-                      paymentMethod === "netbanking" ? "border-foreground bg-secondary/50" : "border-transparent text-muted-foreground"
-                    )}
-                    onClick={() => setPaymentMethod("netbanking")}
-                  >
-                    <Building2 className="w-4 h-4" />
-                    <span className="hidden sm:inline">Net Banking</span>
-                  </button>
-                  <button
-                    data-testid="button-payment-upi"
-                    className={cn(
-                      "flex-1 flex items-center justify-center gap-2 py-4 px-3 text-xs uppercase tracking-wider font-semibold transition-colors border-b-2",
-                      paymentMethod === "upi" ? "border-foreground bg-secondary/50" : "border-transparent text-muted-foreground"
-                    )}
-                    onClick={() => setPaymentMethod("upi")}
-                  >
-                    <Smartphone className="w-4 h-4" />
-                    <span className="hidden sm:inline">UPI</span>
-                  </button>
+                <div className="border border-border p-6 mb-6">
+                  <p className="text-xs text-muted-foreground uppercase tracking-widest mb-4">Accepted Payment Methods</p>
+                  <div className="flex flex-wrap items-center gap-4">
+                    <SiVisa className="w-12 h-8 text-blue-700" />
+                    <SiMastercard className="w-10 h-8 text-orange-600" />
+                    <span className="text-sm font-bold bg-blue-600 text-white px-2 py-1 rounded">RuPay</span>
+                    <SiGooglepay className="w-12 h-8" />
+                    <SiPaytm className="w-12 h-8 text-blue-600" />
+                    <FaAmazonPay className="w-12 h-8 text-orange-500" />
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-4 leading-relaxed">
+                    Cards (Visa, Mastercard, RuPay) · UPI (GPay, PhonePe, Paytm, BHIM) · Net Banking · Wallets
+                  </p>
                 </div>
 
-                {paymentMethod === "card" && (
-                  <div className="space-y-6" data-testid="section-card-form">
-                    <div className="flex items-center gap-4 mb-2">
-                      <span className="text-muted-foreground text-xs uppercase tracking-widest">We Accept</span>
-                      <div className="flex items-center gap-3">
-                        <SiVisa className="w-10 h-7 text-blue-700" />
-                        <SiMastercard className="w-8 h-7 text-orange-600" />
-                        <span className="text-xs font-bold bg-blue-600 text-white px-2 py-0.5 rounded">RuPay</span>
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="cardName" className="text-xs uppercase tracking-widest text-muted-foreground">Name on Card</Label>
-                      <Input data-testid="input-card-name" id="cardName" placeholder="Full name as on card" value={cardName} onChange={(e) => setCardName(e.target.value)} className="mt-2 rounded-none h-12" />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="cardNumber" className="text-xs uppercase tracking-widest text-muted-foreground">Card Number</Label>
-                      <Input data-testid="input-card-number" id="cardNumber" placeholder="1234 5678 9012 3456" value={cardNumber} onChange={(e) => setCardNumber(formatCardNumber(e.target.value))} maxLength={19} className="mt-2 rounded-none h-12 font-mono" />
-                    </div>
-
-                    <div className="flex gap-4">
-                      <div className="flex-1">
-                        <Label htmlFor="cardExpiry" className="text-xs uppercase tracking-widest text-muted-foreground">Expiry</Label>
-                        <Input data-testid="input-card-expiry" id="cardExpiry" placeholder="MM/YY" value={cardExpiry} onChange={(e) => setCardExpiry(formatExpiry(e.target.value))} maxLength={5} className="mt-2 rounded-none h-12 font-mono" />
-                      </div>
-                      <div className="flex-1">
-                        <Label htmlFor="cardCvv" className="text-xs uppercase tracking-widest text-muted-foreground">CVV</Label>
-                        <Input data-testid="input-card-cvv" id="cardCvv" placeholder="123" type="password" value={cardCvv} onChange={(e) => setCardCvv(e.target.value.replace(/\D/g, "").slice(0, 3))} maxLength={3} className="mt-2 rounded-none h-12 font-mono" />
-                      </div>
-                    </div>
+                <div className="flex items-start gap-3 p-4 bg-secondary/40 border border-border">
+                  <ShieldCheck className="w-5 h-5 text-green-700 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-widest mb-1">256-bit SSL Encrypted</p>
+                    <p className="text-xs text-muted-foreground">Your payment information is processed securely by Razorpay. BESTA never stores your card details.</p>
                   </div>
-                )}
-
-                {paymentMethod === "netbanking" && (
-                  <div className="space-y-3" data-testid="section-netbanking">
-                    <p className="text-xs text-muted-foreground uppercase tracking-widest mb-4">Select Your Bank</p>
-                    <div className="grid grid-cols-1 gap-2 max-h-[400px] overflow-y-auto pr-2">
-                      {BANKS.map((bank) => (
-                        <button
-                          key={bank.id}
-                          data-testid={`button-bank-${bank.id}`}
-                          className={cn(
-                            "flex items-center justify-between px-4 py-4 border transition-colors text-left text-sm",
-                            selectedBank === bank.id
-                              ? "border-foreground bg-secondary/50 font-medium"
-                              : "border-border hover:border-foreground/30"
-                          )}
-                          onClick={() => setSelectedBank(bank.id)}
-                        >
-                          <div className="flex items-center gap-3">
-                            <Building2 className="w-4 h-4 text-muted-foreground shrink-0" />
-                            <span>{bank.name}</span>
-                          </div>
-                          <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {paymentMethod === "upi" && (
-                  <div className="space-y-4" data-testid="section-upi">
-                    <p className="text-xs text-muted-foreground uppercase tracking-widest mb-4">Choose UPI Option</p>
-                    
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-                      <button data-testid="button-upi-gpay" className={cn("flex flex-col items-center gap-3 py-6 px-4 border transition-colors", upiApp === "gpay" ? "border-foreground bg-secondary/50" : "border-border hover:border-foreground/30")} onClick={() => setUpiApp("gpay")}>
-                        <SiGooglepay className="w-12 h-8" />
-                        <span className="text-xs font-medium">Google Pay</span>
-                      </button>
-                      <button data-testid="button-upi-paytm" className={cn("flex flex-col items-center gap-3 py-6 px-4 border transition-colors", upiApp === "paytm" ? "border-foreground bg-secondary/50" : "border-border hover:border-foreground/30")} onClick={() => setUpiApp("paytm")}>
-                        <SiPaytm className="w-12 h-8 text-blue-600" />
-                        <span className="text-xs font-medium">Paytm</span>
-                      </button>
-                      <button data-testid="button-upi-amazonpay" className={cn("flex flex-col items-center gap-3 py-6 px-4 border transition-colors", upiApp === "amazonpay" ? "border-foreground bg-secondary/50" : "border-border hover:border-foreground/30")} onClick={() => setUpiApp("amazonpay")}>
-                        <FaAmazonPay className="w-12 h-8 text-orange-500" />
-                        <span className="text-xs font-medium">Amazon Pay</span>
-                      </button>
-                    </div>
-
-                    <div className="border-t border-border pt-6">
-                      <button data-testid="button-upi-id" className={cn("flex items-center gap-3 w-full text-left mb-4 py-3 px-4 border transition-colors", upiApp === "upi_id" ? "border-foreground bg-secondary/50" : "border-border hover:border-foreground/30")} onClick={() => setUpiApp("upi_id")}>
-                        <Smartphone className="w-5 h-5 text-muted-foreground" />
-                        <span className="text-sm font-medium">Pay using UPI ID</span>
-                      </button>
-                      {upiApp === "upi_id" && (
-                        <div>
-                          <Label htmlFor="upiId" className="text-xs uppercase tracking-widest text-muted-foreground">Your UPI ID</Label>
-                          <Input data-testid="input-upi-id" id="upiId" placeholder="yourname@upi" value={upiId} onChange={(e) => setUpiId(e.target.value)} className="mt-2 rounded-none h-12" />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </>
+                </div>
+              </div>
             )}
           </div>
 
@@ -510,7 +501,7 @@ export default function CheckoutPage() {
                 {appliedPromo ? (
                   <div className="flex items-center justify-between gap-2 border border-foreground/40 px-3 py-2 bg-secondary/40">
                     <span className="text-xs font-semibold flex items-center gap-2" data-testid="text-applied-promo">
-                      <Check className="w-3.5 h-3.5 text-green-600" />
+                      <Check className="w-3.5 h-3.5 text-green-800" />
                       {appliedPromo.code} applied
                     </span>
                     <button
@@ -563,7 +554,7 @@ export default function CheckoutPage() {
                 )}
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Delivery</span>
-                  <span className="text-green-600 font-medium">Free</span>
+                  <span className="text-green-800 font-medium">Free</span>
                 </div>
                 <div className="flex justify-between font-semibold text-lg pt-3 border-t border-border">
                   <span>Total</span>
@@ -576,9 +567,9 @@ export default function CheckoutPage() {
                   data-testid="button-place-order"
                   className="w-full rounded-none py-6 text-sm uppercase tracking-widest font-semibold mt-6"
                   onClick={handlePlaceOrder}
-                  disabled={placeOrderMutation.isPending}
+                  disabled={isProcessingPayment}
                 >
-                  {placeOrderMutation.isPending ? (
+                  {isProcessingPayment ? (
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   ) : (
                     <Lock className="w-4 h-4 mr-2" />

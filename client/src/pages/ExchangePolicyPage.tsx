@@ -180,7 +180,7 @@ export default function ExchangePolicyPage() {
             Start a Return or Exchange
           </button>
           <div className="flex flex-col sm:flex-row gap-4 justify-center text-sm">
-            <span className="text-muted-foreground">Email: <span className="text-foreground font-medium">support@besta.in</span></span>
+            <span className="text-muted-foreground">Email: <span className="text-foreground font-medium">customercare@bestafashion.in</span></span>
             <span className="hidden sm:inline text-muted-foreground/30">|</span>
             <span className="text-muted-foreground">Call: <span className="text-foreground font-medium">1800-123-BESTA</span></span>
           </div>

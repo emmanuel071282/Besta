@@ -5,6 +5,7 @@ import { SUBCATEGORIES, isGroupedSubcategories, getAllSubcategories } from "@sha
 import type { SubcategorySection } from "@shared/schema";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
+import { usePageMeta } from "@/hooks/use-page-meta";
 import { ChevronDown, SlidersHorizontal } from "lucide-react";
 
 export default function CategoryPage() {
@@ -25,6 +26,14 @@ export default function CategoryPage() {
   const { data: products, isLoading, error } = useProductsByCategory(category, activeSubcategory);
   const config = SUBCATEGORIES[category];
   const isGrouped = config ? isGroupedSubcategories(config) : false;
+
+  const pageTitle = activeSubcategory
+    ? `${activeSubcategory} — ${category} | BESTA`
+    : `${category} — BESTA`;
+  usePageMeta({
+    title: pageTitle,
+    description: `Shop the latest ${activeSubcategory ?? category} styles at BESTA. Fast fashion, Indian prices.`,
+  });
 
   const handleSubcategoryClick = (sub?: string) => {
     setActiveSubcategory(sub);

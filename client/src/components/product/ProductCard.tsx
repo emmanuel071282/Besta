@@ -34,6 +34,7 @@ export function ProductCard({ product }: ProductCardProps) {
         <img
           src={product.imageUrl}
           alt={product.name}
+          width={400} height={533}
           className="object-cover w-full h-full img-hover-zoom"
           loading="lazy"
         />
@@ -41,12 +42,14 @@ export function ProductCard({ product }: ProductCardProps) {
         <button
           data-testid={`button-wishlist-${product.id}`}
           onClick={(e) => { e.stopPropagation(); toggleItem(product); }}
-          className="absolute top-3 right-3 p-2 bg-white/80 backdrop-blur-sm rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:bg-white"
+          aria-label={active ? "Remove from wishlist" : "Add to wishlist"}
+          aria-pressed={active}
+          className="absolute top-3 right-3 p-2 bg-white/80 backdrop-blur-sm rounded-full opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity z-10 hover:bg-white"
         >
           <Heart className={cn("w-4 h-4 transition-colors", active ? "fill-red-500 stroke-red-500" : "stroke-foreground")} />
         </button>
-        
-        <div className="absolute inset-x-0 bottom-0 p-4 opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
+
+        <div className="absolute inset-x-0 bottom-0 p-4 opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 group-focus-within:opacity-100 group-focus-within:translate-y-0 transition-all duration-300">
           <Button
             data-testid={`button-quickadd-${product.id}`}
             onClick={(e) => { e.stopPropagation(); addItem(product); }}

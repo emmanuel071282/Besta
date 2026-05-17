@@ -29,16 +29,18 @@ export default function Home() {
       <section className="relative h-[85vh] w-full bg-secondary overflow-hidden pt-20">
         <div className="absolute top-20 inset-x-0 bottom-0 flex">
           <div className="relative flex-1">
-            <img 
-              src="/products/cordset-07-mustard-anarkali.jpeg" 
-              alt="Indian Cord Sets — New Launch" 
+            <img
+              src="/products/cordset-07-mustard-anarkali.jpeg"
+              alt="Indian Cord Sets — New Launch"
+              width={800} height={1067}
               className="absolute inset-0 w-full h-full object-cover object-top"
             />
           </div>
           <div className="relative flex-1 hidden md:block border-l border-white/20">
-            <img 
-              src="/products/jewel-02-square-stud-model.png" 
-              alt="Gold Statement Jewellery — New Launch" 
+            <img
+              src="/products/jewel-02-square-stud-model.png"
+              alt="Gold Statement Jewellery — New Launch"
+              width={800} height={1067}
               className="absolute inset-0 w-full h-full object-cover object-center"
             />
           </div>

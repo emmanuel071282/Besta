@@ -100,7 +100,7 @@ export function CartDrawer() {
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Delivery</span>
-                <span className="text-green-600 font-medium">Free</span>
+                <span className="text-green-800 font-medium">Free</span>
               </div>
               <div className="flex justify-between font-semibold text-lg pt-2 border-t border-border/50">
                 <span>Total</span>

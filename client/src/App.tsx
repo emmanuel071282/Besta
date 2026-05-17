@@ -1,4 +1,5 @@
 import { Switch, Route } from "wouter";
+import { lazy, Suspense } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -12,26 +13,30 @@ import { SummerHeaderStrip } from "@/components/summer/SummerHeaderStrip";
 import { SummerPopup } from "@/components/summer/SummerPopup";
 import NotFound from "@/pages/not-found";
 
-import Home from "@/pages/Home";
-import CategoryPage from "@/pages/CategoryPage";
-import ProductPage from "@/pages/ProductPage";
-import WishlistPage from "@/pages/WishlistPage";
-import CheckoutPage from "@/pages/CheckoutPage";
-import ExchangePolicyPage from "@/pages/ExchangePolicyPage";
-import LoginPage from "@/pages/LoginPage";
-import RegisterPage from "@/pages/RegisterPage";
-import AccountPage from "@/pages/AccountPage";
-import MyOrdersPage from "@/pages/MyOrdersPage";
-import OrderDetailPage from "@/pages/OrderDetailPage";
+// Storefront pages — lazy loaded for smaller initial bundle
+const Home = lazy(() => import("@/pages/Home"));
+const CategoryPage = lazy(() => import("@/pages/CategoryPage"));
+const ProductPage = lazy(() => import("@/pages/ProductPage"));
+const WishlistPage = lazy(() => import("@/pages/WishlistPage"));
+const CheckoutPage = lazy(() => import("@/pages/CheckoutPage"));
+const ExchangePolicyPage = lazy(() => import("@/pages/ExchangePolicyPage"));
+const LoginPage = lazy(() => import("@/pages/LoginPage"));
+const RegisterPage = lazy(() => import("@/pages/RegisterPage"));
+const AccountPage = lazy(() => import("@/pages/AccountPage"));
+const MyOrdersPage = lazy(() => import("@/pages/MyOrdersPage"));
+const OrderDetailPage = lazy(() => import("@/pages/OrderDetailPage"));
+const SummerPage = lazy(() => import("@/pages/SummerPage"));
 
-import DashboardPage from "@/pages/admin/DashboardPage";
-import AdminOrdersPage from "@/pages/admin/OrdersPage";
-import SalesPage from "@/pages/admin/SalesPage";
-import StoresPage from "@/pages/admin/StoresPage";
-import InventoryPage from "@/pages/admin/InventoryPage";
-import AdminSupportPage from "@/pages/admin/SupportPage";
-import CampaignsPage from "@/pages/admin/CampaignsPage";
-import SummerPage from "@/pages/SummerPage";
+// Admin pages — lazy loaded as a separate group
+const DashboardPage = lazy(() => import("@/pages/admin/DashboardPage"));
+const AdminOrdersPage = lazy(() => import("@/pages/admin/OrdersPage"));
+const SalesPage = lazy(() => import("@/pages/admin/SalesPage"));
+const StoresPage = lazy(() => import("@/pages/admin/StoresPage"));
+const InventoryPage = lazy(() => import("@/pages/admin/InventoryPage"));
+const AdminSupportPage = lazy(() => import("@/pages/admin/SupportPage"));
+const CampaignsPage = lazy(() => import("@/pages/admin/CampaignsPage"));
+
+const PageFallback = () => <div className="min-h-screen bg-background" />;
 
 function StorefrontRouter() {
   return (
@@ -39,21 +44,23 @@ function StorefrontRouter() {
       <SummerHeaderStrip />
       <Navbar />
       <main className="flex-grow">
-        <Switch>
-          <Route path="/" component={Home} />
-          <Route path="/summer" component={SummerPage} />
-          <Route path="/category/:category" component={CategoryPage} />
-          <Route path="/product/:id" component={ProductPage} />
-          <Route path="/wishlist" component={WishlistPage} />
-          <Route path="/checkout" component={CheckoutPage} />
-          <Route path="/exchange-policy" component={ExchangePolicyPage} />
-          <Route path="/login" component={LoginPage} />
-          <Route path="/register" component={RegisterPage} />
-          <Route path="/account" component={AccountPage} />
-          <Route path="/orders" component={MyOrdersPage} />
-          <Route path="/orders/:id" component={OrderDetailPage} />
-          <Route component={NotFound} />
-        </Switch>
+        <Suspense fallback={<PageFallback />}>
+          <Switch>
+            <Route path="/" component={Home} />
+            <Route path="/summer" component={SummerPage} />
+            <Route path="/category/:category" component={CategoryPage} />
+            <Route path="/product/:id" component={ProductPage} />
+            <Route path="/wishlist" component={WishlistPage} />
+            <Route path="/checkout" component={CheckoutPage} />
+            <Route path="/exchange-policy" component={ExchangePolicyPage} />
+            <Route path="/login" component={LoginPage} />
+            <Route path="/register" component={RegisterPage} />
+            <Route path="/account" component={AccountPage} />
+            <Route path="/orders" component={MyOrdersPage} />
+            <Route path="/orders/:id" component={OrderDetailPage} />
+            <Route component={NotFound} />
+          </Switch>
+        </Suspense>
       </main>
       <Footer />
       <CartDrawer />
@@ -68,16 +75,18 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
-        <Switch>
-          <Route path="/admin" component={DashboardPage} />
-          <Route path="/admin/orders" component={AdminOrdersPage} />
-          <Route path="/admin/sales" component={SalesPage} />
-          <Route path="/admin/stores" component={StoresPage} />
-          <Route path="/admin/inventory" component={InventoryPage} />
-          <Route path="/admin/support" component={AdminSupportPage} />
-          <Route path="/admin/campaigns" component={CampaignsPage} />
-          <Route component={StorefrontRouter} />
-        </Switch>
+        <Suspense fallback={<PageFallback />}>
+          <Switch>
+            <Route path="/admin" component={DashboardPage} />
+            <Route path="/admin/orders" component={AdminOrdersPage} />
+            <Route path="/admin/sales" component={SalesPage} />
+            <Route path="/admin/stores" component={StoresPage} />
+            <Route path="/admin/inventory" component={InventoryPage} />
+            <Route path="/admin/support" component={AdminSupportPage} />
+            <Route path="/admin/campaigns" component={CampaignsPage} />
+            <Route component={StorefrontRouter} />
+          </Switch>
+        </Suspense>
       </TooltipProvider>
     </QueryClientProvider>
   );

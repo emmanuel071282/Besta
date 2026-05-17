@@ -64,6 +64,20 @@ export const SIZE_CHART: Record<string, Record<string, string[]>> = {
     Boots: ["UK 6", "UK 7", "UK 8", "UK 9", "UK 10", "UK 11"],
     Loafers: ["UK 6", "UK 7", "UK 8", "UK 9", "UK 10", "UK 11"],
   },
+  Cosmetics: {
+    default: ["Free Size"],
+    "Lip Colour": ["Free Size"],
+    Foundation: ["Free Size"],
+    Blush: ["Free Size"],
+    Eyeshadow: ["Free Size"],
+    Kajal: ["Free Size"],
+    Mascara: ["Free Size"],
+    "Nail Polish": ["Free Size"],
+    "Skin Care": ["Free Size"],
+    "Hair Care": ["Free Size"],
+    Fragrance: ["Free Size"],
+    "Makeup Kit": ["Free Size"],
+  },
 };
 
 export function getSizesForProduct(category: string, subcategory: string): string[] {
@@ -160,6 +174,9 @@ export const stores = pgTable("stores", {
   address: text("address").notNull(),
   phone: text("phone").notNull(),
   isActive: boolean("is_active").notNull().default(true),
+  // Geo-coordinates for nearest-store fulfillment
+  latitude: numeric("latitude"),
+  longitude: numeric("longitude"),
 });
 
 export const insertStoreSchema = createInsertSchema(stores).omit({ id: true });
@@ -193,6 +210,20 @@ export const orders = pgTable("orders", {
   paymentMethod: text("payment_method").notNull(),
   promoCode: text("promo_code"),
   discountAmount: numeric("discount_amount").notNull().default("0"),
+  // Razorpay payment tracking
+  razorpayOrderId: text("razorpay_order_id"),
+  razorpayPaymentId: text("razorpay_payment_id"),
+  paymentStatus: text("payment_status").notNull().default("pending"), // pending | paid | failed
+  // GST invoice
+  invoiceNumber: text("invoice_number"),
+  gstAmount: numeric("gst_amount").notNull().default("0"),
+  // Shiprocket shipping
+  fulfilledFromStoreId: integer("fulfilled_from_store_id"),
+  shiprocketOrderId: text("shiprocket_order_id"),
+  shiprocketShipmentId: text("shiprocket_shipment_id"),
+  awbNumber: text("awb_number"),
+  courierName: text("courier_name"),
+  trackingUrl: text("tracking_url"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -214,7 +245,7 @@ export const insertOrderItemSchema = createInsertSchema(orderItems).omit({ id: t
 export type InsertOrderItem = z.infer<typeof insertOrderItemSchema>;
 export type OrderItem = typeof orderItems.$inferSelect;
 
-export const ORDER_STATUSES = ["placed", "confirmed", "shipped", "delivered", "cancelled", "returned"] as const;
+export const ORDER_STATUSES = ["placed", "confirmed", "processing", "ready_to_ship", "shipped", "in_transit", "out_for_delivery", "delivered", "cancelled", "returned", "rto"] as const;
 export type OrderStatus = typeof ORDER_STATUSES[number];
 
 export const registerSchema = z.object({
@@ -264,6 +295,10 @@ export const SUBCATEGORIES: Record<string, SubcategoryConfig> = {
   ],
   Accessories: ["Watches", "Bags", "Belts", "Sunglasses", "Jewellery", "Scarves"],
   Footwear: ["Sneakers", "Formal Shoes", "Sandals", "Heels", "Boots", "Loafers"],
+  Cosmetics: [
+    { section: "Makeup", items: ["Lip Colour", "Foundation", "Blush", "Eyeshadow", "Kajal", "Mascara", "Nail Polish", "Makeup Kit"] },
+    { section: "Care", items: ["Skin Care", "Hair Care", "Fragrance"] },
+  ],
 };
 
 export function isGroupedSubcategories(config: SubcategoryConfig): config is SubcategorySection[] {

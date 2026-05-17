@@ -12,10 +12,15 @@ const STATUS_TABS = ["all", ...ORDER_STATUSES] as const;
 const statusColors: Record<string, string> = {
   placed: "bg-yellow-100 text-yellow-800",
   confirmed: "bg-blue-100 text-blue-800",
+  processing: "bg-cyan-100 text-cyan-800",
+  ready_to_ship: "bg-teal-100 text-teal-800",
   shipped: "bg-indigo-100 text-indigo-800",
+  in_transit: "bg-purple-100 text-purple-800",
+  out_for_delivery: "bg-amber-100 text-amber-800",
   delivered: "bg-green-100 text-green-800",
   cancelled: "bg-red-100 text-red-800",
   returned: "bg-gray-100 text-gray-800",
+  rto: "bg-orange-100 text-orange-800",
 };
 
 export default function OrdersPage() {
@@ -137,7 +142,7 @@ function OrderRow({ order, isExpanded, onToggle, onUpdateStatus, statusColors }:
         <td className="px-6 py-4 text-xs uppercase">{order.paymentMethod}</td>
         <td className="px-6 py-4">
           <span className={`inline-block px-2 py-0.5 text-[10px] uppercase tracking-wider font-semibold rounded ${statusColors[order.status] || "bg-gray-100"}`}>
-            {order.status}
+            {order.status.replace(/_/g, " ")}
           </span>
         </td>
         <td className="px-6 py-4 text-muted-foreground text-xs">{new Date(order.createdAt).toLocaleDateString("en-IN")}</td>
@@ -149,7 +154,7 @@ function OrderRow({ order, isExpanded, onToggle, onUpdateStatus, statusColors }:
             data-testid={`select-status-${order.id}`}
           >
             {ORDER_STATUSES.map((s) => (
-              <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+              <option key={s} value={s}>{s.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}</option>
             ))}
           </select>
         </td>
@@ -164,6 +169,15 @@ function OrderRow({ order, isExpanded, onToggle, onUpdateStatus, statusColors }:
                 <p>{order.shippingAddress}</p>
                 <p>{order.shippingCity}, {order.shippingState} - {order.shippingPincode}</p>
                 <p>Phone: {order.shippingPhone}</p>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase tracking-widest text-muted-foreground block mb-1">Shipping Info</span>
+                {order.shiprocketOrderId && <p>Shiprocket: #{order.shiprocketOrderId}</p>}
+                {order.awbNumber && <p>AWB: <span className="font-mono">{order.awbNumber}</span></p>}
+                {order.courierName && <p>Courier: {order.courierName}</p>}
+                {order.invoiceNumber && <p>Invoice: {order.invoiceNumber}</p>}
+                {order.paymentStatus && <p>Payment: <span className="uppercase">{order.paymentStatus}</span></p>}
+                {!order.shiprocketOrderId && !order.awbNumber && <p className="text-muted-foreground italic">Not shipped yet</p>}
               </div>
             </div>
             {items && items.length > 0 && (

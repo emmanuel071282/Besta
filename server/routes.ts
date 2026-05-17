@@ -8,6 +8,61 @@ import bcrypt from "bcryptjs";
 import { sendSms } from "./sms";
 import { db } from "./db";
 import { eq, and } from "drizzle-orm";
+import { createRazorpayOrder, verifyPaymentSignature, getRazorpayKeyId, isRazorpayConfigured } from "./payment";
+import { buildInvoiceData, generateInvoiceHTML, generateInvoiceNumber, calculateGST, sendInvoiceWhatsApp, sendInvoiceEmail } from "./invoice";
+import {
+  isShiprocketConfigured,
+  createShiprocketOrder,
+  generateAWB,
+  requestPickup,
+  trackShipment,
+  cancelShiprocketOrder,
+  mapShiprocketStatus,
+  estimatePackageDimensions,
+  checkServiceability,
+} from "./shiprocket";
+
+// ---------------------------------------------------------------------------
+// Lightweight in-memory rate limiter
+// ---------------------------------------------------------------------------
+interface RateLimitEntry { count: number; resetAt: number }
+const rateLimitStore = new Map<string, RateLimitEntry>();
+
+function createRateLimiter(maxRequests: number, windowMs: number) {
+  return function rateLimitMiddleware(req: Request, res: Response, next: NextFunction) {
+    const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.socket.remoteAddress || "unknown";
+    const key = `${req.path}:${ip}`;
+    const now = Date.now();
+
+    let entry = rateLimitStore.get(key);
+    if (!entry || now > entry.resetAt) {
+      entry = { count: 0, resetAt: now + windowMs };
+      rateLimitStore.set(key, entry);
+    }
+    entry.count++;
+
+    if (entry.count > maxRequests) {
+      const retryAfter = Math.ceil((entry.resetAt - now) / 1000);
+      res.set("Retry-After", String(retryAfter));
+      return res.status(429).json({ message: `Too many requests. Please try again in ${retryAfter} seconds.` });
+    }
+    next();
+  };
+}
+
+// 5 OTP send requests per IP per 15 minutes
+const otpSendLimiter = createRateLimiter(5, 15 * 60 * 1000);
+// 10 OTP verify attempts per IP per 15 minutes
+const otpVerifyLimiter = createRateLimiter(10, 15 * 60 * 1000);
+
+// Clean up expired entries every 30 minutes to prevent memory leak
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of rateLimitStore) {
+    if (now > entry.resetAt) rateLimitStore.delete(key);
+  }
+}, 30 * 60 * 1000);
+// ---------------------------------------------------------------------------
 
 function generateOtp(): string {
   return String(Math.floor(1000 + Math.random() * 9000));
@@ -44,7 +99,7 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
 
-  app.post("/api/auth/send-registration-otp", async (req, res) => {
+  app.post("/api/auth/send-registration-otp", otpSendLimiter, async (req, res) => {
     try {
       const schema = z.object({ mobile: z.string().regex(/^[6-9]\d{9}$/, "Invalid mobile number") });
       const parsed = schema.safeParse(req.body);
@@ -70,7 +125,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/auth/verify-registration-otp", async (req, res) => {
+  app.post("/api/auth/verify-registration-otp", otpVerifyLimiter, async (req, res) => {
     try {
       const schema = z.object({
         mobile: z.string().regex(/^[6-9]\d{9}$/),
@@ -162,7 +217,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/auth/send-otp", async (req, res) => {
+  app.post("/api/auth/send-otp", otpSendLimiter, async (req, res) => {
     try {
       const schema = z.object({ mobile: z.string().regex(/^[6-9]\d{9}$/, "Invalid mobile number") });
       const parsed = schema.safeParse(req.body);
@@ -188,7 +243,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/auth/verify-otp", async (req, res) => {
+  app.post("/api/auth/verify-otp", otpVerifyLimiter, async (req, res) => {
     try {
       const schema = z.object({
         mobile: z.string().regex(/^[6-9]\d{9}$/),
@@ -534,10 +589,25 @@ export async function registerRoutes(
         discountAmount: discountAmount.toString(),
       });
 
+      // Nearest-store fulfillment for legacy order flow
+      const legacyCartItems = items.map(i => ({ productId: i.productId, quantity: i.quantity }));
+      const legacyNearestStore = await storage.findNearestStoreWithStock(legacyCartItems, shippingPincode);
+      const legacyStoreId = legacyNearestStore?.id || null;
+
       for (const item of items) {
-        const inv = await storage.getInventory({ productId: item.productId });
-        const availableStore = inv.find(i => i.quantity >= item.quantity);
-        const assignedStoreId = availableStore?.storeId || null;
+        let assignedStoreId = legacyStoreId;
+        if (legacyStoreId) {
+          const inv = await storage.getInventoryByProductAndStore(item.productId, legacyStoreId);
+          if (!inv || (inv.quantity - inv.reservedQty) < item.quantity) {
+            const allInv = await storage.getInventory({ productId: item.productId });
+            const fb = allInv.find(i => (i.quantity - i.reservedQty) >= item.quantity);
+            assignedStoreId = fb?.storeId || null;
+          }
+        } else {
+          const allInv = await storage.getInventory({ productId: item.productId });
+          const fb = allInv.find(i => (i.quantity - i.reservedQty) >= item.quantity);
+          assignedStoreId = fb?.storeId || null;
+        }
 
         await storage.createOrderItem({
           orderId: order.id,
@@ -548,9 +618,16 @@ export async function registerRoutes(
           size: item.size || null,
         });
 
-        if (availableStore) {
-          await storage.updateInventoryQuantity(availableStore.id, availableStore.quantity - item.quantity);
+        if (assignedStoreId) {
+          const inv = await storage.getInventoryByProductAndStore(item.productId, assignedStoreId);
+          if (inv) {
+            await storage.updateInventoryQuantity(inv.id, inv.quantity - item.quantity);
+          }
         }
+      }
+
+      if (legacyStoreId) {
+        await storage.updateOrderShipping(order.id, { fulfilledFromStoreId: legacyStoreId });
       }
 
       res.json(order);
@@ -594,6 +671,15 @@ export async function registerRoutes(
     }
   });
 
+  // Search endpoint — must be registered before /api/products/:id to avoid conflict
+  app.get("/api/products/search", async (req, res) => {
+    const q = String(req.query.q ?? "").trim();
+    if (q.length < 2) return res.status(400).json({ message: "Query must be at least 2 characters" });
+    if (q.length > 100) return res.status(400).json({ message: "Query too long" });
+    const results = await storage.searchProducts(q);
+    res.json(results);
+  });
+
   app.get(api.products.get.path, async (req, res) => {
     const id = Number(req.params.id);
     if (isNaN(id)) {
@@ -605,6 +691,616 @@ export async function registerRoutes(
       return res.status(404).json({ message: "Product not found" });
     }
     res.json(product);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Razorpay payment routes
+  // ---------------------------------------------------------------------------
+
+  // Expose Razorpay config status + key ID to the client
+  app.get("/api/payment/config", (_req, res) => {
+    res.json({ configured: isRazorpayConfigured(), keyId: getRazorpayKeyId() });
+  });
+
+  const paymentOrderSchema = z.object({
+    items: z.array(z.object({
+      productId: z.number(),
+      quantity: z.number().min(1),
+      price: z.string(),
+      size: z.string().optional(),
+    })).min(1),
+    shippingName: z.string().min(1),
+    shippingAddress: z.string().min(1),
+    shippingCity: z.string().min(1),
+    shippingState: z.string().min(1),
+    shippingPincode: z.string().regex(/^\d{6}$/),
+    shippingPhone: z.string().regex(/^[6-9]\d{9}$/),
+    paymentMethod: z.string().min(1),
+    promoCode: z.string().optional(),
+  });
+
+  // Step 1: Create a Razorpay order — server computes the authoritative total
+  app.post("/api/payment/create-order", requireAuth, async (req, res) => {
+    try {
+      const parsed = paymentOrderSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
+
+      const { items, promoCode } = parsed.data;
+
+      let subtotal = 0;
+      for (const item of items) {
+        subtotal += Number(item.price) * item.quantity;
+      }
+
+      let discountAmount = 0;
+      let appliedPromo: string | null = null;
+      if (promoCode) {
+        const campaign = await storage.getCampaignByPromoCode(promoCode);
+        const now = new Date();
+        if (campaign && campaign.isActive && campaign.startDate <= now && campaign.endDate >= now && subtotal >= Number(campaign.minOrder)) {
+          discountAmount = computeDiscount(campaign, subtotal);
+          appliedPromo = campaign.promoCode;
+        }
+      }
+
+      const totalAmount = Math.max(0, subtotal - discountAmount);
+      const receipt = `BESTA-${Date.now()}`;
+
+      const rzpOrder = await createRazorpayOrder(totalAmount, receipt);
+
+      res.json({
+        razorpayOrderId: rzpOrder.id,
+        amount: rzpOrder.amount,
+        currency: rzpOrder.currency,
+        keyId: getRazorpayKeyId(),
+        totalAmount,
+        discountAmount,
+        appliedPromo,
+        receipt,
+      });
+    } catch (error) {
+      console.error("Create payment order error:", error);
+      res.status(500).json({ message: "Failed to create payment order" });
+    }
+  });
+
+  // Step 2: Verify payment + create DB order + issue GST invoice
+  app.post("/api/payment/verify", requireAuth, async (req, res) => {
+    try {
+      const schema = z.object({
+        razorpayOrderId: z.string(),
+        razorpayPaymentId: z.string(),
+        razorpaySignature: z.string(),
+        totalAmount: z.number(),
+        discountAmount: z.number(),
+        appliedPromo: z.string().nullable(),
+        items: z.array(z.object({
+          productId: z.number(),
+          quantity: z.number().min(1),
+          price: z.string(),
+          size: z.string().optional(),
+        })).min(1),
+        shippingName: z.string().min(1),
+        shippingAddress: z.string().min(1),
+        shippingCity: z.string().min(1),
+        shippingState: z.string().min(1),
+        shippingPincode: z.string().regex(/^\d{6}$/),
+        shippingPhone: z.string().regex(/^[6-9]\d{9}$/),
+        paymentMethod: z.string().min(1),
+      });
+
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
+
+      const {
+        razorpayOrderId, razorpayPaymentId, razorpaySignature,
+        totalAmount, discountAmount, appliedPromo,
+        items, shippingName, shippingAddress, shippingCity, shippingState,
+        shippingPincode, shippingPhone, paymentMethod,
+      } = parsed.data;
+
+      // Verify HMAC signature
+      const signatureValid = verifyPaymentSignature(razorpayOrderId, razorpayPaymentId, razorpaySignature);
+      if (!signatureValid) {
+        return res.status(400).json({ message: "Payment verification failed. Please contact support." });
+      }
+
+      const user = (req as any).user;
+
+      // Compute GST breakdown for invoice
+      const products = await storage.getProducts();
+      let totalGST = 0;
+      for (const item of items) {
+        const product = products.find(p => p.id === item.productId);
+        const category = product?.category || "Apparel";
+        const gst = calculateGST(category, Number(item.price), item.quantity, shippingState);
+        totalGST += gst.totalGST;
+      }
+
+      const invoiceNumber = generateInvoiceNumber();
+      const orderNumber = `BESTA-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
+      // Create order in DB
+      const order = await storage.createOrder({
+        userId: user.id,
+        orderNumber,
+        status: "confirmed",  // payment already completed
+        totalAmount: totalAmount.toString(),
+        shippingName,
+        shippingAddress,
+        shippingCity,
+        shippingState,
+        shippingPincode,
+        shippingPhone,
+        paymentMethod,
+        promoCode: appliedPromo,
+        discountAmount: discountAmount.toString(),
+        razorpayOrderId,
+        razorpayPaymentId,
+        paymentStatus: "paid",
+        invoiceNumber,
+        gstAmount: (Math.round(totalGST * 100) / 100).toString(),
+      });
+
+      // ---------------------------------------------------------------
+      // Nearest-store fulfillment — pick the closest store with stock
+      // ---------------------------------------------------------------
+      const cartItems = items.map(i => ({ productId: i.productId, quantity: i.quantity }));
+      const nearestStore = await storage.findNearestStoreWithStock(cartItems, shippingPincode);
+
+      let fulfilledStoreId: number | null = null;
+      if (nearestStore) {
+        fulfilledStoreId = nearestStore.id;
+        console.log(`[Fulfillment] Order ${orderNumber} → ${nearestStore.name} (${nearestStore.city}, ~${Math.round(nearestStore.distance ?? 0)}km)`);
+      }
+
+      // Create order items + deduct inventory from the fulfilling store
+      for (const item of items) {
+        let assignedStoreId: number | null = fulfilledStoreId;
+
+        // If nearest store doesn't have this specific item, fall back to any store
+        if (fulfilledStoreId) {
+          const inv = await storage.getInventoryByProductAndStore(item.productId, fulfilledStoreId);
+          if (!inv || (inv.quantity - inv.reservedQty) < item.quantity) {
+            // Fallback: find any store that has this item
+            const allInv = await storage.getInventory({ productId: item.productId });
+            const fallbackStore = allInv.find(i => (i.quantity - i.reservedQty) >= item.quantity);
+            assignedStoreId = fallbackStore?.storeId || null;
+          }
+        } else {
+          const allInv = await storage.getInventory({ productId: item.productId });
+          const fallbackStore = allInv.find(i => (i.quantity - i.reservedQty) >= item.quantity);
+          assignedStoreId = fallbackStore?.storeId || null;
+        }
+
+        await storage.createOrderItem({
+          orderId: order.id,
+          productId: item.productId,
+          storeId: assignedStoreId,
+          quantity: item.quantity,
+          price: item.price,
+          size: item.size || null,
+        });
+
+        // Deduct inventory
+        if (assignedStoreId) {
+          const inv = await storage.getInventoryByProductAndStore(item.productId, assignedStoreId);
+          if (inv) {
+            await storage.updateInventoryQuantity(inv.id, inv.quantity - item.quantity);
+          }
+        }
+      }
+
+      // Update order with fulfillment store
+      if (fulfilledStoreId) {
+        await storage.updateOrderShipping(order.id, { fulfilledFromStoreId: fulfilledStoreId });
+      }
+
+      // ---------------------------------------------------------------
+      // Shiprocket — create shipping order from the fulfilling store
+      // ---------------------------------------------------------------
+      try {
+        const fulfillStore = fulfilledStoreId
+          ? await storage.getStore(fulfilledStoreId)
+          : null;
+
+        const totalItems = items.reduce((sum, i) => sum + i.quantity, 0);
+        const dims = estimatePackageDimensions(totalItems);
+
+        const shiprocketItems = items.map(item => {
+          const product = products.find(p => p.id === item.productId);
+          const category = product?.category || "Apparel";
+          const gst = calculateGST(category, Number(item.price), 1, shippingState);
+          return {
+            name: product?.name || "Product",
+            sku: `BESTA-${item.productId}`,
+            units: item.quantity,
+            sellingPrice: Number(item.price),
+            hsn: gst.hsnCode,
+          };
+        });
+
+        const srResult = await createShiprocketOrder({
+          orderNumber,
+          orderDate: new Date().toISOString().split("T")[0],
+          pickupLocation: fulfillStore?.name || "BESTA Ahmedabad SG Highway",
+          billingName: shippingName,
+          billingAddress: shippingAddress,
+          billingCity: shippingCity,
+          billingState: shippingState,
+          billingPincode: shippingPincode,
+          billingPhone: shippingPhone,
+          billingEmail: user.email || "",
+          shippingIsBilling: true,
+          items: shiprocketItems,
+          subTotal: totalAmount,
+          paymentMethod: "Prepaid",
+          weight: dims.weight,
+          length: dims.length,
+          breadth: dims.breadth,
+          height: dims.height,
+        });
+
+        if (srResult) {
+          // Auto-assign AWB (cheapest courier)
+          let awbInfo: { awbNumber: string; courierName: string } | null = null;
+          if (srResult.shipmentId) {
+            awbInfo = await generateAWB(srResult.shipmentId);
+            if (awbInfo) {
+              await requestPickup(srResult.shipmentId);
+            }
+          }
+
+          await storage.updateOrderShipping(order.id, {
+            shiprocketOrderId: String(srResult.orderId),
+            shiprocketShipmentId: String(srResult.shipmentId),
+            awbNumber: awbInfo?.awbNumber || srResult.awbNumber || undefined,
+            courierName: awbInfo?.courierName || srResult.courierName || undefined,
+            status: "processing",
+          });
+
+          console.log(`[Shiprocket] Order ${orderNumber} → SR#${srResult.orderId} / Shipment#${srResult.shipmentId}${awbInfo ? ` / AWB: ${awbInfo.awbNumber} (${awbInfo.courierName})` : ""}`);
+        }
+      } catch (srErr) {
+        console.error("[Shiprocket] Order creation failed (non-fatal):", srErr);
+        // Order is still created — shipping can be assigned manually later
+      }
+
+      // Build and send GST invoice
+      try {
+        const orderItemsResult = await storage.getOrderItems(order.id);
+        const invoiceData = buildInvoiceData(order, orderItemsResult, user, products);
+        const invoiceHtml = generateInvoiceHTML(invoiceData);
+
+        await sendInvoiceWhatsApp(shippingPhone, invoiceNumber, orderNumber, totalAmount, invoiceHtml);
+        if (user.email) await sendInvoiceEmail(user.email, invoiceNumber, orderNumber, invoiceHtml);
+      } catch (invoiceErr) {
+        console.error("Invoice delivery error (non-fatal):", invoiceErr);
+      }
+
+      // Return full order with items and fulfillment info
+      const finalOrder = await storage.getOrder(order.id);
+      res.json({ ...finalOrder, items: await storage.getOrderItems(order.id) });
+    } catch (error) {
+      console.error("Payment verify error:", error);
+      res.status(500).json({ message: "Failed to process payment. Please contact support." });
+    }
+  });
+
+  // ---------------------------------------------------------------------------
+  // Pincode serviceability check
+  // ---------------------------------------------------------------------------
+  // Serviceable pin-ranges are derived from the store cities seeded in the DB.
+  // The app also supports a static allow-list of metro-area prefixes for fast
+  // client-side feedback before the full store-level stock check.
+  // ---------------------------------------------------------------------------
+
+  const SERVICEABLE_PIN_PREFIXES = [
+    // Gujarat (home state — always serviceable)
+    "36", "37", "38", "39",
+    // Mumbai / Maharashtra
+    "40", "41",
+    // Delhi NCR
+    "11",
+    // Bangalore / Karnataka
+    "56",
+    // Chennai / Tamil Nadu
+    "60",
+    // Kolkata / West Bengal
+    "70",
+    // Hyderabad / Telangana
+    "50",
+    // Pune
+    "41",
+    // Jaipur / Rajasthan
+    "30", "31", "32", "33", "34",
+    // Lucknow / Uttar Pradesh
+    "20", "21", "22", "23", "24", "25", "26", "27", "28",
+  ];
+
+  // De-duplicate for fast Set lookup
+  const serviceablePrefixes = new Set(SERVICEABLE_PIN_PREFIXES);
+
+  app.get("/api/pincode/check", async (req, res) => {
+    const pincode = String(req.query.pincode ?? "").trim();
+    if (!/^\d{6}$/.test(pincode)) {
+      return res.status(400).json({ serviceable: false, message: "Enter a valid 6-digit pincode" });
+    }
+
+    // If Shiprocket is configured, check real courier serviceability
+    if (isShiprocketConfigured()) {
+      try {
+        // Use Ahmedabad warehouse as default pickup for serviceability check
+        const couriers = await checkServiceability("380054", pincode);
+        if (couriers.length > 0) {
+          const fastest = couriers.reduce((a, b) => a.estimatedDays < b.estimatedDays ? a : b);
+          const cheapest = couriers.reduce((a, b) => a.rate < b.rate ? a : b);
+          return res.json({
+            serviceable: true,
+            estimatedDays: `${fastest.estimatedDays}-${fastest.estimatedDays + 2}`,
+            message: `Delivery available via ${fastest.courierName} — estimated ${fastest.estimatedDays}-${fastest.estimatedDays + 2} business days`,
+            courierOptions: couriers.length,
+          });
+        }
+        return res.json({
+          serviceable: false,
+          message: "Sorry, we don't deliver to this pincode yet. We're expanding soon!",
+        });
+      } catch {
+        // Fall through to static check
+      }
+    }
+
+    // Fallback: static prefix-based check
+    const prefix = pincode.substring(0, 2);
+    const serviceable = serviceablePrefixes.has(prefix);
+    if (serviceable) {
+      return res.json({
+        serviceable: true,
+        estimatedDays: prefix.startsWith("3") ? "2-4" : "4-7",
+        message: prefix.startsWith("3")
+          ? "Delivery available — estimated 2-4 business days"
+          : "Delivery available — estimated 4-7 business days",
+      });
+    }
+    return res.json({
+      serviceable: false,
+      message: "Sorry, we don't deliver to this pincode yet. We're expanding soon!",
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Shiprocket shipping routes
+  // ---------------------------------------------------------------------------
+
+  // Expose Shiprocket config status
+  app.get("/api/shipping/config", (_req, res) => {
+    res.json({ configured: isShiprocketConfigured() });
+  });
+
+  // Track order shipment — customer-facing
+  app.get("/api/orders/:id/tracking", requireAuth, async (req, res) => {
+    const user = (req as any).user;
+    const order = await storage.getOrder(Number(req.params.id));
+    if (!order || order.userId !== user.id) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    if (!order.shiprocketShipmentId) {
+      return res.json({
+        status: order.status,
+        message: "Your order is being processed. Tracking will be available once shipped.",
+        awbNumber: null,
+        courierName: null,
+        trackingUrl: null,
+        activities: [],
+      });
+    }
+
+    const tracking = await trackShipment(order.shiprocketShipmentId);
+    if (!tracking) {
+      return res.json({
+        status: order.status,
+        message: "Tracking information is being updated. Please check back later.",
+        awbNumber: order.awbNumber,
+        courierName: order.courierName,
+        trackingUrl: order.trackingUrl,
+        activities: [],
+      });
+    }
+
+    // Update order status from Shiprocket tracking
+    const mappedStatus = mapShiprocketStatus(tracking.shipmentStatus);
+    if (mappedStatus !== order.status) {
+      await storage.updateOrderShipping(order.id, {
+        status: mappedStatus,
+        trackingUrl: tracking.trackingUrl || undefined,
+      });
+    }
+
+    res.json({
+      status: mappedStatus,
+      currentStatus: tracking.currentStatus,
+      awbNumber: tracking.awbNumber || order.awbNumber,
+      courierName: tracking.courierName || order.courierName,
+      trackingUrl: tracking.trackingUrl || order.trackingUrl,
+      estimatedDelivery: tracking.estimatedDelivery,
+      activities: tracking.activities,
+    });
+  });
+
+  // Get fulfillment info for an order (which store is shipping)
+  app.get("/api/orders/:id/fulfillment", requireAuth, async (req, res) => {
+    const user = (req as any).user;
+    const order = await storage.getOrder(Number(req.params.id));
+    if (!order || order.userId !== user.id) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    let store = null;
+    if (order.fulfilledFromStoreId) {
+      store = await storage.getStore(order.fulfilledFromStoreId);
+    }
+
+    res.json({
+      fulfilledFromStore: store ? { name: store.name, city: store.city, state: store.state } : null,
+      shiprocketOrderId: order.shiprocketOrderId,
+      awbNumber: order.awbNumber,
+      courierName: order.courierName,
+      trackingUrl: order.trackingUrl,
+    });
+  });
+
+  // Shiprocket webhook — receives real-time status updates
+  // Configure this URL in Shiprocket dashboard → Settings → Webhooks
+  //
+  // Real payload shape (from Shiprocket docs + live testing):
+  //   order_id: "BESTA-xxx"          ← our orderNumber (what we passed during create)
+  //   sr_order_id: 348456385         ← Shiprocket's internal order ID
+  //   current_status: "IN TRANSIT"   ← text status
+  //   current_status_id: 20          ← numeric status code
+  //   shipment_status_id: 18         ← numeric shipment status
+  //   awb: "19041424751540"
+  //   courier_name: "Delhivery Surface"
+  //   etd: "2023-05-23 15:40:19"
+  //   scans: [{ date, status, activity, location, "sr-status", "sr-status-label" }]
+  //   is_return: 0|1
+  // ---------------------------------------------------------------------------
+  app.post("/api/webhooks/shiprocket", async (req, res) => {
+    try {
+      const {
+        order_id,          // Our orderNumber (e.g. "BESTA-1716000000-ABCD")
+        sr_order_id,       // Shiprocket's internal order ID
+        current_status,    // Text: "IN TRANSIT", "DELIVERED", etc.
+        current_status_id, // Numeric ID
+        shipment_status_id,
+        awb,
+        courier_name,
+        etd,
+        scans,
+        is_return,
+      } = req.body;
+
+      if (!order_id && !sr_order_id) {
+        return res.status(200).json({ received: true, skipped: true });
+      }
+
+      // Find our order — first try by orderNumber (order_id), then by shiprocketOrderId
+      let order: any = null;
+      if (order_id) {
+        order = await storage.getOrderByNumber(String(order_id));
+      }
+      if (!order && sr_order_id) {
+        const allOrders = await storage.getOrders({});
+        order = allOrders.find(o => o.shiprocketOrderId === String(sr_order_id));
+      }
+
+      if (!order) {
+        console.warn(`[Shiprocket Webhook] Unknown order — order_id: ${order_id}, sr_order_id: ${sr_order_id}`);
+        return res.status(200).json({ received: true });
+      }
+
+      // Map status using text first, fall back to numeric ID
+      const mappedStatus = mapShiprocketStatus(
+        current_status || String(shipment_status_id || current_status_id || "")
+      );
+
+      // Handle RTO (return to origin) — mark as returned if is_return=1
+      const finalStatus = is_return === 1 && mappedStatus !== "rto" ? "rto" : mappedStatus;
+
+      await storage.updateOrderShipping(order.id, {
+        status: finalStatus,
+        awbNumber: awb || order.awbNumber || undefined,
+        courierName: courier_name || order.courierName || undefined,
+        shiprocketOrderId: sr_order_id ? String(sr_order_id) : order.shiprocketOrderId || undefined,
+      });
+
+      console.log(
+        `[Shiprocket Webhook] Order ${order.orderNumber} → ${finalStatus}` +
+        ` (SR: "${current_status}" / status_id: ${shipment_status_id || current_status_id})` +
+        `${awb ? ` AWB: ${awb}` : ""}${courier_name ? ` via ${courier_name}` : ""}` +
+        `${etd ? ` ETA: ${etd}` : ""}`
+      );
+
+      // WhatsApp notifications on key milestones
+      const notifyStatuses: Record<string, string> = {
+        shipped: [
+          `📦 Your BESTA order *${order.orderNumber}* has been shipped!`,
+          awb ? `\nAWB: ${awb}` : "",
+          courier_name ? `\nCourier: ${courier_name}` : "",
+          etd ? `\nEstimated delivery: ${etd.split(" ")[0]}` : "",
+          `\n\nTrack your order in the BESTA app.`,
+        ].join(""),
+        out_for_delivery: `🚚 Your BESTA order *${order.orderNumber}* is out for delivery today!\n\nPlease keep your phone handy. The delivery agent may call you.`,
+        delivered: `✅ Your BESTA order *${order.orderNumber}* has been delivered!\n\nThank you for shopping with BESTA. We'd love to hear your feedback! 🙏`,
+        rto: `⚠️ Your BESTA order *${order.orderNumber}* could not be delivered and is being returned.\n\nPlease contact us at customercare@bestafashion.in for assistance.`,
+      };
+
+      const msg = notifyStatuses[finalStatus];
+      if (msg) {
+        try { await sendSms(order.shippingPhone, msg); } catch { /* non-fatal */ }
+      }
+
+      res.status(200).json({ received: true, status: finalStatus });
+    } catch (err) {
+      console.error("[Shiprocket Webhook] Error:", err);
+      res.status(200).json({ received: true }); // Always 200 to prevent retries
+    }
+  });
+
+  // Admin: Check courier serviceability between two pincodes
+  app.get("/api/admin/shipping/serviceability", requireAdmin, async (req, res) => {
+    const pickup = String(req.query.pickup || "");
+    const delivery = String(req.query.delivery || "");
+    if (!pickup || !delivery) return res.status(400).json({ message: "pickup and delivery pincodes required" });
+
+    const couriers = await checkServiceability(pickup, delivery);
+    res.json({ couriers });
+  });
+
+  // Admin: Cancel Shiprocket order
+  app.post("/api/admin/orders/:id/cancel-shipment", requireAdmin, async (req, res) => {
+    const order = await storage.getOrder(Number(req.params.id));
+    if (!order) return res.status(404).json({ message: "Order not found" });
+
+    if (!order.shiprocketOrderId) {
+      return res.status(400).json({ message: "No Shiprocket order linked" });
+    }
+
+    const cancelled = await cancelShiprocketOrder(Number(order.shiprocketOrderId));
+    if (cancelled) {
+      await storage.updateOrderStatus(order.id, "cancelled");
+      res.json({ message: "Shipment cancelled", orderId: order.id });
+    } else {
+      res.status(500).json({ message: "Failed to cancel Shiprocket shipment" });
+    }
+  });
+
+  // ---------------------------------------------------------------------------
+
+  // Sitemap — helps search engines discover all pages
+  app.get("/sitemap.xml", async (_req, res) => {
+    const base = process.env.SITE_URL || "https://besta.fashion";
+    const staticPaths = ["/", "/summer", "/exchange-policy",
+      "/category/Mens", "/category/Ladies", "/category/Kids",
+      "/category/Accessories", "/category/Footwear", "/category/Cosmetics"];
+
+    let urls = staticPaths.map((p) =>
+      `  <url><loc>${base}${p}</loc><changefreq>weekly</changefreq><priority>${p === "/" ? "1.0" : "0.8"}</priority></url>`
+    );
+
+    try {
+      const products = await storage.getProducts();
+      const productUrls = products.map((p) =>
+        `  <url><loc>${base}/product/${p.id}</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>`
+      );
+      urls = urls.concat(productUrls);
+    } catch {
+      // If DB is unavailable, return static-only sitemap
+    }
+
+    res.set("Content-Type", "application/xml");
+    res.send(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join("\n")}\n</urlset>`);
   });
 
   await seedDatabase();
@@ -620,7 +1316,8 @@ async function seedDatabase() {
       const hasMuscleTees = existingProducts.some(p => p.subcategory === "Muscle Tees");
       const hasIndianCordSets = existingProducts.some(p => p.subcategory === "Cord Sets" && p.category === "Ladies" && p.name.startsWith("Prisha"));
       const hasGoldEarrings = existingProducts.some(p => p.name === "Hammered Gold Square Stud Earrings");
-      if (hasV3Subcats && hasMuscleTees && hasIndianCordSets && hasGoldEarrings) {
+      const hasCosmetics = existingProducts.some(p => p.category === "Cosmetics");
+      if (hasV3Subcats && hasMuscleTees && hasIndianCordSets && hasGoldEarrings && hasCosmetics) {
         await seedStoresAndInventory();
         await seedAdminUser();
         await seedSummerCampaign();
@@ -798,6 +1495,30 @@ async function seedDatabase() {
       { name: "Chelsea Ankle Boots", description: "Classic Chelsea boots in premium leather with elastic side panel.", price: "5999", imageUrl: "https://images.unsplash.com/photo-1608256246200-53e635b5b65f?q=80&w=800&auto=format&fit=crop", category: "Footwear", subcategory: "Boots" },
       { name: "Combat Lace-Up Boots", description: "Rugged combat boots with thick sole and sturdy lace-up closure.", price: "4999", imageUrl: "https://images.unsplash.com/photo-1605733160314-4fc7dac4bb16?q=80&w=800&auto=format&fit=crop", category: "Footwear", subcategory: "Boots" },
       { name: "Suede Tassel Loafers", description: "Refined suede loafers with tassel detail and flexible rubber sole.", price: "4299", imageUrl: "https://images.unsplash.com/photo-1533867617858-e7b97e060509?q=80&w=800&auto=format&fit=crop", category: "Footwear", subcategory: "Loafers" },
+
+      // ===== COSMETICS - Makeup =====
+      { name: "Velvet Matte Lipstick — Classic Red", description: "Long-lasting velvet matte finish in bold classic red. Enriched with vitamin E for all-day comfort.", price: "499", imageUrl: "https://images.unsplash.com/photo-1586495777744-4413f21062fa?q=80&w=800&auto=format&fit=crop", category: "Cosmetics", subcategory: "Lip Colour" },
+      { name: "Nude Crème Lipstick", description: "Creamy nude lipstick with satin finish. Hydrating formula perfect for everyday wear.", price: "449", imageUrl: "https://images.unsplash.com/photo-1631214500115-598fc2cb8ada?q=80&w=800&auto=format&fit=crop", category: "Cosmetics", subcategory: "Lip Colour" },
+      { name: "Berry Lip Gloss", description: "High-shine berry lip gloss with plumping effect. Non-sticky, mirror-like finish.", price: "349", imageUrl: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?q=80&w=800&auto=format&fit=crop", category: "Cosmetics", subcategory: "Lip Colour" },
+      { name: "Liquid Foundation — Natural Beige", description: "Lightweight liquid foundation with medium coverage. Blends seamlessly for a natural, dewy look.", price: "799", imageUrl: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?q=80&w=800&auto=format&fit=crop", category: "Cosmetics", subcategory: "Foundation" },
+      { name: "Full Coverage Foundation — Ivory", description: "Buildable full-coverage foundation with SPF 15. Controls shine for up to 12 hours.", price: "999", imageUrl: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?q=80&w=800&auto=format&fit=crop", category: "Cosmetics", subcategory: "Foundation" },
+      { name: "Rose Petal Blush", description: "Silky powder blush in soft rose with micro-shimmer. Buildable colour for a natural flush.", price: "499", imageUrl: "https://images.unsplash.com/photo-1512496015851-a90fb38ba796?q=80&w=800&auto=format&fit=crop", category: "Cosmetics", subcategory: "Blush" },
+      { name: "Peach Glow Cream Blush", description: "Cream blush stick in warm peach. Blends effortlessly with fingertips or a beauty blender.", price: "549", imageUrl: "https://images.unsplash.com/photo-1631214500115-598fc2cb8ada?q=80&w=800&auto=format&fit=crop", category: "Cosmetics", subcategory: "Blush" },
+      { name: "Smokey Eyeshadow Palette — 12 Shades", description: "Professional 12-shade eyeshadow palette with mattes, shimmers, and metallics for smokey eye looks.", price: "1299", imageUrl: "https://images.unsplash.com/photo-1583241800698-e8ab01b0b08e?q=80&w=800&auto=format&fit=crop", category: "Cosmetics", subcategory: "Eyeshadow" },
+      { name: "Nude Eyeshadow Palette — 8 Shades", description: "Everyday nude palette with 8 curated shades. Buttery soft texture with high pigmentation.", price: "899", imageUrl: "https://images.unsplash.com/photo-1512496015851-a90fb38ba796?q=80&w=800&auto=format&fit=crop", category: "Cosmetics", subcategory: "Eyeshadow" },
+      { name: "Intense Black Kajal", description: "24-hour smudge-proof kajal pencil in intense black. Ophthalmologist-tested, safe for sensitive eyes.", price: "249", imageUrl: "https://images.unsplash.com/photo-1631214500115-598fc2cb8ada?q=80&w=800&auto=format&fit=crop", category: "Cosmetics", subcategory: "Kajal" },
+      { name: "Waterproof Kajal Stick", description: "Twist-up waterproof kajal with creamy glide. Lasts through sweat, humidity, and tears.", price: "299", imageUrl: "https://images.unsplash.com/photo-1596462502278-27bfdc403348?q=80&w=800&auto=format&fit=crop", category: "Cosmetics", subcategory: "Kajal" },
+      { name: "Volumising Mascara", description: "Dramatic volumising mascara with curved brush for lifted, separated lashes. Clump-free formula.", price: "599", imageUrl: "https://images.unsplash.com/photo-1631214500115-598fc2cb8ada?q=80&w=800&auto=format&fit=crop", category: "Cosmetics", subcategory: "Mascara" },
+      { name: "Gel Nail Polish — Ruby", description: "Chip-resistant gel nail polish in deep ruby. Salon-quality shine, no UV lamp needed.", price: "199", imageUrl: "https://images.unsplash.com/photo-1604654894610-df63bc536371?q=80&w=800&auto=format&fit=crop", category: "Cosmetics", subcategory: "Nail Polish" },
+      { name: "Pastel Nail Polish Set — 4 Pack", description: "Set of 4 pastel gel polishes in lavender, mint, blush, and baby blue. Quick-dry formula.", price: "599", imageUrl: "https://images.unsplash.com/photo-1604654894610-df63bc536371?q=80&w=800&auto=format&fit=crop", category: "Cosmetics", subcategory: "Nail Polish" },
+      { name: "Complete Makeup Kit — Bridal", description: "All-in-one bridal makeup kit with foundation, blush, lipstick set, eyeshadow palette, mascara, and brushes.", price: "3999", imageUrl: "https://images.unsplash.com/photo-1512496015851-a90fb38ba796?q=80&w=800&auto=format&fit=crop", category: "Cosmetics", subcategory: "Makeup Kit" },
+      // ===== COSMETICS - Care =====
+      { name: "Vitamin C Brightening Serum", description: "Powerful 20% vitamin C serum with hyaluronic acid. Brightens, hydrates, and reduces dark spots.", price: "899", imageUrl: "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?q=80&w=800&auto=format&fit=crop", category: "Cosmetics", subcategory: "Skin Care" },
+      { name: "SPF 50 Sunscreen — Matte Finish", description: "Lightweight SPF 50 sunscreen with matte finish. No white cast, ideal under makeup.", price: "549", imageUrl: "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?q=80&w=800&auto=format&fit=crop", category: "Cosmetics", subcategory: "Skin Care" },
+      { name: "Keratin Hair Serum", description: "Anti-frizz keratin hair serum for smooth, shiny, manageable hair. Heat-protectant up to 230°C.", price: "649", imageUrl: "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?q=80&w=800&auto=format&fit=crop", category: "Cosmetics", subcategory: "Hair Care" },
+      { name: "Argan Oil Hair Mask", description: "Deep-conditioning argan oil hair mask for dry, damaged hair. Restores moisture and shine in 10 minutes.", price: "499", imageUrl: "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?q=80&w=800&auto=format&fit=crop", category: "Cosmetics", subcategory: "Hair Care" },
+      { name: "Floral Eau de Parfum — 50ml", description: "Elegant floral perfume with top notes of jasmine and rose, base of sandalwood. Long-lasting 8-hour wear.", price: "1499", imageUrl: "https://images.unsplash.com/photo-1541643600914-78b084683601?q=80&w=800&auto=format&fit=crop", category: "Cosmetics", subcategory: "Fragrance" },
+      { name: "Oud & Musk Perfume — 30ml", description: "Rich unisex fragrance blending warm oud with white musk. Travel-size 30ml spray.", price: "999", imageUrl: "https://images.unsplash.com/photo-1541643600914-78b084683601?q=80&w=800&auto=format&fit=crop", category: "Cosmetics", subcategory: "Fragrance" },
     ];
 
     for (const p of seedData) {
@@ -844,19 +1565,27 @@ async function seedSummerCampaign() {
 }
 
 async function seedAdminUser() {
-  const existing = await storage.getUserByMobile("9999999999");
+  const adminMobile = process.env.ADMIN_MOBILE;
+  const adminPin = process.env.ADMIN_PIN;
+
+  if (!adminMobile || !adminPin) {
+    console.warn("⚠️  ADMIN_MOBILE / ADMIN_PIN env vars not set — skipping admin seed. Set them in your .env to create the admin account.");
+    return;
+  }
+
+  const existing = await storage.getUserByMobile(adminMobile);
   if (existing) return;
 
-  const hashedPin = await bcrypt.hash("0000", 10);
+  const hashedPin = await bcrypt.hash(adminPin, 10);
   await storage.createUser({
     name: "Admin",
-    mobile: "9999999999",
-    email: "admin@besta.in",
+    mobile: adminMobile,
+    email: process.env.ADMIN_EMAIL || "admin@besta.in",
     pin: hashedPin,
     birthday: "1990-01-01",
     role: "admin",
   });
-  console.log("Admin user seeded (mobile: 9999999999, PIN: 0000)");
+  console.log(`Admin user seeded (mobile: ${adminMobile})`);
 }
 
 async function seedStoresAndInventory() {
@@ -864,16 +1593,16 @@ async function seedStoresAndInventory() {
   if (existingStores.length > 0) return;
 
   const storeData = [
-    { name: "BESTA Mumbai Central", city: "Mumbai", state: "Maharashtra", pincode: "400008", address: "Ground Floor, Phoenix Mills, Lower Parel", phone: "022-24001234", isActive: true },
-    { name: "BESTA Delhi CP", city: "New Delhi", state: "Delhi", pincode: "110001", address: "N Block, Connaught Place", phone: "011-23451234", isActive: true },
-    { name: "BESTA Bangalore Indiranagar", city: "Bangalore", state: "Karnataka", pincode: "560038", address: "100 Feet Road, Indiranagar", phone: "080-25671234", isActive: true },
-    { name: "BESTA Chennai T Nagar", city: "Chennai", state: "Tamil Nadu", pincode: "600017", address: "Usman Road, T Nagar", phone: "044-24341234", isActive: true },
-    { name: "BESTA Kolkata Park Street", city: "Kolkata", state: "West Bengal", pincode: "700016", address: "22 Park Street", phone: "033-22291234", isActive: true },
-    { name: "BESTA Hyderabad Banjara Hills", city: "Hyderabad", state: "Telangana", pincode: "500034", address: "Road No. 2, Banjara Hills", phone: "040-23551234", isActive: true },
-    { name: "BESTA Pune FC Road", city: "Pune", state: "Maharashtra", pincode: "411004", address: "Fergusson College Road", phone: "020-25671234", isActive: true },
-    { name: "BESTA Ahmedabad SG Highway", city: "Ahmedabad", state: "Gujarat", pincode: "380054", address: "SG Highway, Bodakdev", phone: "079-26851234", isActive: true },
-    { name: "BESTA Jaipur MI Road", city: "Jaipur", state: "Rajasthan", pincode: "302001", address: "MI Road, C-Scheme", phone: "0141-2371234", isActive: true },
-    { name: "BESTA Lucknow Hazratganj", city: "Lucknow", state: "Uttar Pradesh", pincode: "226001", address: "Hazratganj Main Road", phone: "0522-2201234", isActive: true },
+    { name: "BESTA Mumbai Central", city: "Mumbai", state: "Maharashtra", pincode: "400008", address: "Ground Floor, Phoenix Mills, Lower Parel", phone: "022-24001234", isActive: true, latitude: "19.0073", longitude: "72.8311" },
+    { name: "BESTA Delhi CP", city: "New Delhi", state: "Delhi", pincode: "110001", address: "N Block, Connaught Place", phone: "011-23451234", isActive: true, latitude: "28.6315", longitude: "77.2167" },
+    { name: "BESTA Bangalore Indiranagar", city: "Bangalore", state: "Karnataka", pincode: "560038", address: "100 Feet Road, Indiranagar", phone: "080-25671234", isActive: true, latitude: "12.9784", longitude: "77.6408" },
+    { name: "BESTA Chennai T Nagar", city: "Chennai", state: "Tamil Nadu", pincode: "600017", address: "Usman Road, T Nagar", phone: "044-24341234", isActive: true, latitude: "13.0418", longitude: "80.2341" },
+    { name: "BESTA Kolkata Park Street", city: "Kolkata", state: "West Bengal", pincode: "700016", address: "22 Park Street", phone: "033-22291234", isActive: true, latitude: "22.5526", longitude: "88.3520" },
+    { name: "BESTA Hyderabad Banjara Hills", city: "Hyderabad", state: "Telangana", pincode: "500034", address: "Road No. 2, Banjara Hills", phone: "040-23551234", isActive: true, latitude: "17.4156", longitude: "78.4347" },
+    { name: "BESTA Pune FC Road", city: "Pune", state: "Maharashtra", pincode: "411004", address: "Fergusson College Road", phone: "020-25671234", isActive: true, latitude: "18.5247", longitude: "73.8409" },
+    { name: "BESTA Ahmedabad SG Highway", city: "Ahmedabad", state: "Gujarat", pincode: "380054", address: "SG Highway, Bodakdev", phone: "079-26851234", isActive: true, latitude: "23.0395", longitude: "72.5112" },
+    { name: "BESTA Jaipur MI Road", city: "Jaipur", state: "Rajasthan", pincode: "302001", address: "MI Road, C-Scheme", phone: "0141-2371234", isActive: true, latitude: "26.9124", longitude: "75.7873" },
+    { name: "BESTA Lucknow Hazratganj", city: "Lucknow", state: "Uttar Pradesh", pincode: "226001", address: "Hazratganj Main Road", phone: "0522-2201234", isActive: true, latitude: "26.8512", longitude: "80.9462" },
   ];
 
   const createdStores = [];

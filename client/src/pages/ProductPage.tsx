@@ -16,6 +16,7 @@ import { Check, Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getSizesForProduct } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
+import { usePageMeta } from "@/hooks/use-page-meta";
 
 export default function ProductPage() {
   const [, params] = useRoute("/product/:id");
@@ -29,6 +30,12 @@ export default function ProductPage() {
   
   const [isAdded, setIsAdded] = useState(false);
   const [selectedSize, setSelectedSize] = useState<string>("");
+
+  usePageMeta({
+    title: product ? `${product.name} — BESTA` : "BESTA - Fashion Shopping",
+    description: product?.description ?? undefined,
+    ogImage: product?.imageUrl ?? undefined,
+  });
 
   const availableSizes = product
     ? (product.sizes && product.sizes.length > 0
@@ -73,9 +80,10 @@ export default function ProductPage() {
             {isLoading ? (
               <Skeleton className="w-full h-full rounded-none" />
             ) : (
-              <img 
-                src={product?.imageUrl} 
-                alt={product?.name} 
+              <img
+                src={product?.imageUrl}
+                alt={product?.name}
+                width={800} height={1067}
                 className="w-full h-full object-cover"
               />
             )}
@@ -123,6 +131,7 @@ export default function ProductPage() {
                           key={size}
                           onClick={() => setSelectedSize(size)}
                           data-testid={`button-size-${size.replace(/\s+/g, "-").toLowerCase()}`}
+                          aria-pressed={selectedSize === size}
                           className={cn(
                             "min-w-[48px] px-3 py-2.5 text-sm font-medium border transition-colors text-center",
                             selectedSize === size
@@ -145,7 +154,7 @@ export default function ProductPage() {
                     variant={isAdded ? "secondary" : "default"}
                   >
                     {isAdded ? (
-                      <span className="flex items-center gap-2 text-green-600">
+                      <span className="flex items-center gap-2 text-green-800">
                         <Check className="w-5 h-5" /> Added to Bag
                       </span>
                     ) : (
@@ -157,6 +166,8 @@ export default function ProductPage() {
                     className="h-14 w-14 rounded-none border-border hover:bg-secondary transition-colors"
                     onClick={() => product && toggleItem(product)}
                     data-testid="button-toggle-wishlist"
+                    aria-label={isFavorited ? "Remove from wishlist" : "Add to wishlist"}
+                    aria-pressed={isFavorited}
                   >
                     <Heart className={cn("w-5 h-5 transition-colors", isFavorited ? "fill-red-500 stroke-red-500" : "stroke-foreground")} />
                   </Button>

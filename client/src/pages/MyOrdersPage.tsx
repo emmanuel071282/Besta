@@ -8,10 +8,15 @@ import type { Order } from "@shared/schema";
 const statusColors: Record<string, string> = {
   placed: "bg-yellow-100 text-yellow-800",
   confirmed: "bg-blue-100 text-blue-800",
+  processing: "bg-cyan-100 text-cyan-800",
+  ready_to_ship: "bg-teal-100 text-teal-800",
   shipped: "bg-indigo-100 text-indigo-800",
+  in_transit: "bg-purple-100 text-purple-800",
+  out_for_delivery: "bg-amber-100 text-amber-800",
   delivered: "bg-green-100 text-green-800",
   cancelled: "bg-red-100 text-red-800",
   returned: "bg-gray-100 text-gray-800",
+  rto: "bg-orange-100 text-orange-800",
 };
 
 export default function MyOrdersPage() {
@@ -60,13 +65,16 @@ export default function MyOrdersPage() {
                 <div className="flex items-center justify-between mb-3">
                   <span className="font-mono text-xs text-muted-foreground">{order.orderNumber}</span>
                   <span className={`text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded ${statusColors[order.status] || "bg-gray-100"}`}>
-                    {order.status}
+                    {order.status.replace(/_/g, " ")}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-semibold">₹{Number(order.totalAmount).toLocaleString("en-IN")}</p>
                     <p className="text-xs text-muted-foreground mt-1">{new Date(order.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}</p>
+                    {order.courierName && order.awbNumber && (
+                      <p className="text-[10px] text-muted-foreground mt-1">{order.courierName} · AWB: {order.awbNumber}</p>
+                    )}
                   </div>
                   <ChevronRight className="w-4 h-4 text-muted-foreground" />
                 </div>

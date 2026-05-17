@@ -158,7 +158,7 @@ export default function RegisterPage() {
                 className="w-full border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-foreground"
                 placeholder="Enter your full name"
               />
-              {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
+              {errors.name && <p className="text-red-700 text-xs mt-1">{errors.name}</p>}
             </div>
 
             <div>
@@ -174,7 +174,7 @@ export default function RegisterPage() {
                   placeholder="10-digit mobile number"
                 />
               </div>
-              {errors.mobile && <p className="text-red-500 text-xs mt-1">{errors.mobile}</p>}
+              {errors.mobile && <p className="text-red-700 text-xs mt-1">{errors.mobile}</p>}
             </div>
 
             <div>
@@ -187,7 +187,7 @@ export default function RegisterPage() {
                 className="w-full border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-foreground"
                 placeholder="your@email.com"
               />
-              {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
+              {errors.email && <p className="text-red-700 text-xs mt-1">{errors.email}</p>}
             </div>
 
             <div>
@@ -199,7 +199,7 @@ export default function RegisterPage() {
                 onChange={(e) => setBirthday(e.target.value)}
                 className="w-full border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-foreground"
               />
-              {errors.birthday && <p className="text-red-500 text-xs mt-1">{errors.birthday}</p>}
+              {errors.birthday && <p className="text-red-700 text-xs mt-1">{errors.birthday}</p>}
             </div>
 
             <div>
@@ -222,7 +222,7 @@ export default function RegisterPage() {
                   {showPin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-              {errors.pin && <p className="text-red-500 text-xs mt-1">{errors.pin}</p>}
+              {errors.pin && <p className="text-red-700 text-xs mt-1">{errors.pin}</p>}
             </div>
 
             <div>
@@ -245,7 +245,7 @@ export default function RegisterPage() {
                   {showConfirmPin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-              {errors.confirmPin && <p className="text-red-500 text-xs mt-1">{errors.confirmPin}</p>}
+              {errors.confirmPin && <p className="text-red-700 text-xs mt-1">{errors.confirmPin}</p>}
             </div>
 
             <button
@@ -316,7 +316,7 @@ export default function RegisterPage() {
                   />
                 ))}
               </div>
-              {errors.otp && <p className="text-red-500 text-xs mt-1 text-center">{errors.otp}</p>}
+              {errors.otp && <p className="text-red-700 text-xs mt-1 text-center">{errors.otp}</p>}
             </div>
 
             <button
@@ -333,7 +333,7 @@ export default function RegisterPage() {
             <p className="text-center text-sm text-muted-foreground">
               Didn't receive the OTP?{" "}
               {resendTimer > 0 ? (
-                <span className="text-foreground">Resend in {resendTimer}s</span>
+                <span className="text-foreground" aria-live="polite">Resend in {resendTimer}s</span>
               ) : (
                 <button
                   data-testid="button-resend-otp"

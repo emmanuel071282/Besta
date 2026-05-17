@@ -11,9 +11,10 @@ import {
   type Campaign, type InsertCampaign,
   getSizesForProduct,
 } from "@shared/schema";
-import { eq, and, desc, sql, gte, lte, inArray } from "drizzle-orm";
+import { eq, and, desc, sql, gte, lte, inArray, or, ilike } from "drizzle-orm";
 
 export interface IStorage {
+  searchProducts(query: string): Promise<Product[]>;
   getProducts(): Promise<Product[]>;
   getProductsByCategory(category: string): Promise<Product[]>;
   getProductsByCategoryAndSubcategory(category: string, subcategory: string): Promise<Product[]>;
@@ -42,6 +43,32 @@ export interface IStorage {
   getOrderByNumber(orderNumber: string): Promise<Order | undefined>;
   getOrdersByUser(userId: number): Promise<Order[]>;
   updateOrderStatus(id: number, status: string): Promise<Order | undefined>;
+  updateOrderPayment(id: number, data: {
+    razorpayOrderId?: string;
+    razorpayPaymentId?: string;
+    paymentStatus?: string;
+    invoiceNumber?: string;
+    gstAmount?: string;
+  }): Promise<Order | undefined>;
+
+  updateOrderShipping(id: number, data: {
+    fulfilledFromStoreId?: number;
+    shiprocketOrderId?: string;
+    shiprocketShipmentId?: string;
+    awbNumber?: string;
+    courierName?: string;
+    trackingUrl?: string;
+    status?: string;
+  }): Promise<Order | undefined>;
+
+  /** Find the nearest active store that has stock for ALL items in the cart */
+  findNearestStoreWithStock(
+    items: { productId: number; quantity: number }[],
+    customerPincode: string
+  ): Promise<(Store & { distance?: number }) | null>;
+
+  /** Get all stores that have stock for a given product */
+  getStoresWithStock(productId: number, minQty?: number): Promise<(Store & { availableQty: number })[]>;
 
   createOrderItem(item: InsertOrderItem): Promise<OrderItem>;
   getOrderItems(orderId: number): Promise<(OrderItem & { productName?: string; productImage?: string })[]>;
@@ -71,6 +98,14 @@ export class DatabaseStorage implements IStorage {
       return { ...product, sizes: getSizesForProduct(product.category, product.subcategory) };
     }
     return product;
+  }
+
+  async searchProducts(query: string): Promise<Product[]> {
+    const pattern = `%${query}%`;
+    const rows = await db.select().from(products).where(
+      or(ilike(products.name, pattern), ilike(products.description, pattern))
+    ).limit(20);
+    return rows.map(p => this.ensureSizes(p));
   }
 
   async getProducts(): Promise<Product[]> {
@@ -241,6 +276,228 @@ export class DatabaseStorage implements IStorage {
   async updateOrderStatus(id: number, status: string): Promise<Order | undefined> {
     const [order] = await db.update(orders).set({ status }).where(eq(orders.id, id)).returning();
     return order;
+  }
+
+  async updateOrderPayment(id: number, data: {
+    razorpayOrderId?: string;
+    razorpayPaymentId?: string;
+    paymentStatus?: string;
+    invoiceNumber?: string;
+    gstAmount?: string;
+  }): Promise<Order | undefined> {
+    const [order] = await db.update(orders).set(data).where(eq(orders.id, id)).returning();
+    return order;
+  }
+
+  async updateOrderShipping(id: number, data: {
+    fulfilledFromStoreId?: number;
+    shiprocketOrderId?: string;
+    shiprocketShipmentId?: string;
+    awbNumber?: string;
+    courierName?: string;
+    trackingUrl?: string;
+    status?: string;
+  }): Promise<Order | undefined> {
+    const [order] = await db.update(orders).set(data).where(eq(orders.id, id)).returning();
+    return order;
+  }
+
+  /**
+   * Find the nearest active store that has stock for ALL items in the order.
+   *
+   * Strategy:
+   * 1. Get all active stores
+   * 2. For each store, check if it has enough inventory for every item
+   * 3. Among qualifying stores, pick the one nearest to the customer pincode
+   *
+   * Distance is approximated using the pincode's first 2 digits (postal zone).
+   * If lat/lng are set on the store, uses Haversine distance to the customer's
+   * approximate location (pincode centroid). Otherwise falls back to pincode
+   * zone proximity.
+   */
+  async findNearestStoreWithStock(
+    items: { productId: number; quantity: number }[],
+    customerPincode: string
+  ): Promise<(Store & { distance?: number }) | null> {
+    const activeStores = await db.select().from(stores).where(eq(stores.isActive, true));
+    if (activeStores.length === 0) return null;
+
+    // Check which stores can fulfill ALL items
+    const qualifyingStores: (Store & { distance?: number })[] = [];
+
+    for (const store of activeStores) {
+      let canFulfill = true;
+      for (const item of items) {
+        const inv = await this.getInventoryByProductAndStore(item.productId, store.id);
+        if (!inv || (inv.quantity - inv.reservedQty) < item.quantity) {
+          canFulfill = false;
+          break;
+        }
+      }
+      if (canFulfill) {
+        const distance = this.calculatePincodeDistance(store.pincode, customerPincode, store.latitude, store.longitude);
+        qualifyingStores.push({ ...store, distance });
+      }
+    }
+
+    if (qualifyingStores.length === 0) {
+      // Fallback: find ANY store that can fulfill (split shipment if needed later)
+      // For now, find the store that has the most items
+      let bestStore: Store | null = null;
+      let bestCount = 0;
+      for (const store of activeStores) {
+        let count = 0;
+        for (const item of items) {
+          const inv = await this.getInventoryByProductAndStore(item.productId, store.id);
+          if (inv && (inv.quantity - inv.reservedQty) >= item.quantity) count++;
+        }
+        if (count > bestCount) { bestCount = count; bestStore = store; }
+      }
+      return bestStore ? { ...bestStore, distance: undefined } : null;
+    }
+
+    // Sort by distance (nearest first)
+    qualifyingStores.sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity));
+    return qualifyingStores[0];
+  }
+
+  /**
+   * Approximate distance between two Indian pincodes.
+   * Uses lat/lng if available, otherwise falls back to postal zone matching.
+   */
+  private calculatePincodeDistance(
+    storePincode: string,
+    customerPincode: string,
+    storeLat?: string | null,
+    storeLng?: string | null
+  ): number {
+    // If store has lat/lng, use approximate customer location from pincode
+    if (storeLat && storeLng) {
+      const customerCoords = this.approximateCoordinates(customerPincode);
+      if (customerCoords) {
+        return this.haversine(
+          Number(storeLat), Number(storeLng),
+          customerCoords.lat, customerCoords.lng
+        );
+      }
+    }
+
+    // Fallback: zone-based proximity
+    // Same city (first 3 digits match) = 0 km
+    // Same state/zone (first 2 digits match) = 100 km
+    // Same region (first 1 digit match) = 500 km
+    // Different region = 1500 km
+    if (storePincode.substring(0, 3) === customerPincode.substring(0, 3)) return 0;
+    if (storePincode.substring(0, 2) === customerPincode.substring(0, 2)) return 100;
+    if (storePincode[0] === customerPincode[0]) return 500;
+    return 1500;
+  }
+
+  /** Haversine distance in km */
+  private haversine(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const R = 6371;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  /**
+   * Approximate lat/lng from Indian pincode first 2 digits (postal zone).
+   * These are rough centroids — enough for nearest-store ranking.
+   */
+  private approximateCoordinates(pincode: string): { lat: number; lng: number } | null {
+    const zone = pincode.substring(0, 2);
+    const zoneCoords: Record<string, { lat: number; lng: number }> = {
+      // Delhi NCR
+      "11": { lat: 28.61, lng: 77.23 },
+      // UP
+      "20": { lat: 26.85, lng: 80.95 }, "21": { lat: 26.85, lng: 81.00 },
+      "22": { lat: 26.45, lng: 80.35 }, "23": { lat: 27.18, lng: 79.00 },
+      "24": { lat: 28.63, lng: 77.37 }, "25": { lat: 29.97, lng: 78.07 },
+      "26": { lat: 28.98, lng: 79.41 }, "27": { lat: 26.45, lng: 83.38 },
+      "28": { lat: 27.20, lng: 79.00 },
+      // Rajasthan
+      "30": { lat: 26.92, lng: 75.79 }, "31": { lat: 27.63, lng: 75.15 },
+      "32": { lat: 28.02, lng: 73.31 }, "33": { lat: 26.30, lng: 73.02 },
+      "34": { lat: 24.58, lng: 73.68 },
+      // Gujarat
+      "36": { lat: 23.02, lng: 72.57 }, "37": { lat: 22.31, lng: 70.80 },
+      "38": { lat: 21.17, lng: 72.83 }, "39": { lat: 21.77, lng: 72.15 },
+      // Maharashtra
+      "40": { lat: 19.08, lng: 72.88 }, "41": { lat: 18.52, lng: 73.86 },
+      "42": { lat: 19.88, lng: 75.32 }, "43": { lat: 20.93, lng: 77.75 },
+      "44": { lat: 21.15, lng: 79.09 },
+      // Telangana / AP
+      "50": { lat: 17.39, lng: 78.49 }, "51": { lat: 17.00, lng: 78.00 },
+      "52": { lat: 15.83, lng: 78.05 }, "53": { lat: 17.73, lng: 83.30 },
+      // Karnataka
+      "56": { lat: 12.97, lng: 77.59 }, "57": { lat: 15.36, lng: 75.12 },
+      "58": { lat: 15.85, lng: 74.50 },
+      // Tamil Nadu
+      "60": { lat: 13.08, lng: 80.27 }, "61": { lat: 11.66, lng: 78.16 },
+      "62": { lat: 10.79, lng: 78.70 }, "63": { lat: 11.02, lng: 76.97 },
+      "64": { lat: 9.92, lng: 78.12 },
+      // Kerala
+      "67": { lat: 11.25, lng: 75.77 }, "68": { lat: 9.93, lng: 76.26 },
+      "69": { lat: 8.52, lng: 76.94 },
+      // West Bengal
+      "70": { lat: 22.57, lng: 88.36 }, "71": { lat: 22.65, lng: 88.40 },
+      "72": { lat: 23.24, lng: 87.86 }, "73": { lat: 23.53, lng: 87.33 },
+      // MP / CG
+      "45": { lat: 22.72, lng: 75.86 }, "46": { lat: 23.26, lng: 77.41 },
+      "47": { lat: 24.53, lng: 80.33 }, "48": { lat: 21.25, lng: 81.63 },
+      "49": { lat: 21.27, lng: 81.60 },
+      // Punjab / Haryana
+      "12": { lat: 28.46, lng: 77.03 }, "13": { lat: 30.73, lng: 76.78 },
+      "14": { lat: 31.63, lng: 74.87 }, "15": { lat: 31.10, lng: 77.17 },
+      "16": { lat: 30.73, lng: 76.78 },
+      // Bihar / Jharkhand
+      "80": { lat: 25.61, lng: 85.14 }, "81": { lat: 25.60, lng: 85.12 },
+      "82": { lat: 24.80, lng: 84.99 }, "83": { lat: 23.35, lng: 85.33 },
+      // Odisha
+      "75": { lat: 20.30, lng: 85.83 }, "76": { lat: 20.27, lng: 85.84 },
+      "77": { lat: 21.47, lng: 83.97 },
+      // Assam / NE
+      "78": { lat: 26.14, lng: 91.74 }, "79": { lat: 23.73, lng: 92.72 },
+    };
+    return zoneCoords[zone] || null;
+  }
+
+  async getStoresWithStock(productId: number, minQty: number = 1): Promise<(Store & { availableQty: number })[]> {
+    const rows = await db
+      .select({
+        id: stores.id,
+        name: stores.name,
+        city: stores.city,
+        state: stores.state,
+        pincode: stores.pincode,
+        address: stores.address,
+        phone: stores.phone,
+        isActive: stores.isActive,
+        latitude: stores.latitude,
+        longitude: stores.longitude,
+        availableQty: sql<number>`${inventory.quantity} - ${inventory.reservedQty}`,
+      })
+      .from(inventory)
+      .innerJoin(stores, eq(inventory.storeId, stores.id))
+      .where(
+        and(
+          eq(inventory.productId, productId),
+          eq(stores.isActive, true),
+          sql`${inventory.quantity} - ${inventory.reservedQty} >= ${minQty}`
+        )
+      )
+      .orderBy(desc(sql`${inventory.quantity} - ${inventory.reservedQty}`));
+
+    return rows.map(r => ({
+      ...r,
+      availableQty: Number(r.availableQty),
+    }));
   }
 
   async createOrderItem(item: InsertOrderItem): Promise<OrderItem> {
