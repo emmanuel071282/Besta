@@ -1,0 +1,128 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "icS3r2tGD1X9THwrKQh07"
+uri = "file://artifacts/mockup-sandbox/public/images/stylist-cord-red.png"
+type = "image"
+title = "red embroidered cord set"
+
+[[generated]]
+id = "_B_PF9MJWCGo2yyJHxABU"
+uri = "file://artifacts/mockup-sandbox/public/images/stylist-muscle-sage.png"
+type = "image"
+title = "sage green muscle tee"
+
+[[generated]]
+id = "ZWoNd6UnLzGMiSB87gwZi"
+uri = "file://artifacts/mockup-sandbox/public/images/stylist-jewel-teardrop.png"
+type = "image"
+title = "gold teardrop earrings"
+
+[[generated]]
+id = "jxk9iUdOn5cyYVWlnatUl"
+uri = "file://artifacts/mockup-sandbox/public/images/stylist-sneaker-white.png"
+type = "image"
+title = "white sneakers"
+
+[[generated]]
+id = "-F7UufQ6-4nc5Q8EetBV4"
+uri = "file://artifacts/mockup-sandbox/public/images/reel-mens-muscle-tee.png"
+type = "image"
+title = "Indian male model muscle tee"
+
+[[generated]]
+id = "PlkQeOjB-C-j1fZQfAgwn"
+uri = "file://artifacts/mockup-sandbox/public/images/reel-ladies-cord-set.png"
+type = "image"
+title = "Indian female model cord set"
+
+[[generated]]
+id = "YrZyTm4lOIYpfuJ-9Cz8l"
+uri = "file://artifacts/mockup-sandbox/public/images/stylist-look-college.png"
+type = "image"
+title = "college casual look"
+
+[[generated]]
+id = "Pp6COOVtufO5S0m9P8Tlj"
+uri = "file://artifacts/mockup-sandbox/public/images/reel-ladies-jewellery.png"
+type = "image"
+title = "Indian female model jewellery"
+
+[[generated]]
+id = "EtOvIc1xJW5iN5iBYz7VC"
+uri = "file://artifacts/mockup-sandbox/public/images/reel-ladies-street.png"
+type = "image"
+title = "Indian female model street style"
+
+[[generated]]
+id = "wjnOPSruiuXb74DCzYIcn"
+uri = "file://artifacts/mockup-sandbox/public/images/besta-muscle-tee-neon.png"
+type = "image"
+title = "Indian male model muscle tee"
+
+[[generated]]
+id = "2jWyih0h070G9KvVctL24"
+uri = "file://artifacts/mockup-sandbox/public/images/besta-cordset-neon.png"
+type = "image"
+title = "Indian female model cord set"
+
+[[generated]]
+id = "4hmBQ_aFLALzSrc9Y7Tm3"
+uri = "file://artifacts/mockup-sandbox/public/images/besta-sneakers-neon.png"
+type = "image"
+title = "Edgy chunky sneakers neon"
+
+[[generated]]
+id = "XARA-uELLeh6lf9cUGZcb"
+uri = "file://artifacts/mockup-sandbox/public/images/besta-jewellery-neon.png"
+type = "image"
+title = "Silver chain jewellery edgy"
+
+[[generated]]
+id = "Szd7zBoCUkJ9CxkVhWHzH"
+uri = "file://artifacts/mockup-sandbox/public/images/besta-kids-streetwear.png"
+type = "image"
+title = "Kids streetwear dynamic"
+
+[[generated]]
+id = "RFWFnReVFLUdPHi0wi0IU"
+uri = "file://artifacts/mockup-sandbox/public/images/besta-runway-drop.png"
+type = "image"
+title = "Dark futuristic runway drop"
+
+[[generated]]
+id = "s-SAAF_CFk_ArRzhIFHCE"
+uri = "file://artifacts/mockup-sandbox/public/images/besta-cover.png"
+type = "image"
+title = "Editorial fashion cover shot"
+
+[[generated]]
+id = "n3IBIho775Cc2yD2Rr5CP"
+uri = "file://artifacts/mockup-sandbox/public/images/besta-cord-set.png"
+type = "image"
+title = "Model in cord set"
+
+[[generated]]
+id = "BnbbGgBkMrTu4Sdkre0yX"
+uri = "file://artifacts/mockup-sandbox/public/images/besta-muscle-tee.png"
+type = "image"
+title = "Model in muscle tee"
+
+[[generated]]
+id = "z2TP6U1wcQ8EOEVX3_j4_"
+uri = "file://artifacts/mockup-sandbox/public/images/besta-jewellery.png"
+type = "image"
+title = "Jewellery close up"
+
+[[generated]]
+id = "Wj3A5eW7UF_YrGG7eI9j0"
+uri = "file://artifacts/mockup-sandbox/public/images/besta-sneakers.png"
+type = "image"
+title = "Sneakers street style"
+
+[[generated]]
+id = "9T2n1Q8FvynLnWwsq9f8I"
+uri = "file://artifacts/mockup-sandbox/public/images/besta-editor.png"
+type = "image"
+title = "Editor portrait"
