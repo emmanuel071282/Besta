@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useLocation } from "wouter";
+import { Link, useLocation, useSearch } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { Eye, EyeOff, Loader2, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -7,12 +7,16 @@ import { apiRequest } from "@/lib/queryClient";
 
 export default function RegisterPage() {
   const [, navigate] = useLocation();
+  const searchString = useSearch();
   const { register, isLoggedIn, isLoading } = useAuth();
   const { toast } = useToast();
 
+  // Pre-fill mobile from URL query param (e.g., /register?mobile=9876543210)
+  const urlMobile = new URLSearchParams(searchString).get("mobile") || "";
+
   const [step, setStep] = useState<"details" | "otp" | "complete">("details");
   const [name, setName] = useState("");
-  const [mobile, setMobile] = useState("");
+  const [mobile, setMobile] = useState(urlMobile);
   const [email, setEmail] = useState("");
   const [pin, setPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");

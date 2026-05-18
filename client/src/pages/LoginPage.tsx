@@ -60,6 +60,14 @@ export default function LoginPage() {
     } catch (error: any) {
       let msg = "Failed to send OTP";
       try { msg = JSON.parse(error.message.split(":").slice(1).join(":").trim()).message; } catch {}
+
+      // If no account found, redirect to register page with mobile pre-filled
+      if (msg.toLowerCase().includes("no account found") || msg.toLowerCase().includes("user not found")) {
+        toast({ title: "New here?", description: "No account found with this number. Let's create one!", });
+        navigate(`/register?mobile=${mobile}`);
+        return;
+      }
+
       toast({ title: "Error", description: msg, variant: "destructive" });
     }
   };
