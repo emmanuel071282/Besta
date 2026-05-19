@@ -32,6 +32,9 @@ app.use(
 
 app.use(express.urlencoded({ extended: false }));
 
+// Trust proxy so secure cookies work behind Replit/reverse proxy
+app.set("trust proxy", 1);
+
 const PgStore = connectPgSimple(session);
 app.use(
   session({
@@ -39,7 +42,7 @@ app.use(
       conString: process.env.DATABASE_URL,
       createTableIfMissing: true,
     }),
-    secret: process.env.SESSION_SECRET!,
+    secret: process.env.SESSION_SECRET || "besta-dev-secret-change-me",
     resave: false,
     saveUninitialized: false,
     cookie: {
