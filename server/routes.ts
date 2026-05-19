@@ -3,7 +3,7 @@ import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
-import { registerSchema, loginSchema, ORDER_STATUSES, getSizesForProduct, otpVerifications, insertCampaignSchema, type InsertCampaign } from "@shared/schema";
+import { registerSchema, loginSchema, ORDER_STATUSES, getSizesForProduct, otpVerifications, insertCampaignSchema, insertProductSchema, generateEAN13Barcode, type InsertCampaign } from "@shared/schema";
 import bcrypt from "bcryptjs";
 import { sendSms } from "./sms";
 import { db } from "./db";
@@ -436,6 +436,31 @@ export async function registerRoutes(
       res.json(inv);
     } catch (error) {
       res.status(500).json({ message: "Failed to update inventory" });
+    }
+  });
+
+  // ---- Admin Article/Product management ----
+  app.get("/api/admin/products", requireAdmin, async (_req, res) => {
+    const productsList = await storage.getProducts();
+    res.json(productsList);
+  });
+
+  app.post("/api/admin/products", requireAdmin, async (req, res) => {
+    try {
+      const parsed = insertProductSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: parsed.error.errors[0].message });
+      }
+      const product = await storage.createProduct(parsed.data);
+      const barcode = generateEAN13Barcode(product.id);
+      const updated = await storage.updateProductBarcode(product.id, barcode);
+      res.json(updated ?? product);
+    } catch (error: any) {
+      if (error?.code === "23505" && error?.constraint?.includes("barcode")) {
+        return res.status(409).json({ message: "Barcode conflict. Please try again." });
+      }
+      console.error("Failed to create product:", error);
+      res.status(500).json({ message: "Failed to create product" });
     }
   });
 

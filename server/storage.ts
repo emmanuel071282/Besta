@@ -20,6 +20,7 @@ export interface IStorage {
   getProductsByCategoryAndSubcategory(category: string, subcategory: string): Promise<Product[]>;
   getProduct(id: number): Promise<Product | undefined>;
   createProduct(product: InsertProduct): Promise<Product>;
+  updateProductBarcode(id: number, barcode: string): Promise<Product | undefined>;
   deleteAllProducts(): Promise<void>;
 
   createUser(user: InsertUser): Promise<User>;
@@ -133,6 +134,11 @@ export class DatabaseStorage implements IStorage {
   async createProduct(insertProduct: InsertProduct): Promise<Product> {
     const [product] = await db.insert(products).values(insertProduct).returning();
     return product;
+  }
+
+  async updateProductBarcode(id: number, barcode: string): Promise<Product | undefined> {
+    const [updated] = await db.update(products).set({ barcode }).where(eq(products.id, id)).returning();
+    return updated ? this.ensureSizes(updated) : undefined;
   }
 
   async deleteAllProducts(): Promise<void> {

@@ -11,6 +11,7 @@ export const products = pgTable("products", {
   category: text("category").notNull(),
   subcategory: text("subcategory").notNull().default(""),
   sizes: text("sizes").array().default([]),
+  barcode: text("barcode").unique(),
 });
 
 export const SIZE_CHART: Record<string, Record<string, string[]>> = {
@@ -86,7 +87,20 @@ export function getSizesForProduct(category: string, subcategory: string): strin
   return catSizes[subcategory] || catSizes.default || ["Free Size"];
 }
 
-export const insertProductSchema = createInsertSchema(products).omit({ id: true });
+export const insertProductSchema = createInsertSchema(products).omit({ id: true, barcode: true });
+
+export function generateEAN13Barcode(productId: number): string {
+  const prefix = "890";
+  const company = "0000";
+  const productPart = String(productId).padStart(5, "0");
+  const partial = prefix + company + productPart;
+  let sum = 0;
+  for (let i = 0; i < 12; i++) {
+    sum += parseInt(partial[i]) * (i % 2 === 0 ? 1 : 3);
+  }
+  const checkDigit = (10 - (sum % 10)) % 10;
+  return partial + String(checkDigit);
+}
 
 export type InsertProduct = z.infer<typeof insertProductSchema>;
 export type Product = typeof products.$inferSelect;

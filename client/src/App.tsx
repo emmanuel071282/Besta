@@ -33,6 +33,7 @@ const AdminOrdersPage = lazy(() => import("@/pages/admin/OrdersPage"));
 const SalesPage = lazy(() => import("@/pages/admin/SalesPage"));
 const StoresPage = lazy(() => import("@/pages/admin/StoresPage"));
 const InventoryPage = lazy(() => import("@/pages/admin/InventoryPage"));
+const ArticlesPage = lazy(() => import("@/pages/admin/ArticlesPage"));
 const AdminSupportPage = lazy(() => import("@/pages/admin/SupportPage"));
 const CampaignsPage = lazy(() => import("@/pages/admin/CampaignsPage"));
 
@@ -82,6 +83,7 @@ function App() {
             <Route path="/admin/sales" component={SalesPage} />
             <Route path="/admin/stores" component={StoresPage} />
             <Route path="/admin/inventory" component={InventoryPage} />
+            <Route path="/admin/articles" component={ArticlesPage} />
             <Route path="/admin/support" component={AdminSupportPage} />
             <Route path="/admin/campaigns" component={CampaignsPage} />
             <Route component={StorefrontRouter} />
