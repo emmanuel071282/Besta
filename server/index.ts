@@ -36,11 +36,24 @@ app.use(express.urlencoded({ extended: false }));
 app.set("trust proxy", 1);
 
 const PgStore = connectPgSimple(session);
+
+// Ensure the session table exists before the store tries to use it.
+// connect-pg-simple's createTableIfMissing reads a local table.sql file
+// which isn't available in the production bundle, so we create it ourselves.
+db.execute(sql`
+  CREATE TABLE IF NOT EXISTS "session" (
+    "sid" varchar NOT NULL PRIMARY KEY,
+    "sess" json NOT NULL,
+    "expire" timestamp(6) NOT NULL
+  )
+`).then(() => db.execute(sql`
+  CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire")
+`)).catch((err) => console.error("Session table init error:", err));
+
 app.use(
   session({
     store: new PgStore({
       conString: process.env.DATABASE_URL,
-      createTableIfMissing: true,
     }),
     secret: process.env.SESSION_SECRET || "besta-dev-secret-change-me",
     resave: false,

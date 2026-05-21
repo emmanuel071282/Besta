@@ -175,6 +175,14 @@ export const otpVerifications = pgTable("otp_verifications", {
   expiresAt: timestamp("expires_at").notNull(),
 });
 
+// Session table used by connect-pg-simple for express-session storage.
+// Defined here so drizzle-kit doesn't try to drop it during migrations.
+export const session = pgTable("session", {
+  sid: text("sid").primaryKey(),
+  sess: text("sess").notNull(),
+  expire: timestamp("expire", { precision: 6 }).notNull(),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
