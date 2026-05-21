@@ -237,11 +237,12 @@ export async function createShiprocketOrder(
 export async function generateAWB(
   shipmentId: number,
   courierId?: number
-): Promise<{ awbNumber: string; courierName: string } | null> {
+): Promise<{ awbNumber: string; courierName: string; freightCharge: number } | null> {
   if (!isShiprocketConfigured()) {
     return {
       awbNumber: `DEMO${Date.now()}`,
       courierName: "Demo Courier",
+      freightCharge: 65,
     };
   }
 
@@ -257,6 +258,7 @@ export async function generateAWB(
     return {
       awbNumber: awbData.awb_code || awbData.awb_number || "",
       courierName: awbData.courier_name || "",
+      freightCharge: Number(awbData.freight_charge ?? awbData.rate ?? 0),
     };
   } catch (err) {
     console.error("[Shiprocket] Generate AWB failed:", err);

@@ -624,6 +624,9 @@ export async function registerRoutes(
       const legacyNearestStore = await storage.findNearestStoreWithStock(legacyCartItems, shippingPincode);
       const legacyStoreId = legacyNearestStore?.id || null;
 
+      // Fetch all products once to look up costPrice
+      const allProducts = await storage.getProducts();
+
       for (const item of items) {
         let assignedStoreId = legacyStoreId;
         if (legacyStoreId) {
@@ -639,12 +642,14 @@ export async function registerRoutes(
           assignedStoreId = fb?.storeId || null;
         }
 
+        const product = allProducts.find(p => p.id === item.productId);
         await storage.createOrderItem({
           orderId: order.id,
           productId: item.productId,
           storeId: assignedStoreId,
           quantity: item.quantity,
           price: item.price,
+          costPrice: product?.costPrice ?? "0",
           size: item.size || null,
         });
 
@@ -903,12 +908,14 @@ export async function registerRoutes(
           assignedStoreId = fallbackStore?.storeId || null;
         }
 
+        const prod = products.find(p => p.id === item.productId);
         await storage.createOrderItem({
           orderId: order.id,
           productId: item.productId,
           storeId: assignedStoreId,
           quantity: item.quantity,
           price: item.price,
+          costPrice: prod?.costPrice ?? "0",
           size: item.size || null,
         });
 
@@ -973,7 +980,7 @@ export async function registerRoutes(
 
         if (srResult) {
           // Auto-assign AWB (cheapest courier)
-          let awbInfo: { awbNumber: string; courierName: string } | null = null;
+          let awbInfo: { awbNumber: string; courierName: string; freightCharge: number } | null = null;
           if (srResult.shipmentId) {
             awbInfo = await generateAWB(srResult.shipmentId);
             if (awbInfo) {
@@ -986,6 +993,7 @@ export async function registerRoutes(
             shiprocketShipmentId: String(srResult.shipmentId),
             awbNumber: awbInfo?.awbNumber || srResult.awbNumber || undefined,
             courierName: awbInfo?.courierName || srResult.courierName || undefined,
+            logisticsCost: awbInfo?.freightCharge ? String(awbInfo.freightCharge) : "0",
             status: "processing",
           });
 

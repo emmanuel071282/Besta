@@ -93,6 +93,7 @@ export default function ArticlesPage() {
     name: "",
     description: "",
     price: "",
+    costPrice: "",
     imageUrl: "",
     category: "",
     subcategory: "",
@@ -113,7 +114,7 @@ export default function ArticlesPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
       setBarcodeProduct(newProduct);
       setShowAddForm(false);
-      setForm({ name: "", description: "", price: "", imageUrl: "", category: "", subcategory: "" });
+      setForm({ name: "", description: "", price: "", costPrice: "", imageUrl: "", category: "", subcategory: "" });
       setAutoSizes([]);
     },
   });
@@ -180,13 +181,25 @@ export default function ArticlesPage() {
             </div>
 
             <div>
-              <label className="block text-[10px] uppercase tracking-widest font-semibold mb-2">Price (Rs.)</label>
+              <label className="block text-[10px] uppercase tracking-widest font-semibold mb-2">Selling Price (Rs.)</label>
               <input
                 type="text"
                 value={form.price}
                 onChange={(e) => setForm({ ...form, price: e.target.value.replace(/[^0-9.]/g, "") })}
                 className="w-full border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-foreground"
                 placeholder="999"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest font-semibold mb-2">Cost Price (Rs.)</label>
+              <input
+                type="text"
+                value={form.costPrice}
+                onChange={(e) => setForm({ ...form, costPrice: e.target.value.replace(/[^0-9.]/g, "") })}
+                className="w-full border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-foreground"
+                placeholder="500"
                 required
               />
             </div>
@@ -282,14 +295,15 @@ export default function ArticlesPage() {
                   <th className="px-4 py-3 text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">Barcode</th>
                   <th className="px-4 py-3 text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">Name</th>
                   <th className="px-4 py-3 text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">Category</th>
-                  <th className="px-4 py-3 text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">Price</th>
+                  <th className="px-4 py-3 text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">Selling Price</th>
+                  <th className="px-4 py-3 text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">Cost Price</th>
                   <th className="px-4 py-3 text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {(!products || products.length === 0) ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
+                    <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
                       No articles yet. Click "Add Article" to create one.
                     </td>
                   </tr>
@@ -301,6 +315,7 @@ export default function ArticlesPage() {
                       <td className="px-4 py-3 font-medium">{p.name}</td>
                       <td className="px-4 py-3 text-muted-foreground">{p.category} / {p.subcategory}</td>
                       <td className="px-4 py-3">Rs. {p.price}</td>
+                      <td className="px-4 py-3 text-muted-foreground">Rs. {p.costPrice || "0"}</td>
                       <td className="px-4 py-3">
                         {p.barcode ? (
                           <button

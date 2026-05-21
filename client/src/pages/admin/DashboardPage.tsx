@@ -6,6 +6,7 @@ import type { Order } from "@shared/schema";
 type PeriodMetrics = {
   orders: number;
   sale: number;
+  marginPercent: number;
   valuePerOrder: number;
   delivered: number;
   pending: number;
@@ -21,6 +22,7 @@ type DashboardMetrics = {
 const ROWS: { key: keyof PeriodMetrics; label: string; prefix?: string; suffix?: string }[] = [
   { key: "orders", label: "Orders" },
   { key: "sale", label: "Sale", prefix: "₹", suffix: "K" },
+  { key: "marginPercent", label: "Margin %", suffix: "%" },
   { key: "valuePerOrder", label: "Value Per Order", prefix: "₹" },
   { key: "delivered", label: "Delivered Orders" },
   { key: "pending", label: "Pending" },
@@ -96,11 +98,11 @@ export default function DashboardPage() {
                 </thead>
                 <tbody>
                   {ROWS.map((row, idx) => {
-                    const isHighlight = row.key === "sale";
+                    const isHighlight = row.key === "sale" || row.key === "marginPercent";
                     return (
                       <tr
                         key={row.key}
-                        className={`border-b border-border/50 hover:bg-secondary/30 ${isHighlight ? "bg-green-50/50 dark:bg-green-900/10" : ""}`}
+                        className={`border-b border-border/50 hover:bg-secondary/30 ${row.key === "sale" ? "bg-green-50/50 dark:bg-green-900/10" : ""} ${row.key === "marginPercent" ? "bg-blue-50/50 dark:bg-blue-900/10" : ""}`}
                       >
                         <td className="px-6 py-4 font-semibold text-foreground">
                           {row.label}

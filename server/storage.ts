@@ -16,6 +16,7 @@ import { eq, and, desc, sql, gte, lte, inArray, or, ilike } from "drizzle-orm";
 export type PeriodMetrics = {
   orders: number;
   sale: number;         // revenue in thousands (₹)
+  marginPercent: number; // margin % = (revenue - cost) / revenue * 100
   valuePerOrder: number;
   delivered: number;
   pending: number;
@@ -74,6 +75,7 @@ export interface IStorage {
     awbNumber?: string;
     courierName?: string;
     trackingUrl?: string;
+    logisticsCost?: string;
     status?: string;
   }): Promise<Order | undefined>;
 
@@ -318,6 +320,7 @@ export class DatabaseStorage implements IStorage {
     awbNumber?: string;
     courierName?: string;
     trackingUrl?: string;
+    logisticsCost?: string;
     status?: string;
   }): Promise<Order | undefined> {
     const [order] = await db.update(orders).set(data).where(eq(orders.id, id)).returning();
@@ -606,19 +609,38 @@ export class DatabaseStorage implements IStorage {
       const [stats] = await db
         .select({
           totalOrders: sql<number>`COUNT(*)`,
-          totalRevenue: sql<number>`COALESCE(SUM(${orders.totalAmount}), 0)`,
+          totalRevenue: sql<number>`COALESCE(SUM(${orders.totalAmount}::numeric), 0)`,
+          totalLogistics: sql<number>`COALESCE(SUM(${orders.logisticsCost}::numeric), 0)`,
           delivered: sql<number>`COUNT(*) FILTER (WHERE ${orders.status} = 'delivered')`,
           pending: sql<number>`COUNT(*) FILTER (WHERE ${orders.status} NOT IN ('delivered', 'cancelled', 'returned', 'rto'))`,
         })
         .from(orders)
         .where(and(gte(orders.createdAt, start), lte(orders.createdAt, end)));
 
+      // Calculate total cost from order_items for margin
+      const [costStats] = await db
+        .select({
+          totalCost: sql<number>`COALESCE(SUM(${orderItems.costPrice}::numeric * ${orderItems.quantity}), 0)`,
+          totalItemRevenue: sql<number>`COALESCE(SUM(${orderItems.price}::numeric * ${orderItems.quantity}), 0)`,
+        })
+        .from(orderItems)
+        .innerJoin(orders, eq(orderItems.orderId, orders.id))
+        .where(and(gte(orders.createdAt, start), lte(orders.createdAt, end)));
+
       const totalOrders = Number(stats?.totalOrders ?? 0);
       const totalRevenue = Number(stats?.totalRevenue ?? 0);
+      const totalLogistics = Number(stats?.totalLogistics ?? 0);
+      const totalCost = Number(costStats?.totalCost ?? 0);
+      const totalItemRevenue = Number(costStats?.totalItemRevenue ?? 0);
+      // Margin % = (Revenue - Cost Price - Logistics) / Revenue * 100
+      const marginPercent = totalItemRevenue > 0
+        ? Math.round(((totalItemRevenue - totalCost - totalLogistics) / totalItemRevenue) * 100)
+        : 0;
 
       return {
         orders: totalOrders,
         sale: Math.round(totalRevenue / 1000),  // convert to thousands
+        marginPercent,
         valuePerOrder: totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0,
         delivered: Number(stats?.delivered ?? 0),
         pending: Number(stats?.pending ?? 0),

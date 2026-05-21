@@ -7,6 +7,7 @@ export const products = pgTable("products", {
   name: text("name").notNull(),
   description: text("description").notNull(),
   price: numeric("price").notNull(),
+  costPrice: numeric("cost_price").notNull().default("0"),
   imageUrl: text("image_url").notNull(),
   category: text("category").notNull(),
   subcategory: text("subcategory").notNull().default(""),
@@ -238,6 +239,7 @@ export const orders = pgTable("orders", {
   awbNumber: text("awb_number"),
   courierName: text("courier_name"),
   trackingUrl: text("tracking_url"),
+  logisticsCost: numeric("logistics_cost").notNull().default("0"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -252,6 +254,7 @@ export const orderItems = pgTable("order_items", {
   storeId: integer("store_id"),
   quantity: integer("quantity").notNull(),
   price: numeric("price").notNull(),
+  costPrice: numeric("cost_price").notNull().default("0"),
   size: text("size"),
 });
 
