@@ -117,6 +117,17 @@ app.use((req, res, next) => {
   `);
 
   await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS stylist_conversations (
+      id SERIAL PRIMARY KEY,
+      mobile TEXT NOT NULL,
+      role TEXT NOT NULL,
+      message TEXT NOT NULL,
+      product_ids TEXT,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  await db.execute(sql`
     CREATE TABLE IF NOT EXISTS support_requests (
       id SERIAL PRIMARY KEY,
       ticket_number TEXT NOT NULL,

@@ -1,6 +1,7 @@
 import { db } from "./db";
 import {
   products, users, stores, inventory, orders, orderItems, supportRequests, campaigns,
+  stylistConversations,
   type Product, type InsertProduct,
   type User, type InsertUser,
   type Store, type InsertStore,
@@ -9,6 +10,7 @@ import {
   type OrderItem, type InsertOrderItem,
   type SupportRequest, type InsertSupportRequest,
   type Campaign, type InsertCampaign,
+  type StylistConversation, type InsertStylistConversation,
   getSizesForProduct,
 } from "@shared/schema";
 import { eq, and, desc, sql, gte, lte, inArray, or, ilike } from "drizzle-orm";
@@ -109,6 +111,11 @@ export interface IStorage {
   deactivateAllCampaigns(): Promise<void>;
 
   getMarketingOptInMobiles(): Promise<string[]>;
+
+  // AI Stylist
+  getStylistConversation(mobile: string, limit?: number): Promise<StylistConversation[]>;
+  addStylistMessage(data: InsertStylistConversation): Promise<StylistConversation>;
+  getStylistStats(): Promise<{ totalConversations: number; uniqueUsers: number; productRecommendations: number }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -753,6 +760,47 @@ export class DatabaseStorage implements IStorage {
   async getMarketingOptInMobiles(): Promise<string[]> {
     const rows = await db.select({ mobile: users.mobile, optIn: users.marketingOptIn }).from(users);
     return rows.filter((r) => r.optIn).map((r) => r.mobile);
+  }
+
+  // ---------------------------------------------------------------------------
+  // AI Stylist
+  // ---------------------------------------------------------------------------
+  async getStylistConversation(mobile: string, limit = 20): Promise<StylistConversation[]> {
+    if (!mobile) {
+      // Return all recent messages across all users (for admin)
+      return db
+        .select()
+        .from(stylistConversations)
+        .orderBy(desc(stylistConversations.createdAt))
+        .limit(limit);
+    }
+    return db
+      .select()
+      .from(stylistConversations)
+      .where(eq(stylistConversations.mobile, mobile))
+      .orderBy(desc(stylistConversations.createdAt))
+      .limit(limit)
+      .then((rows) => rows.reverse()); // chronological order
+  }
+
+  async addStylistMessage(data: InsertStylistConversation): Promise<StylistConversation> {
+    const [msg] = await db.insert(stylistConversations).values(data).returning();
+    return msg;
+  }
+
+  async getStylistStats(): Promise<{ totalConversations: number; uniqueUsers: number; productRecommendations: number }> {
+    const [stats] = await db
+      .select({
+        totalConversations: sql<number>`COUNT(*)`,
+        uniqueUsers: sql<number>`COUNT(DISTINCT ${stylistConversations.mobile})`,
+        productRecommendations: sql<number>`COUNT(*) FILTER (WHERE ${stylistConversations.productIds} IS NOT NULL AND ${stylistConversations.productIds} != '')`,
+      })
+      .from(stylistConversations);
+    return {
+      totalConversations: Number(stats?.totalConversations ?? 0),
+      uniqueUsers: Number(stats?.uniqueUsers ?? 0),
+      productRecommendations: Number(stats?.productRecommendations ?? 0),
+    };
   }
 }
 

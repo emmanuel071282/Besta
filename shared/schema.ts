@@ -183,6 +183,22 @@ export const session = pgTable("session", {
   expire: timestamp("expire", { precision: 6 }).notNull(),
 });
 
+// ---------------------------------------------------------------------------
+// AI Stylist — WhatsApp conversation history
+// ---------------------------------------------------------------------------
+export const stylistConversations = pgTable("stylist_conversations", {
+  id: serial("id").primaryKey(),
+  mobile: text("mobile").notNull(),
+  role: text("role").notNull(),          // "user" | "assistant"
+  message: text("message").notNull(),
+  productIds: text("product_ids"),       // comma-separated product IDs recommended
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertStylistConversationSchema = createInsertSchema(stylistConversations).omit({ id: true, createdAt: true });
+export type InsertStylistConversation = z.infer<typeof insertStylistConversationSchema>;
+export type StylistConversation = typeof stylistConversations.$inferSelect;
+
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 
 export type InsertUser = z.infer<typeof insertUserSchema>;

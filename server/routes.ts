@@ -5,7 +5,8 @@ import { api } from "@shared/routes";
 import { z } from "zod";
 import { registerSchema, loginSchema, ORDER_STATUSES, getSizesForProduct, otpVerifications, insertCampaignSchema, insertProductSchema, generateEAN13Barcode, type InsertCampaign } from "@shared/schema";
 import bcrypt from "bcryptjs";
-import { sendSms } from "./sms";
+import { sendSms, sendWhatsApp } from "./sms";
+import { processStylistMessage, getDemoResponse, isAIStylistConfigured } from "./ai-stylist";
 import { db } from "./db";
 import { eq, and } from "drizzle-orm";
 import { createRazorpayOrder, verifyPaymentSignature, getRazorpayKeyId, isRazorpayConfigured } from "./payment";
@@ -1339,6 +1340,86 @@ export async function registerRoutes(
 
     res.set("Content-Type", "application/xml");
     res.send(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join("\n")}\n</urlset>`);
+  });
+
+  // ---------------------------------------------------------------------------
+  // WhatsApp AI Stylist Webhook
+  // Twilio sends incoming WhatsApp messages here
+  // ---------------------------------------------------------------------------
+  app.post("/api/webhooks/whatsapp", async (req, res) => {
+    // Always respond 200 to Twilio immediately
+    res.set("Content-Type", "text/xml");
+
+    try {
+      const { Body: messageBody, From: from, To: to } = req.body;
+
+      if (!messageBody || !from) {
+        return res.send("<Response></Response>");
+      }
+
+      // Extract 10-digit Indian mobile from "whatsapp:+91XXXXXXXXXX"
+      const mobile = from.replace("whatsapp:+91", "").replace("whatsapp:+", "");
+      const userMessage = messageBody.trim();
+
+      console.log(`[AI Stylist] Message from +91${mobile}: ${userMessage.substring(0, 100)}`);
+
+      // Save user message
+      await storage.addStylistMessage({
+        mobile,
+        role: "user",
+        message: userMessage,
+        productIds: null,
+      });
+
+      let reply: string;
+      let productIds: number[] = [];
+
+      if (isAIStylistConfigured()) {
+        // Get conversation history
+        const history = await storage.getStylistConversation(mobile);
+        // Get product catalog
+        const products = await storage.getProducts();
+
+        const result = await processStylistMessage(mobile, userMessage, history, products);
+        reply = result.reply;
+        productIds = result.productIds;
+      } else {
+        // Demo mode — no OpenAI key
+        reply = getDemoResponse(userMessage);
+      }
+
+      // Save assistant response
+      await storage.addStylistMessage({
+        mobile,
+        role: "assistant",
+        message: reply,
+        productIds: productIds.length > 0 ? productIds.join(",") : null,
+      });
+
+      // Send reply via WhatsApp
+      await sendWhatsApp(mobile, reply);
+
+      console.log(`[AI Stylist] Replied to +91${mobile} (${productIds.length} products recommended)`);
+
+      // Respond with empty TwiML (we send the reply via REST API instead)
+      res.send("<Response></Response>");
+    } catch (error) {
+      console.error("[AI Stylist] Webhook error:", error);
+      res.send("<Response></Response>");
+    }
+  });
+
+  // Admin endpoint — AI Stylist stats
+  app.get("/api/admin/stylist/stats", requireAdmin, async (_req, res) => {
+    const stats = await storage.getStylistStats();
+    res.json(stats);
+  });
+
+  // Admin endpoint — recent stylist conversations
+  app.get("/api/admin/stylist/conversations", requireAdmin, async (_req, res) => {
+    // Get unique mobiles with their latest message
+    const allMessages = await storage.getStylistConversation("", 200);
+    res.json(allMessages);
   });
 
   await seedDatabase();
