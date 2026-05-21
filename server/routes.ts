@@ -362,6 +362,11 @@ export async function registerRoutes(
     res.json(stats);
   });
 
+  app.get("/api/admin/dashboard/metrics", requireAdmin, async (_req, res) => {
+    const metrics = await storage.getDashboardMetrics();
+    res.json(metrics);
+  });
+
   app.get("/api/admin/orders", requireAdmin, async (req, res) => {
     const status = req.query.status as string | undefined;
     const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;

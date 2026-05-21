@@ -1,23 +1,58 @@
 import { useQuery } from "@tanstack/react-query";
 import AdminLayout from "./AdminLayout";
-import { IndianRupee, ShoppingCart, Store, Package, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import type { Order } from "@shared/schema";
 
+type PeriodMetrics = {
+  orders: number;
+  sale: number;
+  valuePerOrder: number;
+  delivered: number;
+  pending: number;
+};
+
+type DashboardMetrics = {
+  ld: PeriodMetrics;
+  wtd: PeriodMetrics;
+  mtd: PeriodMetrics;
+  ytd: PeriodMetrics;
+};
+
+const ROWS: { key: keyof PeriodMetrics; label: string; prefix?: string; suffix?: string }[] = [
+  { key: "orders", label: "Orders" },
+  { key: "sale", label: "Sale", prefix: "₹", suffix: "K" },
+  { key: "valuePerOrder", label: "Value Per Order", prefix: "₹" },
+  { key: "delivered", label: "Delivered Orders" },
+  { key: "pending", label: "Pending" },
+];
+
+const PERIODS = ["ld", "wtd", "mtd", "ytd"] as const;
+const PERIOD_LABELS: Record<string, string> = {
+  ld: "LD",
+  wtd: "WTD",
+  mtd: "MTD",
+  ytd: "YTD",
+};
+const PERIOD_FULL: Record<string, string> = {
+  ld: "Last Day",
+  wtd: "Week to Date",
+  mtd: "Month to Date",
+  ytd: "Year to Date",
+};
+
+function formatValue(val: number, prefix?: string, suffix?: string): string {
+  const formatted = val.toLocaleString("en-IN");
+  return `${prefix ?? ""}${formatted}${suffix ?? ""}`;
+}
+
 export default function DashboardPage() {
-  const { data: stats, isLoading } = useQuery<{ totalOrders: number; totalRevenue: number; totalProducts: number; activeStores: number }>({
-    queryKey: ["/api/admin/dashboard"],
+  const { data: metrics, isLoading } = useQuery<DashboardMetrics>({
+    queryKey: ["/api/admin/dashboard/metrics"],
   });
 
   const { data: recentOrders } = useQuery<Order[]>({
     queryKey: ["/api/admin/orders"],
   });
-
-  const statCards = [
-    { label: "Total Revenue", value: stats ? `₹${Number(stats.totalRevenue).toLocaleString("en-IN")}` : "—", icon: IndianRupee, color: "bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400" },
-    { label: "Total Orders", value: stats?.totalOrders ?? "—", icon: ShoppingCart, color: "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" },
-    { label: "Active Stores", value: stats?.activeStores ?? "—", icon: Store, color: "bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" },
-    { label: "Total Products", value: stats?.totalProducts ?? "—", icon: Package, color: "bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400" },
-  ];
 
   const statusColors: Record<string, string> = {
     placed: "bg-yellow-100 text-yellow-800",
@@ -32,27 +67,86 @@ export default function DashboardPage() {
     <AdminLayout>
       <div className="mb-8">
         <h1 className="text-3xl font-bold tracking-tight" data-testid="text-admin-dashboard-title">Dashboard</h1>
-        <p className="text-muted-foreground text-sm mt-1">Overview of your BESTA platform</p>
+        <p className="text-muted-foreground text-sm mt-1">Business performance overview</p>
       </div>
 
       {isLoading ? (
         <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin" /></div>
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-            {statCards.map((card) => (
-              <div key={card.label} className="bg-background border border-border p-6" data-testid={`stat-${card.label.toLowerCase().replace(/\s+/g, "-")}`}>
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">{card.label}</span>
-                  <div className={`w-8 h-8 flex items-center justify-center rounded ${card.color}`}>
-                    <card.icon className="w-4 h-4" />
-                  </div>
-                </div>
-                <p className="text-2xl font-bold">{card.value}</p>
-              </div>
-            ))}
+          {/* Metrics Table */}
+          <div className="bg-background border border-border mb-10">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="px-6 py-4 text-left text-[10px] uppercase tracking-widest font-semibold text-muted-foreground w-[200px]">
+                      Metric
+                    </th>
+                    {PERIODS.map((p) => (
+                      <th
+                        key={p}
+                        className="px-6 py-4 text-right text-[10px] uppercase tracking-widest font-semibold text-muted-foreground"
+                        title={PERIOD_FULL[p]}
+                      >
+                        {PERIOD_LABELS[p]}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {ROWS.map((row, idx) => {
+                    const isHighlight = row.key === "sale";
+                    return (
+                      <tr
+                        key={row.key}
+                        className={`border-b border-border/50 hover:bg-secondary/30 ${isHighlight ? "bg-green-50/50 dark:bg-green-900/10" : ""}`}
+                      >
+                        <td className="px-6 py-4 font-semibold text-foreground">
+                          {row.label}
+                          {row.key === "sale" && (
+                            <span className="ml-2 text-[10px] text-muted-foreground font-normal">(in ₹ thousands)</span>
+                          )}
+                        </td>
+                        {PERIODS.map((p) => {
+                          const val = metrics ? metrics[p][row.key] : 0;
+                          return (
+                            <td key={p} className="px-6 py-4 text-right tabular-nums font-medium">
+                              {metrics ? formatValue(val, row.prefix, row.suffix) : "—"}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
 
+          {/* Quick Summary Cards */}
+          {metrics && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-10">
+              <div className="bg-background border border-border p-5">
+                <p className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground mb-2">Today's Orders</p>
+                <p className="text-2xl font-bold">{metrics.ld.orders.toLocaleString("en-IN")}</p>
+              </div>
+              <div className="bg-background border border-border p-5">
+                <p className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground mb-2">MTD Revenue</p>
+                <p className="text-2xl font-bold">₹{metrics.mtd.sale.toLocaleString("en-IN")}K</p>
+              </div>
+              <div className="bg-background border border-border p-5">
+                <p className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground mb-2">YTD Orders</p>
+                <p className="text-2xl font-bold">{metrics.ytd.orders.toLocaleString("en-IN")}</p>
+              </div>
+              <div className="bg-background border border-border p-5">
+                <p className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground mb-2">Pending</p>
+                <p className="text-2xl font-bold text-orange-600">{metrics.wtd.pending}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Recent Orders */}
           <div className="bg-background border border-border">
             <div className="p-6 border-b border-border">
               <h2 className="text-lg font-semibold">Recent Orders</h2>

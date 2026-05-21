@@ -13,6 +13,21 @@ import {
 } from "@shared/schema";
 import { eq, and, desc, sql, gte, lte, inArray, or, ilike } from "drizzle-orm";
 
+export type PeriodMetrics = {
+  orders: number;
+  sale: number;         // revenue in thousands (₹)
+  valuePerOrder: number;
+  delivered: number;
+  pending: number;
+};
+
+export type DashboardMetrics = {
+  ld: PeriodMetrics;   // Last Day (yesterday)
+  wtd: PeriodMetrics;  // Week To Date
+  mtd: PeriodMetrics;  // Month To Date
+  ytd: PeriodMetrics;  // Year To Date
+};
+
 export interface IStorage {
   searchProducts(query: string): Promise<Product[]>;
   getProducts(): Promise<Product[]>;
@@ -75,6 +90,7 @@ export interface IStorage {
   getOrderItems(orderId: number): Promise<(OrderItem & { productName?: string; productImage?: string })[]>;
 
   getDashboardStats(): Promise<{ totalOrders: number; totalRevenue: number; totalProducts: number; activeStores: number }>;
+  getDashboardMetrics(): Promise<DashboardMetrics>;
   getSalesReport(startDate: Date, endDate: Date): Promise<{ date: string; orders: number; revenue: number }[]>;
   getTopSellingProducts(limit: number): Promise<{ productId: number; name: string; totalQuantity: number; totalRevenue: number }[]>;
 
@@ -564,6 +580,59 @@ export class DatabaseStorage implements IStorage {
       totalProducts: Number(productStats?.totalProducts ?? 0),
       activeStores: Number(storeStats?.activeStores ?? 0),
     };
+  }
+
+  async getDashboardMetrics(): Promise<DashboardMetrics> {
+    const now = new Date();
+
+    // Yesterday (last day)
+    const ldStart = new Date(now); ldStart.setDate(ldStart.getDate() - 1); ldStart.setHours(0, 0, 0, 0);
+    const ldEnd = new Date(now); ldEnd.setDate(ldEnd.getDate() - 1); ldEnd.setHours(23, 59, 59, 999);
+
+    // Week to date (Monday of current week)
+    const wtdStart = new Date(now);
+    const dayOfWeek = wtdStart.getDay();
+    const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Monday = 0 offset
+    wtdStart.setDate(wtdStart.getDate() - diff);
+    wtdStart.setHours(0, 0, 0, 0);
+
+    // Month to date (1st of current month)
+    const mtdStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    // Year to date (Jan 1st of current year)
+    const ytdStart = new Date(now.getFullYear(), 0, 1);
+
+    const fetchPeriod = async (start: Date, end: Date): Promise<PeriodMetrics> => {
+      const [stats] = await db
+        .select({
+          totalOrders: sql<number>`COUNT(*)`,
+          totalRevenue: sql<number>`COALESCE(SUM(${orders.totalAmount}), 0)`,
+          delivered: sql<number>`COUNT(*) FILTER (WHERE ${orders.status} = 'delivered')`,
+          pending: sql<number>`COUNT(*) FILTER (WHERE ${orders.status} NOT IN ('delivered', 'cancelled', 'returned', 'rto'))`,
+        })
+        .from(orders)
+        .where(and(gte(orders.createdAt, start), lte(orders.createdAt, end)));
+
+      const totalOrders = Number(stats?.totalOrders ?? 0);
+      const totalRevenue = Number(stats?.totalRevenue ?? 0);
+
+      return {
+        orders: totalOrders,
+        sale: Math.round(totalRevenue / 1000),  // convert to thousands
+        valuePerOrder: totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0,
+        delivered: Number(stats?.delivered ?? 0),
+        pending: Number(stats?.pending ?? 0),
+      };
+    };
+
+    const [ld, wtd, mtd, ytd] = await Promise.all([
+      fetchPeriod(ldStart, ldEnd),
+      fetchPeriod(wtdStart, now),
+      fetchPeriod(mtdStart, now),
+      fetchPeriod(ytdStart, now),
+    ]);
+
+    return { ld, wtd, mtd, ytd };
   }
 
   async getSalesReport(startDate: Date, endDate: Date): Promise<{ date: string; orders: number; revenue: number }[]> {
