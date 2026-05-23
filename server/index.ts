@@ -6,6 +6,8 @@ import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import { db } from "./db";
 import { sql } from "drizzle-orm";
+import path from "path";
+import fs from "fs";
 
 const app = express();
 const httpServer = createServer(app);
@@ -24,11 +26,17 @@ declare module "express-session" {
 
 app.use(
   express.json({
+    limit: "12mb",
     verify: (req, _res, buf) => {
       req.rawBody = buf;
     },
   }),
 );
+
+// Serve uploaded product images
+const uploadsDir = path.resolve(process.cwd(), "uploads");
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+app.use("/uploads", express.static(uploadsDir));
 
 app.use(express.urlencoded({ extended: false }));
 

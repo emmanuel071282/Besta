@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import AdminLayout from "./AdminLayout";
-import { Loader2, Plus, X, Printer, Barcode } from "lucide-react";
+import { Loader2, Plus, X, Printer, Barcode, Upload, Pencil, ImageIcon } from "lucide-react";
 import type { Product } from "@shared/schema";
 import { SUBCATEGORIES, getAllSubcategories, getSizesForProduct } from "@shared/schema";
 import JsBarcode from "jsbarcode";
@@ -58,7 +58,6 @@ function BarcodeModal({ product, onClose }: { product: Product; onClose: () => v
             <X className="w-5 h-5" />
           </button>
         </div>
-
         <div className="text-center space-y-4">
           <p className="text-xs font-semibold uppercase tracking-wider">{product.name}</p>
           <div className="flex justify-center">
@@ -66,7 +65,6 @@ function BarcodeModal({ product, onClose }: { product: Product; onClose: () => v
           </div>
           <p className="text-xs text-muted-foreground">MRP: Rs. {product.price}</p>
         </div>
-
         <div className="flex gap-2 mt-6">
           <button
             onClick={handlePrint}
@@ -86,9 +84,191 @@ function BarcodeModal({ product, onClose }: { product: Product; onClose: () => v
   );
 }
 
+function ImageUploadField({
+  value,
+  onChange,
+  label = "Product Image",
+}: {
+  value: string;
+  onChange: (url: string) => void;
+  label?: string;
+}) {
+  const [mode, setMode] = useState<"url" | "file">(value && !value.startsWith("/uploads/") ? "url" : "file");
+  const [preview, setPreview] = useState<string>(value || "");
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setPreview(value || "");
+  }, [value]);
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 8 * 1024 * 1024) {
+      alert("Image must be under 8 MB");
+      return;
+    }
+    setUploading(true);
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = reader.result as string;
+      setPreview(base64);
+      try {
+        const res = await apiRequest("POST", "/api/admin/upload", {
+          data: base64,
+          filename: file.name,
+        });
+        const { url } = await res.json();
+        onChange(url);
+        setPreview(url);
+      } catch {
+        alert("Upload failed. Please try again.");
+        setPreview(value || "");
+      } finally {
+        setUploading(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <label className="block text-[10px] uppercase tracking-widest font-semibold">{label}</label>
+        <div className="flex gap-1">
+          <button
+            type="button"
+            onClick={() => setMode("file")}
+            className={`text-[10px] uppercase tracking-widest px-2 py-0.5 border transition-colors ${
+              mode === "file" ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground hover:border-foreground"
+            }`}
+          >
+            Upload
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("url")}
+            className={`text-[10px] uppercase tracking-widest px-2 py-0.5 border transition-colors ${
+              mode === "url" ? "bg-foreground text-background border-foreground" : "border-border text-muted-foreground hover:border-foreground"
+            }`}
+          >
+            URL
+          </button>
+        </div>
+      </div>
+
+      {mode === "file" ? (
+        <div
+          onClick={() => !uploading && fileRef.current?.click()}
+          className="relative border-2 border-dashed border-border hover:border-foreground transition-colors cursor-pointer rounded-sm"
+        >
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="hidden"
+            onChange={handleFile}
+            disabled={uploading}
+          />
+          {preview ? (
+            <div className="relative group">
+              <img
+                src={preview}
+                alt="Preview"
+                className="w-full h-40 object-cover"
+              />
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <span className="text-white text-xs uppercase tracking-widest font-semibold flex items-center gap-1">
+                  <Upload className="w-4 h-4" /> Change Image
+                </span>
+              </div>
+              {uploading && (
+                <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                  <Loader2 className="w-6 h-6 text-white animate-spin" />
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="h-40 flex flex-col items-center justify-center gap-2 text-muted-foreground">
+              {uploading ? (
+                <Loader2 className="w-6 h-6 animate-spin" />
+              ) : (
+                <>
+                  <ImageIcon className="w-8 h-8" />
+                  <span className="text-xs uppercase tracking-widest">Click to upload</span>
+                  <span className="text-[10px]">JPEG, PNG, WEBP · max 8 MB</span>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      ) : (
+        <input
+          type="url"
+          value={value}
+          onChange={(e) => { onChange(e.target.value); setPreview(e.target.value); }}
+          className="w-full border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-foreground"
+          placeholder="https://images.unsplash.com/..."
+          required
+        />
+      )}
+    </div>
+  );
+}
+
+function EditImageModal({ product, onClose }: { product: Product; onClose: () => void }) {
+  const [imageUrl, setImageUrl] = useState(product.imageUrl || "");
+
+  const updateMutation = useMutation({
+    mutationFn: async (url: string) => {
+      const res = await apiRequest("PATCH", `/api/admin/products/${product.id}`, { imageUrl: url });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/products"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      onClose();
+    },
+    onError: () => alert("Failed to update image. Please try again."),
+  });
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
+      <div className="bg-background border border-border p-6 max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-bold uppercase tracking-widest">Update Image</h3>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <p className="text-xs text-muted-foreground mb-4 truncate">{product.name}</p>
+        <ImageUploadField value={imageUrl} onChange={setImageUrl} />
+        <div className="flex gap-2 mt-6">
+          <button
+            onClick={() => imageUrl && updateMutation.mutate(imageUrl)}
+            disabled={updateMutation.isPending || !imageUrl}
+            className="flex-1 bg-foreground text-background py-2.5 text-xs uppercase tracking-widest font-semibold hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {updateMutation.isPending && <Loader2 className="w-3 h-3 animate-spin" />}
+            Save Image
+          </button>
+          <button
+            onClick={onClose}
+            className="border border-border px-4 py-2.5 text-xs uppercase tracking-widest font-semibold hover:bg-secondary"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ArticlesPage() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [barcodeProduct, setBarcodeProduct] = useState<Product | null>(null);
+  const [editImageProduct, setEditImageProduct] = useState<Product | null>(null);
   const [form, setForm] = useState({
     name: "",
     description: "",
@@ -136,6 +316,7 @@ export default function ArticlesPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!form.imageUrl) { alert("Please upload or enter an image."); return; }
     createMutation.mutate({ ...form, sizes: autoSizes });
   };
 
@@ -205,18 +386,6 @@ export default function ArticlesPage() {
             </div>
 
             <div>
-              <label className="block text-[10px] uppercase tracking-widest font-semibold mb-2">Image URL</label>
-              <input
-                type="url"
-                value={form.imageUrl}
-                onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
-                className="w-full border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-foreground"
-                placeholder="https://images.unsplash.com/..."
-                required
-              />
-            </div>
-
-            <div>
               <label className="block text-[10px] uppercase tracking-widest font-semibold mb-2">Category</label>
               <select
                 value={form.category}
@@ -245,6 +414,13 @@ export default function ArticlesPage() {
                   <option key={s} value={s}>{s}</option>
                 ))}
               </select>
+            </div>
+
+            <div className="md:col-span-2">
+              <ImageUploadField
+                value={form.imageUrl}
+                onChange={(url) => setForm((f) => ({ ...f, imageUrl: url }))}
+              />
             </div>
           </div>
 
@@ -292,6 +468,7 @@ export default function ArticlesPage() {
               <thead>
                 <tr className="border-b border-border text-left">
                   <th className="px-4 py-3 text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">ID</th>
+                  <th className="px-4 py-3 text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">Image</th>
                   <th className="px-4 py-3 text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">Barcode</th>
                   <th className="px-4 py-3 text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">Name</th>
                   <th className="px-4 py-3 text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">Category</th>
@@ -303,7 +480,7 @@ export default function ArticlesPage() {
               <tbody>
                 {(!products || products.length === 0) ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
+                    <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
                       No articles yet. Click "Add Article" to create one.
                     </td>
                   </tr>
@@ -311,22 +488,51 @@ export default function ArticlesPage() {
                   products.map((p) => (
                     <tr key={p.id} className="border-b border-border/50 hover:bg-secondary/30">
                       <td className="px-4 py-3 text-muted-foreground">#{p.id}</td>
+                      <td className="px-4 py-3">
+                        <div className="relative group w-10 h-10">
+                          {p.imageUrl ? (
+                            <img
+                              src={p.imageUrl}
+                              alt={p.name}
+                              className="w-10 h-10 object-cover border border-border"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 bg-secondary border border-border flex items-center justify-center">
+                              <ImageIcon className="w-4 h-4 text-muted-foreground" />
+                            </div>
+                          )}
+                          <button
+                            onClick={() => setEditImageProduct(p)}
+                            className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                            title="Update image"
+                          >
+                            <Pencil className="w-3 h-3 text-white" />
+                          </button>
+                        </div>
+                      </td>
                       <td className="px-4 py-3 font-mono text-xs">{p.barcode || "—"}</td>
                       <td className="px-4 py-3 font-medium">{p.name}</td>
                       <td className="px-4 py-3 text-muted-foreground">{p.category} / {p.subcategory}</td>
                       <td className="px-4 py-3">Rs. {p.price}</td>
                       <td className="px-4 py-3 text-muted-foreground">Rs. {p.costPrice || "0"}</td>
                       <td className="px-4 py-3">
-                        {p.barcode ? (
+                        <div className="flex items-center gap-2">
                           <button
-                            onClick={() => setBarcodeProduct(p)}
+                            onClick={() => setEditImageProduct(p)}
                             className="flex items-center gap-1.5 text-xs border border-border px-3 py-1.5 hover:bg-secondary transition-colors"
+                            title="Update image"
                           >
-                            <Barcode className="w-3.5 h-3.5" /> View
+                            <Pencil className="w-3.5 h-3.5" /> Image
                           </button>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">N/A</span>
-                        )}
+                          {p.barcode && (
+                            <button
+                              onClick={() => setBarcodeProduct(p)}
+                              className="flex items-center gap-1.5 text-xs border border-border px-3 py-1.5 hover:bg-secondary transition-colors"
+                            >
+                              <Barcode className="w-3.5 h-3.5" /> View
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -339,6 +545,9 @@ export default function ArticlesPage() {
 
       {barcodeProduct && (
         <BarcodeModal product={barcodeProduct} onClose={() => setBarcodeProduct(null)} />
+      )}
+      {editImageProduct && (
+        <EditImageModal product={editImageProduct} onClose={() => setEditImageProduct(null)} />
       )}
     </AdminLayout>
   );

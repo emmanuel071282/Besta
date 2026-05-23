@@ -1,6 +1,8 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
+import fs from "fs";
+import path from "path";
 import { api } from "@shared/routes";
 import { z } from "zod";
 import { registerSchema, loginSchema, ORDER_STATUSES, getSizesForProduct, otpVerifications, insertCampaignSchema, insertProductSchema, generateEAN13Barcode, type InsertCampaign } from "@shared/schema";
@@ -467,6 +469,43 @@ export async function registerRoutes(
       }
       console.error("Failed to create product:", error);
       res.status(500).json({ message: "Failed to create product" });
+    }
+  });
+
+  // Upload a product image (base64) → saves to ./uploads/, returns URL
+  app.post("/api/admin/upload", requireAdmin, async (req, res) => {
+    try {
+      const { data, filename } = req.body as { data: string; filename: string };
+      if (!data || !filename) return res.status(400).json({ message: "Missing data or filename" });
+
+      const matches = data.match(/^data:([A-Za-z-+/]+);base64,(.+)$/);
+      if (!matches) return res.status(400).json({ message: "Invalid base64 image" });
+
+      const ext = matches[1].split("/")[1]?.replace("jpeg", "jpg") || "jpg";
+      const safe = filename.replace(/[^a-z0-9._-]/gi, "_").replace(/\.[^.]+$/, "");
+      const fname = `${Date.now()}-${safe}.${ext}`;
+      const uploadDir = path.resolve(process.cwd(), "uploads");
+      if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
+      fs.writeFileSync(path.join(uploadDir, fname), Buffer.from(matches[2], "base64"));
+      res.json({ url: `/uploads/${fname}` });
+    } catch (err) {
+      console.error("Upload error:", err);
+      res.status(500).json({ message: "Upload failed" });
+    }
+  });
+
+  // Update product (image, name, price, etc.)
+  app.patch("/api/admin/products/:id", requireAdmin, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
+      const updated = await storage.updateProduct(id, req.body);
+      if (!updated) return res.status(404).json({ message: "Product not found" });
+      res.json(updated);
+    } catch (err) {
+      console.error("Update product error:", err);
+      res.status(500).json({ message: "Failed to update product" });
     }
   });
 
