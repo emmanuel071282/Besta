@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import AdminLayout from "./AdminLayout";
-import { Loader2, Plus, X, Printer, Barcode } from "lucide-react";
+import { Loader2, Plus, X, Printer, Barcode, Sparkles } from "lucide-react";
 import type { Product } from "@shared/schema";
 import { SUBCATEGORIES, getAllSubcategories, getSizesForProduct } from "@shared/schema";
 import JsBarcode from "jsbarcode";
@@ -99,6 +99,9 @@ export default function ArticlesPage() {
     subcategory: "",
   });
   const [autoSizes, setAutoSizes] = useState<string[]>([]);
+  const [aiImages, setAiImages] = useState<string[]>([]);
+  const [isGeneratingImages, setIsGeneratingImages] = useState(false);
+  const [aiImageError, setAiImageError] = useState("");
 
   const { data: products, isLoading } = useQuery<Product[]>({
     queryKey: ["/api/admin/products"],
@@ -116,8 +119,25 @@ export default function ArticlesPage() {
       setShowAddForm(false);
       setForm({ name: "", description: "", price: "", costPrice: "", imageUrl: "", category: "", subcategory: "" });
       setAutoSizes([]);
+      setAiImages([]);
+      setAiImageError("");
     },
   });
+
+  const handleGenerateImages = async () => {
+    if (!form.name) { setAiImageError("Enter an article name first"); return; }
+    setIsGeneratingImages(true); setAiImages([]); setAiImageError("");
+    try {
+      const res = await apiRequest("POST", "/api/admin/generate-product-images", {
+        name: form.name, category: form.category, subcategory: form.subcategory, description: form.description,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Generation failed");
+      setAiImages(data.images || []);
+    } catch (err: any) {
+      setAiImageError(err.message || "Failed to generate images");
+    } finally { setIsGeneratingImages(false); }
+  };
 
   const handleCategoryChange = (category: string) => {
     setForm((prev) => ({ ...prev, category, subcategory: "" }));
@@ -204,16 +224,41 @@ export default function ArticlesPage() {
               />
             </div>
 
-            <div>
-              <label className="block text-[10px] uppercase tracking-widest font-semibold mb-2">Image URL</label>
-              <input
-                type="url"
-                value={form.imageUrl}
-                onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
+            <div className="md:col-span-2">
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-[10px] uppercase tracking-widest font-semibold">Image URL</label>
+                <button type="button" onClick={handleGenerateImages} disabled={isGeneratingImages}
+                  className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest font-semibold border border-border px-3 py-1 hover:bg-secondary disabled:opacity-50 transition-colors">
+                  {isGeneratingImages ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                  {isGeneratingImages ? "Generating..." : "Generate with AI"}
+                </button>
+              </div>
+              <input type="url" value={form.imageUrl} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
                 className="w-full border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-foreground"
-                placeholder="https://images.unsplash.com/..."
-                required
-              />
+                placeholder="https://images.unsplash.com/... or generate with AI above" required />
+              {aiImageError && <p className="text-xs text-red-500 mt-1">{aiImageError}</p>}
+              {aiImages.length > 0 && (
+                <div className="mt-3">
+                  <p className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground mb-2">Click an image to select it</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {aiImages.map((url, i) => (
+                      <button key={i} type="button" onClick={() => setForm({ ...form, imageUrl: url })}
+                        className={`relative aspect-square overflow-hidden border-2 transition-all ${form.imageUrl === url ? "border-foreground" : "border-border hover:border-foreground/50"}`}>
+                        <img src={url} alt={`AI option ${i + 1}`} className="w-full h-full object-cover"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                        {form.imageUrl === url && (
+                          <div className="absolute inset-0 bg-foreground/10 flex items-center justify-center">
+                            <span className="text-[10px] uppercase tracking-widest font-bold bg-foreground text-background px-2 py-0.5">Selected</span>
+                          </div>
+                        )}
+                        <span className="absolute bottom-1 left-1 text-[9px] uppercase tracking-wider bg-background/80 px-1.5 py-0.5 font-semibold">
+                          {["Studio", "Editorial", "Flat Lay"][i]}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div>
@@ -272,7 +317,7 @@ export default function ArticlesPage() {
             </button>
             <button
               type="button"
-              onClick={() => { setShowAddForm(false); setAutoSizes([]); }}
+              onClick={() => { setShowAddForm(false); setAutoSizes([]); setAiImages([]); setAiImageError(""); }}
               className="border border-border px-6 py-2.5 text-xs uppercase tracking-widest font-semibold hover:bg-secondary"
             >
               Cancel

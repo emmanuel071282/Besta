@@ -470,7 +470,45 @@ export async function registerRoutes(
     }
   });
 
-  const orderBodySchema = z.object({
+  app.post("/api/admin/generate-product-images", requireAdmin, async (req, res) => {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      return res.status(503).json({ message: "OpenAI API key not configured" });
+    }
+    const { name, category, subcategory, description } = req.body as {
+      name: string; category?: string; subcategory?: string; description?: string;
+    };
+    if (!name) return res.status(400).json({ message: "Product name required" });
+    const baseDesc = [name, category, subcategory, description].filter(Boolean).join(", ");
+    const styles = [
+      "professional product photography, pure white background, clean studio lighting, high detail",
+      "fashion editorial photography, natural soft lighting, lifestyle setting, magazine quality",
+      "flat lay photography, minimalist aesthetic, top-down view, pastel background",
+    ];
+    try {
+      const results = await Promise.all(
+        styles.map((style) =>
+          fetch("https://api.openai.com/v1/images/generations", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+            body: JSON.stringify({
+              model: "dall-e-3",
+              prompt: `${baseDesc} fashion item. ${style}. No text, no logos.`,
+              n: 1,
+              size: "1024x1024",
+            }),
+          }).then((r) => r.json())
+        )
+      );
+      const images = results.map((r) => r.data?.[0]?.url).filter(Boolean) as string[];
+      res.json({ images });
+    } catch (err) {
+      console.error("Image generation failed:", err);
+      res.status(500).json({ message: "Failed to generate images" });
+    }
+  });
+
+    const orderBodySchema = z.object({
     items: z.array(z.object({
       productId: z.number(),
       quantity: z.number().min(1),
