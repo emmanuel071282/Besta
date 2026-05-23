@@ -236,8 +236,7 @@ export default function ArticlesPage() {
             <div className="md:col-span-2">
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-[10px] uppercase tracking-widest font-semibold">Image</label>
-                <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
-                <button type="button" onClick={handleGenerateImages} disabled={isGeneratingImages}
+                  <button type="button" onClick={handleGenerateImages} disabled={isGeneratingImages}
                   className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest font-semibold border border-border px-3 py-1 hover:bg-secondary disabled:opacity-50 transition-colors">
                   {isGeneratingImages ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
                   {isGeneratingImages ? "Generating..." : "Generate with AI"}
