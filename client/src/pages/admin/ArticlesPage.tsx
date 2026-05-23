@@ -242,10 +242,10 @@ export default function ArticlesPage() {
                   {isGeneratingImages ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
                   {isGeneratingImages ? "Generating..." : "Generate with AI"}
                 </button>
-                <button type="button" onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest font-semibold border border-border px-3 py-1 hover:bg-secondary transition-colors">
+                <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest font-semibold border border-border px-3 py-1 hover:bg-secondary transition-colors cursor-pointer">
                   <ImageUp className="w-3 h-3" /> Upload
-                </button>
+                  <input type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
+                </label>
               </div>
               <input type="url" value={form.imageUrl} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
                 className="w-full border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-foreground"
