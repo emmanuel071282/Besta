@@ -243,8 +243,12 @@ export default function ArticlesPage() {
                   {isGeneratingImages ? "Generating..." : "Generate with AI"}
                 </button>
                 <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest font-semibold border border-border px-3 py-1 hover:bg-secondary transition-colors cursor-pointer">
-                  <ImageUp className="w-3 h-3" /> Upload
+                  <ImageUp className="w-3 h-3" /> Gallery
                   <input type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
+                </label>
+                <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest font-semibold border border-border px-3 py-1 hover:bg-secondary transition-colors cursor-pointer">
+                  <ImageUp className="w-3 h-3" /> Camera
+                  <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileSelect} />
                 </label>
               </div>
               <input type="url" value={form.imageUrl} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
