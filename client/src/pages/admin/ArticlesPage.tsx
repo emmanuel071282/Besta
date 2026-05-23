@@ -99,6 +99,7 @@ export default function ArticlesPage() {
     subcategory: "",
   });
   const [autoSizes, setAutoSizes] = useState<string[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [aiImages, setAiImages] = useState<string[]>([]);
   const [isGeneratingImages, setIsGeneratingImages] = useState(false);
   const [aiImageError, setAiImageError] = useState("");
@@ -124,6 +125,14 @@ export default function ArticlesPage() {
     },
   });
 
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setForm((prev) => ({ ...prev, imageUrl: reader.result }));
+    reader.readAsDataURL(file);
+  };
   const handleGenerateImages = async () => {
     if (!form.name) { setAiImageError("Enter an article name first"); return; }
     setIsGeneratingImages(true); setAiImages([]); setAiImageError("");
@@ -226,11 +235,16 @@ export default function ArticlesPage() {
 
             <div className="md:col-span-2">
               <div className="flex items-center justify-between mb-2">
-                <label className="block text-[10px] uppercase tracking-widest font-semibold">Image URL</label>
+                <label className="block text-[10px] uppercase tracking-widest font-semibold">Image</label>
+                <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
                 <button type="button" onClick={handleGenerateImages} disabled={isGeneratingImages}
                   className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest font-semibold border border-border px-3 py-1 hover:bg-secondary disabled:opacity-50 transition-colors">
                   {isGeneratingImages ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
                   {isGeneratingImages ? "Generating..." : "Generate with AI"}
+                </button>
+                <button type="button" onClick={() => fileInputRef.current?.click()}
+                  className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest font-semibold border border-border px-3 py-1 hover:bg-secondary transition-colors">
+                  <ImageUp className="w-3 h-3" /> Upload
                 </button>
               </div>
               <input type="url" value={form.imageUrl} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
