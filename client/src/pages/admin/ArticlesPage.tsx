@@ -356,6 +356,7 @@ export default function ArticlesPage() {
     subcategory: "",
   });
   const [autoSizes, setAutoSizes] = useState<string[]>([]);
+  const [sizeQty, setSizeQty] = useState<Record<string, number>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [aiImages, setAiImages] = useState<string[]>([]);
   const [isGeneratingImages, setIsGeneratingImages] = useState(false);
@@ -366,7 +367,7 @@ export default function ArticlesPage() {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data: typeof form & { sizes: string[] }) => {
+    mutationFn: async (data: typeof form & { sizes: string[]; sizeQty: Record<string, number> }) => {
       const res = await apiRequest("POST", "/api/admin/products", data);
       return res.json();
     },
@@ -377,6 +378,7 @@ export default function ArticlesPage() {
       setShowAddForm(false);
       setForm({ name: "", description: "", price: "", costPrice: "", imageUrl: "", category: "", subcategory: "" });
       setAutoSizes([]);
+      setSizeQty({});
       setAiImages([]);
       setAiImageError("");
     },
@@ -414,6 +416,7 @@ export default function ArticlesPage() {
     setForm((prev) => ({ ...prev, subcategory }));
     const sizes = getSizesForProduct(form.category, subcategory);
     setAutoSizes(sizes);
+    setSizeQty(Object.fromEntries(sizes.map(s => [s, 0])));
   };
 
   const subcategoryList = form.category && SUBCATEGORIES[form.category]
@@ -422,7 +425,7 @@ export default function ArticlesPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    createMutation.mutate({ ...form, sizes: autoSizes });
+    createMutation.mutate({ ...form, sizes: autoSizes, sizeQty });
   };
 
   return (
@@ -470,7 +473,6 @@ export default function ArticlesPage() {
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
                 className="w-full border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-foreground min-h-[80px]"
                 placeholder="Product description..."
-                required
               />
             </div>
 
@@ -494,7 +496,6 @@ export default function ArticlesPage() {
                 onChange={(e) => setForm({ ...form, costPrice: e.target.value.replace(/[^0-9.]/g, "") })}
                 className="w-full border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-foreground"
                 placeholder="500"
-                required
               />
             </div>
 
@@ -517,7 +518,7 @@ export default function ArticlesPage() {
               </div>
               <input type="url" value={form.imageUrl} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
                 className="w-full border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-foreground"
-                placeholder="https://images.unsplash.com/... or generate with AI above" required />
+                placeholder="https://images.unsplash.com/... or generate with AI above" />
               {aiImageError && <p className="text-xs text-red-500 mt-1">{aiImageError}</p>}
               {aiImages.length > 0 && (
                 <div className="mt-3">
@@ -577,14 +578,24 @@ export default function ArticlesPage() {
 
           {autoSizes.length > 0 && (
             <div>
-              <label className="block text-[10px] uppercase tracking-widest font-semibold mb-2">Sizes (Auto-assigned)</label>
-              <div className="flex flex-wrap gap-1.5">
+              <label className="block text-[10px] uppercase tracking-widest font-semibold mb-2">Opening Stock Qty per Size</label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 {autoSizes.map((size) => (
-                  <span key={size} className="px-2.5 py-1 bg-secondary text-xs font-medium border border-border">
-                    {size}
-                  </span>
+                  <div key={size}>
+                    <label className="block text-[10px] text-muted-foreground font-semibold mb-1">{size}</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={sizeQty[size] ?? 0}
+                      onChange={(e) => setSizeQty(prev => ({ ...prev, [size]: Math.max(0, parseInt(e.target.value) || 0) }))}
+                      className="w-full border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-foreground"
+                    />
+                  </div>
                 ))}
               </div>
+              <p className="text-[10px] text-muted-foreground mt-2">
+                Total: {Object.values(sizeQty).reduce((a, b) => a + b, 0)} units
+              </p>
             </div>
           )}
 
@@ -625,13 +636,14 @@ export default function ArticlesPage() {
                   <th className="px-4 py-3 text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">Category</th>
                   <th className="px-4 py-3 text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">Selling Price</th>
                   <th className="px-4 py-3 text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">Cost Price</th>
+                  <th className="px-4 py-3 text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">Stock</th>
                   <th className="px-4 py-3 text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {(!products || products.length === 0) ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
+                    <td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">
                       No articles yet. Click "Add Article" to create one.
                     </td>
                   </tr>
@@ -653,6 +665,11 @@ export default function ArticlesPage() {
                       <td className="px-4 py-3 text-muted-foreground">{p.category} / {p.subcategory}</td>
                       <td className="px-4 py-3">Rs. {p.price}</td>
                       <td className="px-4 py-3 text-muted-foreground">Rs. {p.costPrice || "0"}</td>
+                      <td className="px-4 py-3">
+                        <span className={cn("text-xs font-semibold", (p as any).totalStock === 0 ? "text-red-500" : (p as any).totalStock < 10 ? "text-amber-500" : "text-green-600")}>
+                          {(p as any).totalStock ?? 0}
+                        </span>
+                      </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <button onClick={() => setEditProduct(p)}

@@ -106,6 +106,10 @@ app.use((req, res, next) => {
 
 (async () => {
   await db.execute(sql`
+    ALTER TABLE inventory ADD COLUMN IF NOT EXISTS size TEXT NOT NULL DEFAULT ''
+  `).catch((err) => console.error("inventory.size migration error:", err));
+
+  await db.execute(sql`
     CREATE TABLE IF NOT EXISTS otp_verifications (
       id SERIAL PRIMARY KEY,
       mobile TEXT NOT NULL,

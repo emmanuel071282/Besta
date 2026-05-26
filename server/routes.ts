@@ -8,7 +8,7 @@ import bcrypt from "bcryptjs";
 import { sendSms, sendWhatsApp } from "./sms";
 import { processStylistMessage, getDemoResponse, isAIStylistConfigured } from "./ai-stylist";
 import { db } from "./db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sum } from "drizzle-orm";
 import { createRazorpayOrder, verifyPaymentSignature, getRazorpayKeyId, isRazorpayConfigured } from "./payment";
 import { buildInvoiceData, generateInvoiceHTML, generateInvoiceNumber, calculateGST, sendInvoiceWhatsApp, sendInvoiceEmail } from "./invoice";
 import {
@@ -452,18 +452,38 @@ export async function registerRoutes(
   // ---- Admin Article/Product management ----
   app.get("/api/admin/products", requireAdmin, async (_req, res) => {
     const productsList = await storage.getProducts();
-    res.json(productsList);
+    const stockRows = await db
+      .select({ productId: inventory.productId, total: sql<number>`SUM(${inventory.quantity})` })
+      .from(inventory)
+      .groupBy(inventory.productId);
+    const stockMap = new Map(stockRows.map(r => [r.productId, Number(r.total)]));
+    res.json(productsList.map(p => ({ ...p, totalStock: stockMap.get(p.id) ?? 0 })));
   });
 
   app.post("/api/admin/products", requireAdmin, async (req, res) => {
     try {
-      const parsed = insertProductSchema.safeParse(req.body);
+      const { sizeQty, ...rest } = req.body as { sizeQty?: Record<string, number> } & Record<string, unknown>;
+      const parsed = insertProductSchema.safeParse(rest);
       if (!parsed.success) {
         return res.status(400).json({ message: parsed.error.errors[0].message });
       }
       const product = await storage.createProduct(parsed.data);
       const barcode = generateEAN13Barcode(product.id);
       const updated = await storage.updateProductBarcode(product.id, barcode);
+
+      // Create per-size inventory records using the first store as default
+      if (sizeQty && Object.keys(sizeQty).length > 0) {
+        const stores = await storage.getStores();
+        const defaultStoreId = stores[0]?.id;
+        if (defaultStoreId) {
+          await Promise.all(
+            Object.entries(sizeQty).map(([size, quantity]) =>
+              storage.upsertInventory({ productId: product.id, storeId: defaultStoreId, size, quantity, reservedQty: 0 })
+            )
+          );
+        }
+      }
+
       res.json(updated ?? product);
     } catch (error: any) {
       if (error?.code === "23505" && error?.constraint?.includes("barcode")) {

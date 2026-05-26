@@ -249,7 +249,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async upsertInventory(data: InsertInventory): Promise<Inventory> {
-    const existing = await this.getInventoryByProductAndStore(data.productId, data.storeId);
+    const size = data.size ?? "";
+    const conditions = [eq(inventory.productId, data.productId), eq(inventory.storeId, data.storeId), eq(inventory.size, size)];
+    const [existing] = await db.select().from(inventory).where(and(...conditions));
     if (existing) {
       const [updated] = await db.update(inventory)
         .set({ quantity: data.quantity, reservedQty: data.reservedQty ?? 0 })
@@ -257,7 +259,7 @@ export class DatabaseStorage implements IStorage {
         .returning();
       return updated;
     }
-    const [created] = await db.insert(inventory).values(data).returning();
+    const [created] = await db.insert(inventory).values({ ...data, size }).returning();
     return created;
   }
 

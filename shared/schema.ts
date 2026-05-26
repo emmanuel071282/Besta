@@ -226,6 +226,7 @@ export const inventory = pgTable("inventory", {
   id: serial("id").primaryKey(),
   productId: integer("product_id").notNull(),
   storeId: integer("store_id").notNull(),
+  size: text("size").notNull().default(""),
   quantity: integer("quantity").notNull().default(0),
   reservedQty: integer("reserved_qty").notNull().default(0),
 });
