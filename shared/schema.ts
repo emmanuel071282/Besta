@@ -289,6 +289,26 @@ export type OrderItem = typeof orderItems.$inferSelect;
 export const ORDER_STATUSES = ["placed", "confirmed", "processing", "ready_to_ship", "shipped", "in_transit", "out_for_delivery", "delivered", "cancelled", "returned", "rto"] as const;
 export type OrderStatus = typeof ORDER_STATUSES[number];
 
+export const wishlists = pgTable("wishlists", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  productId: integer("product_id").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+export type Wishlist = typeof wishlists.$inferSelect;
+
+export const reviews = pgTable("reviews", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  productId: integer("product_id").notNull(),
+  rating: integer("rating").notNull(),
+  comment: text("comment").notNull().default(""),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+export const insertReviewSchema = createInsertSchema(reviews).omit({ id: true, createdAt: true });
+export type InsertReview = z.infer<typeof insertReviewSchema>;
+export type Review = typeof reviews.$inferSelect;
+
 export const registerSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   mobile: z.string().regex(/^[6-9]\d{9}$/, "Enter a valid 10-digit Indian mobile number"),

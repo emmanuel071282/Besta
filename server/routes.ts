@@ -3,12 +3,12 @@ import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
-import { registerSchema, loginSchema, ORDER_STATUSES, getSizesForProduct, otpVerifications, insertCampaignSchema, insertProductSchema, generateEAN13Barcode, type InsertCampaign } from "@shared/schema";
+import { registerSchema, loginSchema, ORDER_STATUSES, getSizesForProduct, otpVerifications, insertCampaignSchema, insertProductSchema, generateEAN13Barcode, wishlists, reviews, products, type InsertCampaign } from "@shared/schema";
 import bcrypt from "bcryptjs";
 import { sendSms, sendWhatsApp } from "./sms";
 import { processStylistMessage, getDemoResponse, isAIStylistConfigured } from "./ai-stylist";
 import { db } from "./db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { createRazorpayOrder, verifyPaymentSignature, getRazorpayKeyId, isRazorpayConfigured } from "./payment";
 import { buildInvoiceData, generateInvoiceHTML, generateInvoiceNumber, calculateGST, sendInvoiceWhatsApp, sendInvoiceEmail } from "./invoice";
 import {
@@ -1458,6 +1458,66 @@ export async function registerRoutes(
     // Get unique mobiles with their latest message
     const allMessages = await storage.getStylistConversation("", 200);
     res.json(allMessages);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Wishlist routes
+  // ---------------------------------------------------------------------------
+  app.get("/api/wishlist", requireAuth, async (req, res) => {
+    const userId = (req as any).user.id;
+    const rows = await db
+      .select({ product: products })
+      .from(wishlists)
+      .innerJoin(products, eq(wishlists.productId, products.id))
+      .where(eq(wishlists.userId, userId));
+    res.json(rows.map(r => r.product));
+  });
+
+  app.post("/api/wishlist/:productId", requireAuth, async (req, res) => {
+    const userId = (req as any).user.id;
+    const productId = parseInt(req.params.productId);
+    if (isNaN(productId)) return res.status(400).json({ message: "Invalid product ID" });
+    try {
+      await db.insert(wishlists).values({ userId, productId }).onConflictDoNothing();
+      res.json({ added: true });
+    } catch {
+      res.status(500).json({ message: "Failed to add to wishlist" });
+    }
+  });
+
+  app.delete("/api/wishlist/:productId", requireAuth, async (req, res) => {
+    const userId = (req as any).user.id;
+    const productId = parseInt(req.params.productId);
+    if (isNaN(productId)) return res.status(400).json({ message: "Invalid product ID" });
+    await db.delete(wishlists).where(and(eq(wishlists.userId, userId), eq(wishlists.productId, productId)));
+    res.json({ removed: true });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Reviews routes
+  // ---------------------------------------------------------------------------
+  app.get("/api/products/:id/reviews", async (req, res) => {
+    const productId = parseInt(req.params.id);
+    if (isNaN(productId)) return res.status(400).json({ message: "Invalid product ID" });
+    const rows = await db.select().from(reviews).where(eq(reviews.productId, productId)).orderBy(desc(reviews.createdAt));
+    res.json(rows);
+  });
+
+  app.post("/api/products/:id/reviews", requireAuth, async (req, res) => {
+    const userId = (req as any).user.id;
+    const productId = parseInt(req.params.id);
+    if (isNaN(productId)) return res.status(400).json({ message: "Invalid product ID" });
+    const schema = z.object({ rating: z.number().int().min(1).max(5), comment: z.string().max(500).default("") });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
+    try {
+      const [review] = await db.insert(reviews).values({ userId, productId, ...parsed.data })
+        .onConflictDoUpdate({ target: [reviews.userId, reviews.productId], set: { rating: parsed.data.rating, comment: parsed.data.comment } })
+        .returning();
+      res.json(review);
+    } catch {
+      res.status(500).json({ message: "Failed to submit review" });
+    }
   });
 
   await seedDatabase();

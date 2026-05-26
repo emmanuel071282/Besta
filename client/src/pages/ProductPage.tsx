@@ -2,34 +2,107 @@ import { useRoute } from "wouter";
 import { useProduct, useProductsByCategory } from "@/hooks/use-products";
 import { useCart } from "@/hooks/use-cart";
 import { useWishlist } from "@/hooks/use-wishlist";
+import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProductCard } from "@/components/product/ProductCard";
-import { 
-  Accordion, 
-  AccordionContent, 
-  AccordionItem, 
-  AccordionTrigger 
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger
 } from "@/components/ui/accordion";
 import { useState } from "react";
-import { Check, Heart } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Check, Heart, Star, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getSizesForProduct } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { usePageMeta } from "@/hooks/use-page-meta";
 
+interface Review {
+  id: number;
+  userId: number;
+  productId: number;
+  rating: number;
+  comment: string;
+  createdAt: string;
+}
+
+function StarRating({ value, onChange, readonly = false }: { value: number; onChange?: (v: number) => void; readonly?: boolean }) {
+  return (
+    <div className="flex gap-0.5">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <button
+          key={star}
+          type="button"
+          disabled={readonly}
+          onClick={() => onChange?.(star)}
+          className={cn("p-0.5", !readonly && "hover:scale-110 transition-transform")}
+          aria-label={`Rate ${star} star${star !== 1 ? "s" : ""}`}
+        >
+          <Star
+            className={cn(
+              "w-5 h-5 transition-colors",
+              star <= value ? "fill-amber-400 stroke-amber-400" : "stroke-muted-foreground fill-none"
+            )}
+          />
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function ProductPage() {
   const [, params] = useRoute("/product/:id");
   const id = params?.id ? parseInt(params.id, 10) : 0;
-  
+
   const { data: product, isLoading, error } = useProduct(id);
   const { data: relatedProducts } = useProductsByCategory(product?.category || "");
   const { addItem } = useCart();
   const { toggleItem, isInWishlist } = useWishlist();
+  const { user } = useAuth();
   const { toast } = useToast();
-  
+  const queryClient = useQueryClient();
+
   const [isAdded, setIsAdded] = useState(false);
   const [selectedSize, setSelectedSize] = useState<string>("");
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
+
+  const { data: reviews = [] } = useQuery<Review[]>({
+    queryKey: ["/api/products", id, "reviews"],
+    queryFn: async () => {
+      const res = await fetch(`/api/products/${id}/reviews`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch reviews");
+      return res.json();
+    },
+    enabled: !!id,
+  });
+
+  const submitReview = useMutation({
+    mutationFn: async (data: { rating: number; comment: string }) => {
+      const res = await fetch(`/api/products/${id}/reviews`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Failed to submit review");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/products", id, "reviews"] });
+      setReviewComment("");
+      toast({ title: "Review submitted", description: "Thank you for your feedback!" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
 
   usePageMeta({
     title: product ? `${product.name} — BESTA` : "BESTA - Fashion Shopping",
@@ -205,6 +278,66 @@ export default function ProductPage() {
             ) : null}
           </div>
         </div>
+
+        {!isLoading && product && (
+          <div className="border-t border-border pt-16 mt-16">
+            <div className="flex items-baseline gap-4 mb-8">
+              <h3 className="text-2xl font-display font-medium tracking-tight">Reviews</h3>
+              {reviews.length > 0 && (
+                <span className="text-sm text-muted-foreground">
+                  {(reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1)} / 5 ({reviews.length})
+                </span>
+              )}
+            </div>
+
+            {user && (
+              <form
+                className="mb-10 p-6 border border-border space-y-4 max-w-lg"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  submitReview.mutate({ rating: reviewRating, comment: reviewComment });
+                }}
+              >
+                <p className="text-xs uppercase tracking-widest font-semibold">Leave a Review</p>
+                <StarRating value={reviewRating} onChange={setReviewRating} />
+                <textarea
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  placeholder="Share your thoughts about this product (optional)"
+                  rows={3}
+                  maxLength={500}
+                  className="w-full border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-1 focus:ring-foreground resize-none"
+                />
+                <button
+                  type="submit"
+                  disabled={submitReview.isPending}
+                  className="flex items-center gap-2 bg-foreground text-background px-6 py-2.5 text-xs uppercase tracking-widest font-semibold hover:opacity-90 disabled:opacity-50 transition-opacity"
+                >
+                  {submitReview.isPending && <Loader2 className="w-3 h-3 animate-spin" />}
+                  Submit Review
+                </button>
+              </form>
+            )}
+
+            {reviews.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No reviews yet. Be the first to review this product.</p>
+            ) : (
+              <div className="space-y-6 max-w-2xl">
+                {reviews.map((review) => (
+                  <div key={review.id} className="border-b border-border pb-6">
+                    <div className="flex items-center gap-3 mb-2">
+                      <StarRating value={review.rating} readonly />
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(review.createdAt).toLocaleDateString("en-IN", { year: "numeric", month: "short", day: "numeric" })}
+                      </span>
+                    </div>
+                    {review.comment && <p className="text-sm text-foreground leading-relaxed">{review.comment}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {!isLoading && filteredRelated.length > 0 && (
           <div className="border-t border-border pt-16 mt-16">
