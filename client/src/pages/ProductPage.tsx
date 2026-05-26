@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { getSizesForProduct } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { usePageMeta } from "@/hooks/use-page-meta";
+import { SizeGuideModal } from "@/components/product/SizeGuideModal";
 
 interface Review {
   id: number;
@@ -67,6 +68,7 @@ export default function ProductPage() {
 
   const [isAdded, setIsAdded] = useState(false);
   const [selectedSize, setSelectedSize] = useState<string>("");
+  const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
 
@@ -144,6 +146,7 @@ export default function ProductPage() {
     .slice(0, 4) || [];
 
   return (
+    <>
     <div className="min-h-screen bg-background pt-28 pb-20">
       <div className="container mx-auto px-4 md:px-6">
         
@@ -194,9 +197,13 @@ export default function ProductPage() {
                   <div className="mb-8">
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-xs uppercase tracking-widest font-semibold">Select Size</span>
-                      {selectedSize && (
-                        <span className="text-xs text-muted-foreground">Selected: {selectedSize}</span>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => setSizeGuideOpen(true)}
+                        className="text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground transition-colors"
+                      >
+                        Size Guide
+                      </button>
                     </div>
                     <div className="flex flex-wrap gap-2" data-testid="size-selector">
                       {availableSizes.map((size) => (
@@ -354,5 +361,14 @@ export default function ProductPage() {
 
       </div>
     </div>
+
+    {sizeGuideOpen && product && (
+      <SizeGuideModal
+        category={product.category}
+        subcategory={product.subcategory ?? ""}
+        onClose={() => setSizeGuideOpen(false)}
+      />
+    )}
+    </>
   );
 }
