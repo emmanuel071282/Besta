@@ -97,6 +97,8 @@ export interface IStorage {
   getDashboardMetrics(): Promise<DashboardMetrics>;
   getSalesReport(startDate: Date, endDate: Date): Promise<{ date: string; orders: number; revenue: number }[]>;
   getTopSellingProducts(limit: number): Promise<{ productId: number; name: string; totalQuantity: number; totalRevenue: number }[]>;
+  getSalesByCategory(startDate: Date, endDate: Date): Promise<{ category: string; revenue: number; orders: number; profit: number }[]>;
+  getGrossProfit(startDate: Date, endDate: Date): Promise<{ revenue: number; cost: number; profit: number }>;
 
   createSupportRequest(data: InsertSupportRequest): Promise<SupportRequest>;
   getSupportRequests(): Promise<SupportRequest[]>;
@@ -703,6 +705,42 @@ export class DatabaseStorage implements IStorage {
       totalQuantity: Number(r.totalQuantity),
       totalRevenue: Number(r.totalRevenue),
     }));
+  }
+
+  async getSalesByCategory(startDate: Date, endDate: Date): Promise<{ category: string; revenue: number; orders: number; profit: number }[]> {
+    const rows = await db
+      .select({
+        category: products.category,
+        revenue: sql<number>`SUM(${orderItems.quantity} * ${orderItems.price})`,
+        orders: sql<number>`COUNT(DISTINCT ${orderItems.orderId})`,
+        profit: sql<number>`SUM(${orderItems.quantity} * (${orderItems.price} - ${orderItems.costPrice}))`,
+      })
+      .from(orderItems)
+      .innerJoin(products, eq(orderItems.productId, products.id))
+      .innerJoin(orders, and(eq(orderItems.orderId, orders.id), gte(orders.createdAt, startDate), lte(orders.createdAt, endDate)))
+      .groupBy(products.category)
+      .orderBy(sql`SUM(${orderItems.quantity} * ${orderItems.price}) DESC`);
+
+    return rows.map(r => ({
+      category: r.category,
+      revenue: Number(r.revenue),
+      orders: Number(r.orders),
+      profit: Number(r.profit),
+    }));
+  }
+
+  async getGrossProfit(startDate: Date, endDate: Date): Promise<{ revenue: number; cost: number; profit: number }> {
+    const [row] = await db
+      .select({
+        revenue: sql<number>`COALESCE(SUM(${orderItems.quantity} * ${orderItems.price}), 0)`,
+        cost: sql<number>`COALESCE(SUM(${orderItems.quantity} * ${orderItems.costPrice}), 0)`,
+      })
+      .from(orderItems)
+      .innerJoin(orders, and(eq(orderItems.orderId, orders.id), gte(orders.createdAt, startDate), lte(orders.createdAt, endDate)));
+
+    const revenue = Number(row?.revenue ?? 0);
+    const cost = Number(row?.cost ?? 0);
+    return { revenue, cost, profit: revenue - cost };
   }
 
   async createSupportRequest(data: InsertSupportRequest): Promise<SupportRequest> {

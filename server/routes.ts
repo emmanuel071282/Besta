@@ -397,9 +397,13 @@ export async function registerRoutes(
     const endDate = new Date();
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
-    const report = await storage.getSalesReport(startDate, endDate);
-    const topProducts = await storage.getTopSellingProducts(10);
-    res.json({ report, topProducts });
+    const [report, topProducts, categoryBreakdown, grossProfit] = await Promise.all([
+      storage.getSalesReport(startDate, endDate),
+      storage.getTopSellingProducts(10),
+      storage.getSalesByCategory(startDate, endDate),
+      storage.getGrossProfit(startDate, endDate),
+    ]);
+    res.json({ report, topProducts, categoryBreakdown, grossProfit });
   });
 
   app.get("/api/admin/stores", requireAdmin, async (_req, res) => {
