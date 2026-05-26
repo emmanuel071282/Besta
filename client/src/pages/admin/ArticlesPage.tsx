@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import AdminLayout from "./AdminLayout";
-import { Loader2, Plus, X, Printer, Barcode, Sparkles, ImageUp } from "lucide-react";
+import { Loader2, Plus, X, Printer, Barcode, Sparkles, ImageUp, Pencil, ImageIcon } from "lucide-react";
 import type { Product } from "@shared/schema";
 import { SUBCATEGORIES, getAllSubcategories, getSizesForProduct } from "@shared/schema";
 import JsBarcode from "jsbarcode";
@@ -86,9 +86,131 @@ function BarcodeModal({ product, onClose }: { product: Product; onClose: () => v
   );
 }
 
+function EditProductModal({ product, onClose }: { product: Product; onClose: () => void }) {
+  const [form, setForm] = useState({
+    name: product.name,
+    description: product.description || "",
+    price: product.price,
+    costPrice: product.costPrice || "",
+    imageUrl: product.imageUrl || "",
+    category: product.category,
+    subcategory: product.subcategory,
+  });
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setForm((prev) => ({ ...prev, imageUrl: reader.result as string }));
+    reader.readAsDataURL(file);
+  };
+
+  const subcategoryList = form.category && SUBCATEGORIES[form.category]
+    ? getAllSubcategories(SUBCATEGORIES[form.category])
+    : [];
+
+  const updateMutation = useMutation({
+    mutationFn: async (data: typeof form) => {
+      const res = await apiRequest("PATCH", `/api/admin/products/${product.id}`, data);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/products"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      onClose();
+    },
+    onError: () => alert("Failed to update product. Please try again."),
+  });
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-background border border-border w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-6 border-b border-border">
+          <h3 className="text-sm font-bold uppercase tracking-widest">Edit Article</h3>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest font-semibold mb-2">Article Name</label>
+            <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
+              className="w-full border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-foreground" required />
+          </div>
+          <div>
+            <label className="block text-[10px] uppercase tracking-widest font-semibold mb-2">Description</label>
+            <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
+              className="w-full border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-foreground min-h-[72px]" />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest font-semibold mb-2">Selling Price (Rs.)</label>
+              <input type="text" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value.replace(/[^0-9.]/g, "") })}
+                className="w-full border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-foreground" required />
+            </div>
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest font-semibold mb-2">Cost Price (Rs.)</label>
+              <input type="text" value={form.costPrice} onChange={(e) => setForm({ ...form, costPrice: e.target.value.replace(/[^0-9.]/g, "") })}
+                className="w-full border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-foreground" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest font-semibold mb-2">Category</label>
+              <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value, subcategory: "" })}
+                className="w-full border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-foreground">
+                {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[10px] uppercase tracking-widest font-semibold mb-2">Subcategory</label>
+              <select value={form.subcategory} onChange={(e) => setForm({ ...form, subcategory: e.target.value })}
+                className="w-full border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-foreground" disabled={!form.category}>
+                <option value="">Select subcategory</option>
+                {subcategoryList.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+          </div>
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-[10px] uppercase tracking-widest font-semibold">Image</label>
+              <div className="flex gap-2">
+                <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest font-semibold border border-border px-3 py-1 hover:bg-secondary transition-colors cursor-pointer">
+                  <ImageUp className="w-3 h-3" /> Gallery
+                  <input type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
+                </label>
+                <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest font-semibold border border-border px-3 py-1 hover:bg-secondary transition-colors cursor-pointer">
+                  <ImageUp className="w-3 h-3" /> Camera
+                  <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileSelect} />
+                </label>
+              </div>
+            </div>
+            {form.imageUrl && (
+              <img src={form.imageUrl} alt="Preview" className="w-full h-40 object-cover border border-border mb-2" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+            )}
+            <input type="url" value={form.imageUrl} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
+              className="w-full border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-foreground"
+              placeholder="https://..." />
+          </div>
+        </div>
+        <div className="flex gap-2 p-6 border-t border-border">
+          <button onClick={() => updateMutation.mutate(form)} disabled={updateMutation.isPending || !form.name || !form.price}
+            className="flex-1 bg-foreground text-background py-2.5 text-xs uppercase tracking-widest font-semibold hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2">
+            {updateMutation.isPending && <Loader2 className="w-3 h-3 animate-spin" />}
+            Save Changes
+          </button>
+          <button onClick={onClose} className="border border-border px-4 py-2.5 text-xs uppercase tracking-widest font-semibold hover:bg-secondary">Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ArticlesPage() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [barcodeProduct, setBarcodeProduct] = useState<Product | null>(null);
+  const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [form, setForm] = useState({
     name: "",
     description: "",
@@ -354,6 +476,7 @@ export default function ArticlesPage() {
               <thead>
                 <tr className="border-b border-border text-left">
                   <th className="px-4 py-3 text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">ID</th>
+                  <th className="px-4 py-3 text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">Image</th>
                   <th className="px-4 py-3 text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">Barcode</th>
                   <th className="px-4 py-3 text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">Name</th>
                   <th className="px-4 py-3 text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">Category</th>
@@ -365,7 +488,7 @@ export default function ArticlesPage() {
               <tbody>
                 {(!products || products.length === 0) ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
+                    <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
                       No articles yet. Click "Add Article" to create one.
                     </td>
                   </tr>
@@ -373,22 +496,33 @@ export default function ArticlesPage() {
                   products.map((p) => (
                     <tr key={p.id} className="border-b border-border/50 hover:bg-secondary/30">
                       <td className="px-4 py-3 text-muted-foreground">#{p.id}</td>
+                      <td className="px-4 py-3">
+                        {p.imageUrl ? (
+                          <img src={p.imageUrl} alt={p.name} className="w-10 h-10 object-cover border border-border" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                        ) : (
+                          <div className="w-10 h-10 bg-secondary border border-border flex items-center justify-center">
+                            <ImageIcon className="w-4 h-4 text-muted-foreground" />
+                          </div>
+                        )}
+                      </td>
                       <td className="px-4 py-3 font-mono text-xs">{p.barcode || "—"}</td>
                       <td className="px-4 py-3 font-medium">{p.name}</td>
                       <td className="px-4 py-3 text-muted-foreground">{p.category} / {p.subcategory}</td>
                       <td className="px-4 py-3">Rs. {p.price}</td>
                       <td className="px-4 py-3 text-muted-foreground">Rs. {p.costPrice || "0"}</td>
                       <td className="px-4 py-3">
-                        {p.barcode ? (
-                          <button
-                            onClick={() => setBarcodeProduct(p)}
-                            className="flex items-center gap-1.5 text-xs border border-border px-3 py-1.5 hover:bg-secondary transition-colors"
-                          >
-                            <Barcode className="w-3.5 h-3.5" /> View
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => setEditProduct(p)}
+                            className="flex items-center gap-1.5 text-xs border border-border px-3 py-1.5 hover:bg-secondary transition-colors">
+                            <Pencil className="w-3.5 h-3.5" /> Edit
                           </button>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">N/A</span>
-                        )}
+                          {p.barcode && (
+                            <button onClick={() => setBarcodeProduct(p)}
+                              className="flex items-center gap-1.5 text-xs border border-border px-3 py-1.5 hover:bg-secondary transition-colors">
+                              <Barcode className="w-3.5 h-3.5" /> Barcode
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -401,6 +535,9 @@ export default function ArticlesPage() {
 
       {barcodeProduct && (
         <BarcodeModal product={barcodeProduct} onClose={() => setBarcodeProduct(null)} />
+      )}
+      {editProduct && (
+        <EditProductModal product={editProduct} onClose={() => setEditProduct(null)} />
       )}
     </AdminLayout>
   );
