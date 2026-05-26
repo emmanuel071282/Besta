@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import AdminLayout from "./AdminLayout";
-import { Loader2, Plus, X, Printer, Barcode, Sparkles, ImageUp, Pencil, ImageIcon } from "lucide-react";
+import { Loader2, Plus, X, Printer, Barcode, Sparkles, ImageUp, Pencil, ImageIcon, FileUp, Download, AlertCircle, CheckCircle2 } from "lucide-react";
 import type { Product } from "@shared/schema";
 import { SUBCATEGORIES, getAllSubcategories, getSizesForProduct } from "@shared/schema";
 import JsBarcode from "jsbarcode";
@@ -207,8 +207,143 @@ function EditProductModal({ product, onClose }: { product: Product; onClose: () 
   );
 }
 
+const CSV_TEMPLATE = `name,description,price,costPrice,imageUrl,category,subcategory
+Cotton Linen Shirt,A breathable everyday shirt,899,450,https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=800,Mens,Shirts
+Floral Midi Dress,Feminine floral print midi dress,1299,600,https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=800,Ladies,Dresses
+`;
+
+function CsvImportModal({ onClose }: { onClose: () => void }) {
+  const [csvText, setCsvText] = useState("");
+  const [result, setResult] = useState<{ imported: number; errors: { row: number; reason: string }[] } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const importMutation = useMutation({
+    mutationFn: async (csv: string) => {
+      const res = await apiRequest("POST", "/api/admin/products/bulk-csv", { csv });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Import failed");
+      return data;
+    },
+    onSuccess: (data) => {
+      setResult(data);
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/products"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+    },
+    onError: (err: Error) => {
+      setResult({ imported: 0, errors: [{ row: 0, reason: err.message }] });
+    },
+  });
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setCsvText(reader.result as string);
+    reader.readAsText(file);
+  };
+
+  const handleDownloadTemplate = () => {
+    const blob = new Blob([CSV_TEMPLATE], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "besta_products_template.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-background border border-border w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-6 border-b border-border">
+          <h3 className="text-sm font-bold uppercase tracking-widest">Bulk CSV Import</h3>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="w-5 h-5" /></button>
+        </div>
+
+        <div className="p-6 space-y-5">
+          {/* Instructions */}
+          <div className="text-xs text-muted-foreground space-y-1 bg-secondary/50 px-4 py-3 border border-border">
+            <p className="font-semibold text-foreground uppercase tracking-widest text-[10px] mb-2">Required columns</p>
+            <p><span className="font-mono bg-background px-1">name</span>, <span className="font-mono bg-background px-1">price</span>, <span className="font-mono bg-background px-1">category</span>, <span className="font-mono bg-background px-1">subcategory</span></p>
+            <p className="mt-1">Optional: <span className="font-mono bg-background px-1">description</span>, <span className="font-mono bg-background px-1">costPrice</span>, <span className="font-mono bg-background px-1">imageUrl</span></p>
+            <p className="mt-1">Valid categories: Mens, Ladies, Kids, Accessories, Footwear, Cosmetics</p>
+            <p>Sizes are auto-assigned based on category + subcategory. Barcodes are auto-generated.</p>
+          </div>
+
+          {/* Upload area */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-[10px] uppercase tracking-widest font-semibold">CSV File or Paste</label>
+              <div className="flex gap-2">
+                <button type="button" onClick={handleDownloadTemplate}
+                  className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest font-semibold border border-border px-3 py-1 hover:bg-secondary transition-colors">
+                  <Download className="w-3 h-3" /> Template
+                </button>
+                <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest font-semibold border border-border px-3 py-1 hover:bg-secondary transition-colors cursor-pointer">
+                  <FileUp className="w-3 h-3" /> Upload CSV
+                  <input ref={fileInputRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleFileChange} />
+                </label>
+              </div>
+            </div>
+            <textarea
+              value={csvText}
+              onChange={(e) => setCsvText(e.target.value)}
+              placeholder={`name,description,price,costPrice,imageUrl,category,subcategory\nCotton T-Shirt,Comfortable tee,599,299,,Mens,T-Shirts`}
+              rows={8}
+              className="w-full border border-border bg-background px-3 py-2 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-foreground resize-none"
+            />
+          </div>
+
+          {/* Result */}
+          {result && (
+            <div className="space-y-3">
+              <div className={`flex items-center gap-2 px-4 py-3 border text-sm font-medium ${result.imported > 0 ? "border-green-400 bg-green-50 dark:bg-green-950/20 text-green-800 dark:text-green-400" : "border-border bg-secondary text-muted-foreground"}`}>
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                {result.imported} product{result.imported !== 1 ? "s" : ""} imported successfully
+              </div>
+              {result.errors.length > 0 && (
+                <div className="border border-amber-400 bg-amber-50 dark:bg-amber-950/20 px-4 py-3 space-y-1">
+                  <p className="text-[10px] uppercase tracking-widest font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                    <AlertCircle className="w-3 h-3" /> {result.errors.length} row{result.errors.length !== 1 ? "s" : ""} skipped
+                  </p>
+                  {result.errors.map((e, i) => (
+                    <p key={i} className="text-xs text-amber-700 dark:text-amber-500">
+                      {e.row > 0 ? `Row ${e.row}: ` : ""}{e.reason}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-2 p-6 border-t border-border">
+          {!result ? (
+            <>
+              <button
+                onClick={() => csvText.trim() && importMutation.mutate(csvText)}
+                disabled={importMutation.isPending || !csvText.trim()}
+                className="flex-1 bg-foreground text-background py-2.5 text-xs uppercase tracking-widest font-semibold hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {importMutation.isPending && <Loader2 className="w-3 h-3 animate-spin" />}
+                Import Products
+              </button>
+              <button onClick={onClose} className="border border-border px-4 py-2.5 text-xs uppercase tracking-widest font-semibold hover:bg-secondary">Cancel</button>
+            </>
+          ) : (
+            <button onClick={onClose} className="flex-1 bg-foreground text-background py-2.5 text-xs uppercase tracking-widest font-semibold hover:opacity-90">
+              Done
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ArticlesPage() {
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showCsvImport, setShowCsvImport] = useState(false);
   const [barcodeProduct, setBarcodeProduct] = useState<Product | null>(null);
   const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [form, setForm] = useState({
@@ -297,12 +432,20 @@ export default function ArticlesPage() {
           <h1 className="text-3xl font-bold tracking-tight">Articles</h1>
           <p className="text-muted-foreground text-sm mt-1">Product catalogue with EAN-13 barcodes</p>
         </div>
-        <button
-          onClick={() => setShowAddForm(!showAddForm)}
-          className="flex items-center gap-2 bg-foreground text-background px-4 py-2 text-xs uppercase tracking-widest font-semibold hover:opacity-90 transition-opacity"
-        >
-          <Plus className="w-4 h-4" /> Add Article
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowCsvImport(true)}
+            className="flex items-center gap-2 border border-border px-4 py-2 text-xs uppercase tracking-widest font-semibold hover:bg-secondary transition-colors"
+          >
+            <FileUp className="w-4 h-4" /> CSV Import
+          </button>
+          <button
+            onClick={() => setShowAddForm(!showAddForm)}
+            className="flex items-center gap-2 bg-foreground text-background px-4 py-2 text-xs uppercase tracking-widest font-semibold hover:opacity-90 transition-opacity"
+          >
+            <Plus className="w-4 h-4" /> Add Article
+          </button>
+        </div>
       </div>
 
       {showAddForm && (
@@ -538,6 +681,9 @@ export default function ArticlesPage() {
       )}
       {editProduct && (
         <EditProductModal product={editProduct} onClose={() => setEditProduct(null)} />
+      )}
+      {showCsvImport && (
+        <CsvImportModal onClose={() => setShowCsvImport(false)} />
       )}
     </AdminLayout>
   );

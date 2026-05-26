@@ -470,6 +470,89 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/admin/products/bulk-csv", requireAdmin, async (req, res) => {
+    const { csv } = req.body as { csv: string };
+    if (!csv || typeof csv !== "string") return res.status(400).json({ message: "CSV content required" });
+
+    // Minimal RFC 4180-compatible CSV parser (handles quoted fields with commas/newlines)
+    function parseCSV(text: string): string[][] {
+      const rows: string[][] = [];
+      let row: string[] = [];
+      let field = "";
+      let inQuotes = false;
+      for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        const next = text[i + 1];
+        if (inQuotes) {
+          if (ch === '"' && next === '"') { field += '"'; i++; }
+          else if (ch === '"') { inQuotes = false; }
+          else { field += ch; }
+        } else {
+          if (ch === '"') { inQuotes = true; }
+          else if (ch === ',') { row.push(field.trim()); field = ""; }
+          else if (ch === '\n' || (ch === '\r' && next === '\n')) {
+            if (ch === '\r') i++;
+            row.push(field.trim()); field = "";
+            if (row.some(Boolean)) rows.push(row);
+            row = [];
+          } else { field += ch; }
+        }
+      }
+      if (field || row.length) { row.push(field.trim()); if (row.some(Boolean)) rows.push(row); }
+      return rows;
+    }
+
+    const rows = parseCSV(csv.trim());
+    if (rows.length < 2) return res.status(400).json({ message: "CSV must have a header row and at least one data row" });
+
+    const headers = rows[0].map((h) => h.toLowerCase().replace(/\s+/g, ""));
+    const col = (name: string) => headers.indexOf(name);
+
+    const required = ["name", "price", "category", "subcategory"];
+    const missing = required.filter((h) => col(h) === -1);
+    if (missing.length) return res.status(400).json({ message: `Missing required columns: ${missing.join(", ")}` });
+
+    const VALID_CATEGORIES = ["Mens", "Ladies", "Kids", "Accessories", "Footwear", "Cosmetics"];
+    const imported: number[] = [];
+    const errors: { row: number; reason: string }[] = [];
+
+    for (let i = 1; i < rows.length; i++) {
+      const r = rows[i];
+      const get = (name: string) => (col(name) !== -1 ? r[col(name)] ?? "" : "");
+      const rowNum = i + 1;
+
+      const name = get("name");
+      const price = get("price");
+      const category = get("category");
+      const subcategory = get("subcategory");
+
+      if (!name) { errors.push({ row: rowNum, reason: "Name is required" }); continue; }
+      if (!price || isNaN(Number(price))) { errors.push({ row: rowNum, reason: "Price must be a number" }); continue; }
+      if (!VALID_CATEGORIES.includes(category)) { errors.push({ row: rowNum, reason: `Invalid category '${category}'` }); continue; }
+      if (!subcategory) { errors.push({ row: rowNum, reason: "Subcategory is required" }); continue; }
+
+      const costPrice = get("costprice") || get("cost_price") || "0";
+      const imageUrl = get("imageurl") || get("image_url") || get("image") || "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=800";
+      const description = get("description") || "";
+      const sizes = getSizesForProduct(category, subcategory);
+
+      try {
+        const product = await storage.createProduct({ name, description, price, costPrice, imageUrl, category, subcategory, sizes });
+        const barcode = generateEAN13Barcode(product.id);
+        await storage.updateProductBarcode(product.id, barcode);
+        imported.push(product.id);
+      } catch (err: any) {
+        errors.push({ row: rowNum, reason: err?.message || "Database error" });
+      }
+    }
+
+    if (imported.length > 0) {
+      // Invalidation happens client-side; no server action needed
+    }
+
+    res.json({ imported: imported.length, errors });
+  });
+
   app.post("/api/admin/generate-product-images", requireAdmin, async (req, res) => {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
