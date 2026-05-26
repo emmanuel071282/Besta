@@ -178,7 +178,7 @@ function EditProductModal({ product, onClose }: { product: Product; onClose: () 
               <div className="flex gap-2">
                 <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest font-semibold border border-border px-3 py-1 hover:bg-secondary transition-colors cursor-pointer">
                   <ImageUp className="w-3 h-3" /> Gallery
-                  <input type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
+                  <input type="file" accept=".jpg,.jpeg,.png,.gif,.webp" className="hidden" onChange={handleFileSelect} />
                 </label>
                 <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest font-semibold border border-border px-3 py-1 hover:bg-secondary transition-colors cursor-pointer">
                   <ImageUp className="w-3 h-3" /> Camera
@@ -508,7 +508,7 @@ export default function ArticlesPage() {
                 </button>
                 <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest font-semibold border border-border px-3 py-1 hover:bg-secondary transition-colors cursor-pointer">
                   <ImageUp className="w-3 h-3" /> Gallery
-                  <input type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
+                  <input type="file" accept=".jpg,.jpeg,.png,.gif,.webp" className="hidden" onChange={handleFileSelect} />
                 </label>
                 <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest font-semibold border border-border px-3 py-1 hover:bg-secondary transition-colors cursor-pointer">
                   <ImageUp className="w-3 h-3" /> Camera
