@@ -4,9 +4,12 @@ const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
 const fromNumber = process.env.TWILIO_PHONE_NUMBER;
 const whatsappFrom = process.env.TWILIO_WHATSAPP_FROM; // e.g. "whatsapp:+14155238886"
+const senderId = process.env.TWILIO_SENDER_ID;           // 6-char DLT sender ID e.g. "BESTAI"
+const messagingServiceSid = process.env.TWILIO_MESSAGING_SERVICE_SID; // alternative to sender ID
 
 const twilioEnabled =
-  accountSid && authToken && fromNumber &&
+  accountSid && authToken &&
+  (fromNumber || senderId || messagingServiceSid) &&
   accountSid.startsWith("AC") &&
   authToken.length > 10;
 
@@ -23,11 +26,19 @@ export async function sendSms(
 
   try {
     const client = twilio(accountSid, authToken);
-    const result = await client.messages.create({
+
+    // Build message params — prefer DLT Sender ID or Messaging Service over phone number
+    const params: Record<string, string> = {
       body: message,
-      from: fromNumber,
       to: `+91${to}`,
-    });
+    };
+    if (messagingServiceSid) {
+      params.messagingServiceSid = messagingServiceSid;
+    } else {
+      params.from = senderId || fromNumber!;
+    }
+
+    const result = await client.messages.create(params as any);
     console.log(`[SMS] Sent to +91${to} — SID: ${result.sid} Status: ${result.status}`);
     return { simulated: false };
   } catch (err: any) {
