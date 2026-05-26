@@ -5,12 +5,12 @@ import fs from "fs";
 import path from "path";
 import { api } from "@shared/routes";
 import { z } from "zod";
-import { registerSchema, loginSchema, ORDER_STATUSES, getSizesForProduct, otpVerifications, insertCampaignSchema, insertProductSchema, generateEAN13Barcode, type InsertCampaign } from "@shared/schema";
+import { registerSchema, loginSchema, ORDER_STATUSES, getSizesForProduct, otpVerifications, insertCampaignSchema, insertProductSchema, generateEAN13Barcode, type InsertCampaign, wishlists, reviews, outfits, outfitItems, inventory, products } from "@shared/schema";
 import bcrypt from "bcryptjs";
 import { sendSms, sendWhatsApp } from "./sms";
 import { processStylistMessage, getDemoResponse, isAIStylistConfigured } from "./ai-stylist";
 import { db } from "./db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import { createRazorpayOrder, verifyPaymentSignature, getRazorpayKeyId, isRazorpayConfigured } from "./payment";
 import { buildInvoiceData, generateInvoiceHTML, generateInvoiceNumber, calculateGST, sendInvoiceWhatsApp, sendInvoiceEmail } from "./invoice";
 import {
@@ -450,7 +450,12 @@ export async function registerRoutes(
   // ---- Admin Article/Product management ----
   app.get("/api/admin/products", requireAdmin, async (_req, res) => {
     const productsList = await storage.getProducts();
-    res.json(productsList);
+    const stockRows = await db
+      .select({ productId: inventory.productId, total: sql<number>`SUM(${inventory.quantity})` })
+      .from(inventory)
+      .groupBy(inventory.productId);
+    const stockMap = new Map(stockRows.map(r => [r.productId, Number(r.total)]));
+    res.json(productsList.map(p => ({ ...p, totalStock: stockMap.get(p.id) ?? 0 })));
   });
 
   app.post("/api/admin/products", requireAdmin, async (req, res) => {
@@ -760,12 +765,169 @@ export async function registerRoutes(
     if (isNaN(id)) {
       return res.status(400).json({ message: "Invalid product ID" });
     }
-    
+
     const product = await storage.getProduct(id);
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
     }
     res.json(product);
+  });
+
+  // Public: per-size inventory for a product (aggregated across all stores)
+  app.get("/api/products/:id/inventory", async (req, res) => {
+    const productId = Number(req.params.id);
+    if (isNaN(productId)) return res.status(400).json({ message: "Invalid product ID" });
+    const rows = await db
+      .select({ size: inventory.size, qty: sql<number>`SUM(${inventory.quantity} - ${inventory.reservedQty})` })
+      .from(inventory)
+      .where(eq(inventory.productId, productId))
+      .groupBy(inventory.size);
+    res.json(rows.map(r => ({ size: r.size, available: Math.max(0, Number(r.qty)) })));
+  });
+
+  // Public: stores that have stock for a product
+  app.get("/api/products/:id/stores", async (req, res) => {
+    const productId = Number(req.params.id);
+    if (isNaN(productId)) return res.status(400).json({ message: "Invalid product ID" });
+    const stores = await storage.getStoresWithStock(productId, 1);
+    res.json(stores);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Wishlist routes
+  // ---------------------------------------------------------------------------
+  app.get("/api/wishlist", requireAuth, async (req, res) => {
+    const userId = req.session.userId!;
+    const rows = await db
+      .select({ product: products })
+      .from(wishlists)
+      .innerJoin(products, eq(wishlists.productId, products.id))
+      .where(eq(wishlists.userId, userId));
+    res.json(rows.map(r => r.product));
+  });
+
+  app.post("/api/wishlist/:productId", requireAuth, async (req, res) => {
+    const userId = req.session.userId!;
+    const productId = Number(req.params.productId);
+    if (isNaN(productId)) return res.status(400).json({ message: "Invalid product ID" });
+    const [existing] = await db.select().from(wishlists).where(and(eq(wishlists.userId, userId), eq(wishlists.productId, productId)));
+    if (!existing) {
+      await db.insert(wishlists).values({ userId, productId });
+    }
+    res.json({ ok: true });
+  });
+
+  app.delete("/api/wishlist/:productId", requireAuth, async (req, res) => {
+    const userId = req.session.userId!;
+    const productId = Number(req.params.productId);
+    if (isNaN(productId)) return res.status(400).json({ message: "Invalid product ID" });
+    await db.delete(wishlists).where(and(eq(wishlists.userId, userId), eq(wishlists.productId, productId)));
+    res.json({ ok: true });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Reviews routes
+  // ---------------------------------------------------------------------------
+  app.get("/api/products/:id/reviews", async (req, res) => {
+    const productId = Number(req.params.id);
+    if (isNaN(productId)) return res.status(400).json({ message: "Invalid product ID" });
+    const rows = await db.select().from(reviews).where(eq(reviews.productId, productId)).orderBy(desc(reviews.createdAt));
+    res.json(rows);
+  });
+
+  app.post("/api/products/:id/reviews", requireAuth, async (req, res) => {
+    const userId = req.session.userId!;
+    const productId = Number(req.params.id);
+    if (isNaN(productId)) return res.status(400).json({ message: "Invalid product ID" });
+    const { rating, comment } = req.body;
+    if (!rating || rating < 1 || rating > 5) return res.status(400).json({ message: "Rating must be 1–5" });
+    const [existing] = await db.select().from(reviews).where(and(eq(reviews.userId, userId), eq(reviews.productId, productId)));
+    if (existing) {
+      const [updated] = await db.update(reviews).set({ rating, comment: comment ?? "" }).where(eq(reviews.id, existing.id)).returning();
+      return res.json(updated);
+    }
+    const [created] = await db.insert(reviews).values({ userId, productId, rating, comment: comment ?? "" }).returning();
+    res.json(created);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Outfits ("Complete the Look") — public read, admin write
+  // ---------------------------------------------------------------------------
+  app.get("/api/outfits", async (_req, res) => {
+    const rows = await db.select().from(outfits).where(eq(outfits.isActive, true)).orderBy(desc(outfits.createdAt));
+    res.json(rows);
+  });
+
+  app.get("/api/outfits/:id", async (req, res) => {
+    const id = Number(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ message: "Invalid outfit ID" });
+    const [outfit] = await db.select().from(outfits).where(eq(outfits.id, id));
+    if (!outfit) return res.status(404).json({ message: "Outfit not found" });
+    const items = await db
+      .select({ product: products, displayOrder: outfitItems.displayOrder })
+      .from(outfitItems)
+      .innerJoin(products, eq(outfitItems.productId, products.id))
+      .where(eq(outfitItems.outfitId, id))
+      .orderBy(outfitItems.displayOrder);
+    res.json({ ...outfit, products: items.map(i => i.product) });
+  });
+
+  // Outfits for a specific product (show "Complete the Look" on product page)
+  app.get("/api/products/:id/outfits", async (req, res) => {
+    const productId = Number(req.params.id);
+    if (isNaN(productId)) return res.status(400).json({ message: "Invalid product ID" });
+    const outfitIds = await db
+      .select({ outfitId: outfitItems.outfitId })
+      .from(outfitItems)
+      .where(eq(outfitItems.productId, productId));
+    if (outfitIds.length === 0) return res.json([]);
+    const ids = outfitIds.map(r => r.outfitId);
+    const result = [];
+    for (const oid of ids) {
+      const [outfit] = await db.select().from(outfits).where(and(eq(outfits.id, oid), eq(outfits.isActive, true)));
+      if (!outfit) continue;
+      const items = await db
+        .select({ product: products })
+        .from(outfitItems)
+        .innerJoin(products, eq(outfitItems.productId, products.id))
+        .where(eq(outfitItems.outfitId, oid))
+        .orderBy(outfitItems.displayOrder);
+      result.push({ ...outfit, products: items.map(i => i.product) });
+    }
+    res.json(result);
+  });
+
+  // Admin outfit CRUD
+  app.get("/api/admin/outfits", requireAdmin, async (_req, res) => {
+    const rows = await db.select().from(outfits).orderBy(desc(outfits.createdAt));
+    res.json(rows);
+  });
+
+  app.post("/api/admin/outfits", requireAdmin, async (req, res) => {
+    const { name, description, imageUrl, productIds } = req.body;
+    if (!name || !Array.isArray(productIds) || productIds.length < 2) {
+      return res.status(400).json({ message: "Name and at least 2 products are required" });
+    }
+    const [outfit] = await db.insert(outfits).values({ name, description: description ?? "", imageUrl: imageUrl ?? "" }).returning();
+    for (let i = 0; i < productIds.length; i++) {
+      await db.insert(outfitItems).values({ outfitId: outfit.id, productId: productIds[i], displayOrder: i });
+    }
+    res.json(outfit);
+  });
+
+  app.patch("/api/admin/outfits/:id", requireAdmin, async (req, res) => {
+    const id = Number(req.params.id);
+    const { name, description, imageUrl, isActive } = req.body;
+    const [updated] = await db.update(outfits).set({ name, description, imageUrl, isActive }).where(eq(outfits.id, id)).returning();
+    if (!updated) return res.status(404).json({ message: "Outfit not found" });
+    res.json(updated);
+  });
+
+  app.delete("/api/admin/outfits/:id", requireAdmin, async (req, res) => {
+    const id = Number(req.params.id);
+    await db.delete(outfitItems).where(eq(outfitItems.outfitId, id));
+    await db.delete(outfits).where(eq(outfits.id, id));
+    res.json({ ok: true });
   });
 
   // ---------------------------------------------------------------------------

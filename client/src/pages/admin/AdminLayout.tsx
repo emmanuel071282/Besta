@@ -1,7 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useEffect } from "react";
-import { LayoutDashboard, ShoppingCart, BarChart3, Store, Package, Tag, MessageCircle, Megaphone, LogOut, Loader2 } from "lucide-react";
+import { LayoutDashboard, ShoppingCart, BarChart3, Store, Package, Tag, MessageCircle, Megaphone, Layers, LogOut, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
@@ -13,6 +13,7 @@ const NAV_ITEMS = [
   { href: "/admin/articles", label: "Articles", icon: Tag },
   { href: "/admin/support", label: "Support", icon: MessageCircle },
   { href: "/admin/campaigns", label: "Campaigns", icon: Megaphone },
+  { href: "/admin/outfits", label: "Outfits", icon: Layers },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

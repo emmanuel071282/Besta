@@ -191,6 +191,15 @@ export function Navbar() {
               {renderDesktopDropdown(cat)}
             </div>
           ))}
+          <Link
+            href="/lookbook"
+            className={cn(
+              "text-xs uppercase tracking-widest font-medium transition-colors hover:text-foreground py-2",
+              location === "/lookbook" ? "text-foreground border-b border-foreground" : "text-muted-foreground"
+            )}
+          >
+            Lookbook
+          </Link>
         </nav>
 
         <Link

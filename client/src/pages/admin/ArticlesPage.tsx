@@ -474,13 +474,14 @@ export default function ArticlesPage() {
                   <th className="px-4 py-3 text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">Category</th>
                   <th className="px-4 py-3 text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">Selling Price</th>
                   <th className="px-4 py-3 text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">Cost Price</th>
+                  <th className="px-4 py-3 text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">Stock</th>
                   <th className="px-4 py-3 text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {(!products || products.length === 0) ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
+                    <td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">
                       No articles yet. Click "Add Article" to create one.
                     </td>
                   </tr>
@@ -515,6 +516,16 @@ export default function ArticlesPage() {
                       <td className="px-4 py-3 text-muted-foreground">{p.category} / {p.subcategory}</td>
                       <td className="px-4 py-3">Rs. {p.price}</td>
                       <td className="px-4 py-3 text-muted-foreground">Rs. {p.costPrice || "0"}</td>
+                      <td className="px-4 py-3">
+                        {(() => {
+                          const stock = (p as any).totalStock ?? 0;
+                          return (
+                            <span className={`text-xs font-semibold ${stock === 0 ? "text-red-600" : stock < 10 ? "text-amber-600" : "text-green-600"}`}>
+                              {stock}
+                            </span>
+                          );
+                        })()}
+                      </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <button

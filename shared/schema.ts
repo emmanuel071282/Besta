@@ -226,6 +226,7 @@ export const inventory = pgTable("inventory", {
   id: serial("id").primaryKey(),
   productId: integer("product_id").notNull(),
   storeId: integer("store_id").notNull(),
+  size: text("size").notNull().default(""),
   quantity: integer("quantity").notNull().default(0),
   reservedQty: integer("reserved_qty").notNull().default(0),
 });
@@ -352,3 +353,60 @@ export function getAllSubcategories(config: SubcategoryConfig): string[] {
   }
   return config as string[];
 }
+
+// ---------------------------------------------------------------------------
+// Wishlists
+// ---------------------------------------------------------------------------
+export const wishlists = pgTable("wishlists", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  productId: integer("product_id").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertWishlistSchema = createInsertSchema(wishlists).omit({ id: true, createdAt: true });
+export type InsertWishlist = z.infer<typeof insertWishlistSchema>;
+export type Wishlist = typeof wishlists.$inferSelect;
+
+// ---------------------------------------------------------------------------
+// Reviews
+// ---------------------------------------------------------------------------
+export const reviews = pgTable("reviews", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  productId: integer("product_id").notNull(),
+  rating: integer("rating").notNull(),
+  comment: text("comment").notNull().default(""),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertReviewSchema = createInsertSchema(reviews).omit({ id: true, createdAt: true });
+export type InsertReview = z.infer<typeof insertReviewSchema>;
+export type Review = typeof reviews.$inferSelect;
+
+// ---------------------------------------------------------------------------
+// Outfit bundles ("Complete the Look")
+// ---------------------------------------------------------------------------
+export const outfits = pgTable("outfits", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description").notNull().default(""),
+  imageUrl: text("image_url").notNull().default(""),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const outfitItems = pgTable("outfit_items", {
+  id: serial("id").primaryKey(),
+  outfitId: integer("outfit_id").notNull(),
+  productId: integer("product_id").notNull(),
+  displayOrder: integer("display_order").notNull().default(0),
+});
+
+export const insertOutfitSchema = createInsertSchema(outfits).omit({ id: true, createdAt: true });
+export type InsertOutfit = z.infer<typeof insertOutfitSchema>;
+export type Outfit = typeof outfits.$inferSelect;
+
+export const insertOutfitItemSchema = createInsertSchema(outfitItems).omit({ id: true });
+export type InsertOutfitItem = z.infer<typeof insertOutfitItemSchema>;
+export type OutfitItem = typeof outfitItems.$inferSelect;

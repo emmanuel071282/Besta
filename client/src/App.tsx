@@ -26,6 +26,7 @@ const AccountPage = lazy(() => import("@/pages/AccountPage"));
 const MyOrdersPage = lazy(() => import("@/pages/MyOrdersPage"));
 const OrderDetailPage = lazy(() => import("@/pages/OrderDetailPage"));
 const SummerPage = lazy(() => import("@/pages/SummerPage"));
+const LookbookPage = lazy(() => import("@/pages/LookbookPage"));
 
 // Admin pages — lazy loaded as a separate group
 const DashboardPage = lazy(() => import("@/pages/admin/DashboardPage"));
@@ -36,6 +37,7 @@ const InventoryPage = lazy(() => import("@/pages/admin/InventoryPage"));
 const ArticlesPage = lazy(() => import("@/pages/admin/ArticlesPage"));
 const AdminSupportPage = lazy(() => import("@/pages/admin/SupportPage"));
 const CampaignsPage = lazy(() => import("@/pages/admin/CampaignsPage"));
+const OutfitsPage = lazy(() => import("@/pages/admin/OutfitsPage"));
 
 const PageFallback = () => <div className="min-h-screen bg-background" />;
 
@@ -51,6 +53,7 @@ function StorefrontRouter() {
             <Route path="/summer" component={SummerPage} />
             <Route path="/category/:category" component={CategoryPage} />
             <Route path="/product/:id" component={ProductPage} />
+            <Route path="/lookbook" component={LookbookPage} />
             <Route path="/wishlist" component={WishlistPage} />
             <Route path="/checkout" component={CheckoutPage} />
             <Route path="/exchange-policy" component={ExchangePolicyPage} />
@@ -86,6 +89,7 @@ function App() {
             <Route path="/admin/articles" component={ArticlesPage} />
             <Route path="/admin/support" component={AdminSupportPage} />
             <Route path="/admin/campaigns" component={CampaignsPage} />
+            <Route path="/admin/outfits" component={OutfitsPage} />
             <Route component={StorefrontRouter} />
           </Switch>
         </Suspense>
