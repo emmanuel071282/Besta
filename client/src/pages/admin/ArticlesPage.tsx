@@ -88,16 +88,23 @@ function BarcodeModal({ product, onClose }: { product: Product; onClose: () => v
 function ImageUploadField({
   value,
   onChange,
+  onUploadingChange,
   label = "Product Image",
 }: {
   value: string;
   onChange: (url: string) => void;
+  onUploadingChange?: (uploading: boolean) => void;
   label?: string;
 }) {
   const [mode, setMode] = useState<"url" | "file">(value && !value.startsWith("/uploads/") ? "url" : "file");
   const [preview, setPreview] = useState<string>(value || "");
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  function setUploadingState(val: boolean) {
+    setUploading(val);
+    onUploadingChange?.(val);
+  }
 
   useEffect(() => {
     setPreview(value || "");
@@ -110,7 +117,7 @@ function ImageUploadField({
       alert("Image must be under 8 MB");
       return;
     }
-    setUploading(true);
+    setUploadingState(true);
     const reader = new FileReader();
     reader.onload = async () => {
       const base64 = reader.result as string;
@@ -127,7 +134,7 @@ function ImageUploadField({
         alert("Upload failed. Please try again.");
         setPreview(value || "");
       } finally {
-        setUploading(false);
+        setUploadingState(false);
       }
     };
     reader.readAsDataURL(file);
@@ -167,7 +174,7 @@ function ImageUploadField({
           <input
             ref={fileRef}
             type="file"
-            accept="image/jpeg,image/png,image/webp"
+            accept=".jpg,.jpeg,.png,.webp,.gif"
             className="hidden"
             onChange={handleFile}
             disabled={uploading}
@@ -283,6 +290,8 @@ export default function ArticlesPage() {
   const [autoSizes, setAutoSizes] = useState<string[]>([]);
   const [sizeQty, setSizeQty] = useState<Record<string, number>>({});
   const [selectedStoreId, setSelectedStoreId] = useState<string>("");
+  const [uploading, setUploading] = useState(false);
+  const [submitError, setSubmitError] = useState<string>("");
 
   const { data: products, isLoading } = useQuery<Product[]>({
     queryKey: ["/api/admin/products"],
@@ -309,12 +318,14 @@ export default function ArticlesPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/inventory"] });
       setBarcodeProduct(newProduct);
       setShowAddForm(false);
+      setSubmitError("");
       setForm({ name: "", description: "", price: "", costPrice: "", imageUrl: "", category: "", subcategory: "" });
       setAutoSizes([]);
       setSizeQty({});
       toast({ title: "Article created", description: `${newProduct.name} added successfully` });
     },
     onError: (err: Error) => {
+      setSubmitError(err.message);
       toast({ title: "Failed to create article", description: err.message, variant: "destructive" });
     },
   });
@@ -338,6 +349,8 @@ export default function ArticlesPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (uploading) { setSubmitError("Please wait for the image to finish uploading."); return; }
+    setSubmitError("");
     createMutation.mutate({ ...form, sizes: autoSizes, sizeQty, storeId: selectedStoreId });
   };
 
@@ -439,6 +452,7 @@ export default function ArticlesPage() {
               <ImageUploadField
                 value={form.imageUrl}
                 onChange={(url) => setForm((f) => ({ ...f, imageUrl: url }))}
+                onUploadingChange={setUploading}
               />
             </div>
           </div>
@@ -480,18 +494,24 @@ export default function ArticlesPage() {
             </div>
           )}
 
+          {submitError && (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 px-4 py-3 text-sm text-red-700 dark:text-red-300">
+              {submitError}
+            </div>
+          )}
+
           <div className="flex items-center gap-2 pt-2">
             <button
               type="submit"
-              disabled={createMutation.isPending}
+              disabled={createMutation.isPending || uploading}
               className="bg-foreground text-background px-6 py-2.5 text-xs uppercase tracking-widest font-semibold hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
             >
-              {createMutation.isPending && <Loader2 className="w-3 h-3 animate-spin" />}
-              Add Article
+              {(createMutation.isPending || uploading) && <Loader2 className="w-3 h-3 animate-spin" />}
+              {uploading ? "Uploading image…" : createMutation.isPending ? "Saving…" : "Add Article"}
             </button>
             <button
               type="button"
-              onClick={() => { setShowAddForm(false); setAutoSizes([]); }}
+              onClick={() => { setShowAddForm(false); setAutoSizes([]); setSubmitError(""); }}
               className="border border-border px-6 py-2.5 text-xs uppercase tracking-widest font-semibold hover:bg-secondary"
             >
               Cancel
