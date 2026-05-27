@@ -462,7 +462,12 @@ export async function registerRoutes(
 
   app.post("/api/admin/products", requireAdmin, async (req, res) => {
     try {
-      const { sizeQty, ...rest } = req.body as { sizeQty?: Record<string, number> } & Record<string, unknown>;
+      const { sizeQty, ...rawRest } = req.body as { sizeQty?: Record<string, number> } & Record<string, any>;
+      const rest = {
+        ...rawRest,
+        price: rawRest.price || "0",
+        costPrice: rawRest.costPrice || "0",
+      };
       const parsed = insertProductSchema.safeParse(rest);
       if (!parsed.success) {
         return res.status(400).json({ message: parsed.error.errors[0].message });

@@ -361,6 +361,7 @@ export default function ArticlesPage() {
   const [aiImages, setAiImages] = useState<string[]>([]);
   const [isGeneratingImages, setIsGeneratingImages] = useState(false);
   const [aiImageError, setAiImageError] = useState("");
+  const [submitError, setSubmitError] = useState("");
 
   const { data: products, isLoading } = useQuery<Product[]>({
     queryKey: ["/api/admin/products"],
@@ -368,7 +369,16 @@ export default function ArticlesPage() {
 
   const createMutation = useMutation({
     mutationFn: async (data: typeof form & { sizes: string[]; sizeQty: Record<string, number> }) => {
-      const res = await apiRequest("POST", "/api/admin/products", data);
+      const payload = {
+        ...data,
+        price: data.price || "0",
+        costPrice: data.costPrice || "0",
+      };
+      const res = await apiRequest("POST", "/api/admin/products", payload);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || `Server error ${res.status}`);
+      }
       return res.json();
     },
     onSuccess: (newProduct: Product) => {
@@ -376,11 +386,15 @@ export default function ArticlesPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
       setBarcodeProduct(newProduct);
       setShowAddForm(false);
+      setSubmitError("");
       setForm({ name: "", description: "", price: "", costPrice: "", imageUrl: "", category: "", subcategory: "" });
       setAutoSizes([]);
       setSizeQty({});
       setAiImages([]);
       setAiImageError("");
+    },
+    onError: (err: any) => {
+      setSubmitError(err.message || "Failed to create article. Please try again.");
     },
   });
 
@@ -425,6 +439,7 @@ export default function ArticlesPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitError("");
     createMutation.mutate({ ...form, sizes: autoSizes, sizeQty });
   };
 
@@ -596,6 +611,12 @@ export default function ArticlesPage() {
               <p className="text-[10px] text-muted-foreground mt-2">
                 Total: {Object.values(sizeQty).reduce((a, b) => a + b, 0)} units
               </p>
+            </div>
+          )}
+
+          {submitError && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 text-sm rounded">
+              <strong>Error:</strong> {submitError}
             </div>
           )}
 
