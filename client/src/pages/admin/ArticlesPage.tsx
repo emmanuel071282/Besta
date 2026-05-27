@@ -6,6 +6,7 @@ import { Loader2, Plus, X, Printer, Barcode, Upload, Pencil, ImageIcon } from "l
 import type { Product, Store } from "@shared/schema";
 import { SUBCATEGORIES, getAllSubcategories, getSizesForProduct } from "@shared/schema";
 import JsBarcode from "jsbarcode";
+import { useToast } from "@/hooks/use-toast";
 
 const CATEGORIES = ["Mens", "Ladies", "Kids", "Accessories", "Footwear", "Cosmetics"];
 
@@ -266,6 +267,7 @@ function EditImageModal({ product, onClose }: { product: Product; onClose: () =>
 }
 
 export default function ArticlesPage() {
+  const { toast } = useToast();
   const [showAddForm, setShowAddForm] = useState(false);
   const [barcodeProduct, setBarcodeProduct] = useState<Product | null>(null);
   const [editImageProduct, setEditImageProduct] = useState<Product | null>(null);
@@ -292,7 +294,13 @@ export default function ArticlesPage() {
 
   const createMutation = useMutation({
     mutationFn: async (data: typeof form & { sizes: string[]; sizeQty: Record<string, number>; storeId: string }) => {
-      const res = await apiRequest("POST", "/api/admin/products", data);
+      // Sanitise numeric fields — empty string is not a valid numeric in PostgreSQL
+      const payload = {
+        ...data,
+        costPrice: data.costPrice || "0",
+        price: data.price || "0",
+      };
+      const res = await apiRequest("POST", "/api/admin/products", payload);
       return res.json();
     },
     onSuccess: (newProduct: Product) => {
@@ -304,6 +312,10 @@ export default function ArticlesPage() {
       setForm({ name: "", description: "", price: "", costPrice: "", imageUrl: "", category: "", subcategory: "" });
       setAutoSizes([]);
       setSizeQty({});
+      toast({ title: "Article created", description: `${newProduct.name} added successfully` });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Failed to create article", description: err.message, variant: "destructive" });
     },
   });
 
