@@ -460,13 +460,25 @@ export async function registerRoutes(
 
   app.post("/api/admin/products", requireAdmin, async (req, res) => {
     try {
-      const parsed = insertProductSchema.safeParse(req.body);
+      const { sizeQty, storeId, ...productData } = req.body;
+      const parsed = insertProductSchema.safeParse(productData);
       if (!parsed.success) {
         return res.status(400).json({ message: parsed.error.errors[0].message });
       }
       const product = await storage.createProduct(parsed.data);
       const barcode = generateEAN13Barcode(product.id);
       const updated = await storage.updateProductBarcode(product.id, barcode);
+
+      // Create per-size inventory records if sizeQty provided
+      if (sizeQty && typeof sizeQty === "object" && storeId) {
+        for (const [size, qty] of Object.entries(sizeQty)) {
+          const quantity = Number(qty);
+          if (quantity > 0) {
+            await storage.upsertInventory({ productId: product.id, storeId: Number(storeId), size, quantity, reservedQty: 0 });
+          }
+        }
+      }
+
       res.json(updated ?? product);
     } catch (error: any) {
       if (error?.code === "23505" && error?.constraint?.includes("barcode")) {

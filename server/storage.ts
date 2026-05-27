@@ -216,6 +216,7 @@ export class DatabaseStorage implements IStorage {
         id: inventory.id,
         productId: inventory.productId,
         storeId: inventory.storeId,
+        size: inventory.size,
         quantity: inventory.quantity,
         reservedQty: inventory.reservedQty,
         productName: products.name,
@@ -238,6 +239,7 @@ export class DatabaseStorage implements IStorage {
       id: r.id,
       productId: r.productId,
       storeId: r.storeId,
+      size: r.size ?? "",
       quantity: r.quantity,
       reservedQty: r.reservedQty,
       productName: r.productName ?? undefined,
@@ -253,7 +255,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async upsertInventory(data: InsertInventory): Promise<Inventory> {
-    const existing = await this.getInventoryByProductAndStore(data.productId, data.storeId);
+    const size = data.size ?? "";
+    const [existing] = await db.select().from(inventory).where(
+      and(eq(inventory.productId, data.productId), eq(inventory.storeId, data.storeId), eq(inventory.size, size))
+    );
     if (existing) {
       const [updated] = await db.update(inventory)
         .set({ quantity: data.quantity, reservedQty: data.reservedQty ?? 0 })
@@ -261,7 +266,7 @@ export class DatabaseStorage implements IStorage {
         .returning();
       return updated;
     }
-    const [created] = await db.insert(inventory).values(data).returning();
+    const [created] = await db.insert(inventory).values({ ...data, size }).returning();
     return created;
   }
 
@@ -552,6 +557,7 @@ export class DatabaseStorage implements IStorage {
         storeId: orderItems.storeId,
         quantity: orderItems.quantity,
         price: orderItems.price,
+        costPrice: orderItems.costPrice,
         size: orderItems.size,
         productName: products.name,
         productImage: products.imageUrl,
@@ -567,6 +573,7 @@ export class DatabaseStorage implements IStorage {
       storeId: r.storeId,
       quantity: r.quantity,
       price: r.price,
+      costPrice: r.costPrice,
       size: r.size,
       productName: r.productName ?? undefined,
       productImage: r.productImage ?? undefined,

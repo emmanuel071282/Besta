@@ -3,7 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import AdminLayout from "./AdminLayout";
 import { Loader2, Plus, X, Printer, Barcode, Upload, Pencil, ImageIcon } from "lucide-react";
-import type { Product } from "@shared/schema";
+import type { Product, Store } from "@shared/schema";
 import { SUBCATEGORIES, getAllSubcategories, getSizesForProduct } from "@shared/schema";
 import JsBarcode from "jsbarcode";
 
@@ -279,23 +279,31 @@ export default function ArticlesPage() {
     subcategory: "",
   });
   const [autoSizes, setAutoSizes] = useState<string[]>([]);
+  const [sizeQty, setSizeQty] = useState<Record<string, number>>({});
+  const [selectedStoreId, setSelectedStoreId] = useState<string>("");
 
   const { data: products, isLoading } = useQuery<Product[]>({
     queryKey: ["/api/admin/products"],
   });
 
+  const { data: allStores } = useQuery<Store[]>({
+    queryKey: ["/api/admin/stores"],
+  });
+
   const createMutation = useMutation({
-    mutationFn: async (data: typeof form & { sizes: string[] }) => {
+    mutationFn: async (data: typeof form & { sizes: string[]; sizeQty: Record<string, number>; storeId: string }) => {
       const res = await apiRequest("POST", "/api/admin/products", data);
       return res.json();
     },
     onSuccess: (newProduct: Product) => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/products"] });
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/inventory"] });
       setBarcodeProduct(newProduct);
       setShowAddForm(false);
       setForm({ name: "", description: "", price: "", costPrice: "", imageUrl: "", category: "", subcategory: "" });
       setAutoSizes([]);
+      setSizeQty({});
     },
   });
 
@@ -308,6 +316,8 @@ export default function ArticlesPage() {
     setForm((prev) => ({ ...prev, subcategory }));
     const sizes = getSizesForProduct(form.category, subcategory);
     setAutoSizes(sizes);
+    // Initialise all sizes to 0 qty
+    setSizeQty(Object.fromEntries(sizes.map(s => [s, 0])));
   };
 
   const subcategoryList = form.category && SUBCATEGORIES[form.category]
@@ -316,8 +326,7 @@ export default function ArticlesPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.imageUrl) { alert("Please upload or enter an image."); return; }
-    createMutation.mutate({ ...form, sizes: autoSizes });
+    createMutation.mutate({ ...form, sizes: autoSizes, sizeQty, storeId: selectedStoreId });
   };
 
   return (
@@ -356,8 +365,7 @@ export default function ArticlesPage() {
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
                 className="w-full border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-foreground min-h-[80px]"
-                placeholder="Product description..."
-                required
+                placeholder="Product description (optional)"
               />
             </div>
 
@@ -380,8 +388,7 @@ export default function ArticlesPage() {
                 value={form.costPrice}
                 onChange={(e) => setForm({ ...form, costPrice: e.target.value.replace(/[^0-9.]/g, "") })}
                 className="w-full border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-foreground"
-                placeholder="500"
-                required
+                placeholder="500 (optional)"
               />
             </div>
 
@@ -425,15 +432,39 @@ export default function ArticlesPage() {
           </div>
 
           {autoSizes.length > 0 && (
-            <div>
-              <label className="block text-[10px] uppercase tracking-widest font-semibold mb-2">Sizes (Auto-assigned)</label>
-              <div className="flex flex-wrap gap-1.5">
-                {autoSizes.map((size) => (
-                  <span key={size} className="px-2.5 py-1 bg-secondary text-xs font-medium border border-border">
-                    {size}
-                  </span>
-                ))}
+            <div className="space-y-3">
+              <div>
+                <label className="block text-[10px] uppercase tracking-widest font-semibold mb-2">Store for Inventory</label>
+                <select
+                  value={selectedStoreId}
+                  onChange={(e) => setSelectedStoreId(e.target.value)}
+                  className="w-full border border-border bg-background px-3 py-2 text-sm focus:outline-none md:max-w-xs"
+                >
+                  <option value="">— No inventory yet —</option>
+                  {allStores?.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name} ({s.city})</option>
+                  ))}
+                </select>
               </div>
+              {selectedStoreId && (
+                <div>
+                  <label className="block text-[10px] uppercase tracking-widest font-semibold mb-2">Opening Stock by Size</label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                    {autoSizes.map((size) => (
+                      <div key={size} className="flex flex-col gap-1">
+                        <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{size}</span>
+                        <input
+                          type="number"
+                          min="0"
+                          value={sizeQty[size] ?? 0}
+                          onChange={(e) => setSizeQty(prev => ({ ...prev, [size]: Number(e.target.value) }))}
+                          className="w-full border border-border bg-background px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-1 focus:ring-foreground"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

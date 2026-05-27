@@ -5,10 +5,10 @@ import { z } from "zod";
 export const products = pgTable("products", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
-  description: text("description").notNull(),
+  description: text("description").notNull().default(""),
   price: numeric("price").notNull(),
   costPrice: numeric("cost_price").notNull().default("0"),
-  imageUrl: text("image_url").notNull(),
+  imageUrl: text("image_url").notNull().default(""),
   category: text("category").notNull(),
   subcategory: text("subcategory").notNull().default(""),
   sizes: text("sizes").array().default([]),
