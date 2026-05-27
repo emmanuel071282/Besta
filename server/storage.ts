@@ -52,7 +52,8 @@ export interface IStorage {
   updateStore(id: number, data: Partial<InsertStore>): Promise<Store | undefined>;
 
   getInventory(filters?: { productId?: number; storeId?: number }): Promise<(Inventory & { productName?: string; storeName?: string })[]>;
-  getInventoryByProductAndStore(productId: number, storeId: number): Promise<Inventory | undefined>;
+  getInventoryByProductAndStore(productId: number, storeId: number, size?: string): Promise<Inventory | undefined>;
+  getAvailableQtyForItem(productId: number, storeId: number, size?: string): Promise<number>;
   upsertInventory(data: InsertInventory): Promise<Inventory>;
   updateInventoryQuantity(id: number, quantity: number): Promise<Inventory | undefined>;
   getStockByProduct(productId: number): Promise<number>;
@@ -84,7 +85,7 @@ export interface IStorage {
 
   /** Find the nearest active store that has stock for ALL items in the cart */
   findNearestStoreWithStock(
-    items: { productId: number; quantity: number }[],
+    items: { productId: number; quantity: number; size?: string }[],
     customerPincode: string
   ): Promise<(Store & { distance?: number }) | null>;
 
@@ -247,11 +248,32 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
-  async getInventoryByProductAndStore(productId: number, storeId: number): Promise<Inventory | undefined> {
+  async getInventoryByProductAndStore(productId: number, storeId: number, size?: string): Promise<Inventory | undefined> {
+    if (size !== undefined && size !== "") {
+      // Try size-specific record first, then fall back to size="" record
+      const [sizeRow] = await db.select().from(inventory).where(
+        and(eq(inventory.productId, productId), eq(inventory.storeId, storeId), eq(inventory.size, size))
+      );
+      if (sizeRow) return sizeRow;
+    }
+    // Return size="" record (legacy / free-size)
     const [row] = await db.select().from(inventory).where(
-      and(eq(inventory.productId, productId), eq(inventory.storeId, storeId))
+      and(eq(inventory.productId, productId), eq(inventory.storeId, storeId), eq(inventory.size, ""))
     );
     return row;
+  }
+
+  // Sum available qty across all size records for a product+store (for store eligibility checks)
+  async getAvailableQtyForItem(productId: number, storeId: number, size?: string): Promise<number> {
+    if (size) {
+      const inv = await this.getInventoryByProductAndStore(productId, storeId, size);
+      return inv ? Math.max(0, inv.quantity - inv.reservedQty) : 0;
+    }
+    const [row] = await db
+      .select({ total: sql<number>`COALESCE(SUM(${inventory.quantity} - ${inventory.reservedQty}), 0)` })
+      .from(inventory)
+      .where(and(eq(inventory.productId, productId), eq(inventory.storeId, storeId)));
+    return Math.max(0, Number(row?.total ?? 0));
   }
 
   async upsertInventory(data: InsertInventory): Promise<Inventory> {
@@ -359,20 +381,20 @@ export class DatabaseStorage implements IStorage {
    * zone proximity.
    */
   async findNearestStoreWithStock(
-    items: { productId: number; quantity: number }[],
+    items: { productId: number; quantity: number; size?: string }[],
     customerPincode: string
   ): Promise<(Store & { distance?: number }) | null> {
     const activeStores = await db.select().from(stores).where(eq(stores.isActive, true));
     if (activeStores.length === 0) return null;
 
-    // Check which stores can fulfill ALL items
+    // Check which stores can fulfill ALL items (size-aware)
     const qualifyingStores: (Store & { distance?: number })[] = [];
 
     for (const store of activeStores) {
       let canFulfill = true;
       for (const item of items) {
-        const inv = await this.getInventoryByProductAndStore(item.productId, store.id);
-        if (!inv || (inv.quantity - inv.reservedQty) < item.quantity) {
+        const available = await this.getAvailableQtyForItem(item.productId, store.id, item.size);
+        if (available < item.quantity) {
           canFulfill = false;
           break;
         }
@@ -384,15 +406,13 @@ export class DatabaseStorage implements IStorage {
     }
 
     if (qualifyingStores.length === 0) {
-      // Fallback: find ANY store that can fulfill (split shipment if needed later)
-      // For now, find the store that has the most items
       let bestStore: Store | null = null;
       let bestCount = 0;
       for (const store of activeStores) {
         let count = 0;
         for (const item of items) {
-          const inv = await this.getInventoryByProductAndStore(item.productId, store.id);
-          if (inv && (inv.quantity - inv.reservedQty) >= item.quantity) count++;
+          const available = await this.getAvailableQtyForItem(item.productId, store.id, item.size);
+          if (available >= item.quantity) count++;
         }
         if (count > bestCount) { bestCount = count; bestStore = store; }
       }

@@ -676,8 +676,8 @@ export async function registerRoutes(
         discountAmount: discountAmount.toString(),
       });
 
-      // Nearest-store fulfillment for legacy order flow
-      const legacyCartItems = items.map(i => ({ productId: i.productId, quantity: i.quantity }));
+      // Nearest-store fulfillment — pass size so stock check is size-aware
+      const legacyCartItems = items.map(i => ({ productId: i.productId, quantity: i.quantity, size: i.size }));
       const legacyNearestStore = await storage.findNearestStoreWithStock(legacyCartItems, shippingPincode);
       const legacyStoreId = legacyNearestStore?.id || null;
 
@@ -685,17 +685,26 @@ export async function registerRoutes(
       const allProducts = await storage.getProducts();
 
       for (const item of items) {
+        const itemSize = item.size || undefined;
         let assignedStoreId = legacyStoreId;
+
         if (legacyStoreId) {
-          const inv = await storage.getInventoryByProductAndStore(item.productId, legacyStoreId);
-          if (!inv || (inv.quantity - inv.reservedQty) < item.quantity) {
+          const available = await storage.getAvailableQtyForItem(item.productId, legacyStoreId, itemSize);
+          if (available < item.quantity) {
+            // Fallback: find any store with enough of this size
             const allInv = await storage.getInventory({ productId: item.productId });
-            const fb = allInv.find(i => (i.quantity - i.reservedQty) >= item.quantity);
+            const fb = allInv.find(i =>
+              (itemSize ? (i.size === itemSize || i.size === "") : true) &&
+              (i.quantity - i.reservedQty) >= item.quantity
+            );
             assignedStoreId = fb?.storeId || null;
           }
         } else {
           const allInv = await storage.getInventory({ productId: item.productId });
-          const fb = allInv.find(i => (i.quantity - i.reservedQty) >= item.quantity);
+          const fb = allInv.find(i =>
+            (itemSize ? (i.size === itemSize || i.size === "") : true) &&
+            (i.quantity - i.reservedQty) >= item.quantity
+          );
           assignedStoreId = fb?.storeId || null;
         }
 
@@ -710,8 +719,9 @@ export async function registerRoutes(
           size: item.size || null,
         });
 
+        // Deduct from the correct size record
         if (assignedStoreId) {
-          const inv = await storage.getInventoryByProductAndStore(item.productId, assignedStoreId);
+          const inv = await storage.getInventoryByProductAndStore(item.productId, assignedStoreId, itemSize);
           if (inv) {
             await storage.updateInventoryQuantity(inv.id, inv.quantity - item.quantity);
           }
@@ -1094,7 +1104,7 @@ export async function registerRoutes(
       // ---------------------------------------------------------------
       // Nearest-store fulfillment — pick the closest store with stock
       // ---------------------------------------------------------------
-      const cartItems = items.map(i => ({ productId: i.productId, quantity: i.quantity }));
+      const cartItems = items.map(i => ({ productId: i.productId, quantity: i.quantity, size: i.size }));
       const nearestStore = await storage.findNearestStoreWithStock(cartItems, shippingPincode);
 
       let fulfilledStoreId: number | null = null;
@@ -1105,20 +1115,25 @@ export async function registerRoutes(
 
       // Create order items + deduct inventory from the fulfilling store
       for (const item of items) {
+        const itemSize = item.size || undefined;
         let assignedStoreId: number | null = fulfilledStoreId;
 
-        // If nearest store doesn't have this specific item, fall back to any store
         if (fulfilledStoreId) {
-          const inv = await storage.getInventoryByProductAndStore(item.productId, fulfilledStoreId);
-          if (!inv || (inv.quantity - inv.reservedQty) < item.quantity) {
-            // Fallback: find any store that has this item
+          const available = await storage.getAvailableQtyForItem(item.productId, fulfilledStoreId, itemSize);
+          if (available < item.quantity) {
             const allInv = await storage.getInventory({ productId: item.productId });
-            const fallbackStore = allInv.find(i => (i.quantity - i.reservedQty) >= item.quantity);
+            const fallbackStore = allInv.find(i =>
+              (itemSize ? (i.size === itemSize || i.size === "") : true) &&
+              (i.quantity - i.reservedQty) >= item.quantity
+            );
             assignedStoreId = fallbackStore?.storeId || null;
           }
         } else {
           const allInv = await storage.getInventory({ productId: item.productId });
-          const fallbackStore = allInv.find(i => (i.quantity - i.reservedQty) >= item.quantity);
+          const fallbackStore = allInv.find(i =>
+            (itemSize ? (i.size === itemSize || i.size === "") : true) &&
+            (i.quantity - i.reservedQty) >= item.quantity
+          );
           assignedStoreId = fallbackStore?.storeId || null;
         }
 
@@ -1133,9 +1148,9 @@ export async function registerRoutes(
           size: item.size || null,
         });
 
-        // Deduct inventory
+        // Deduct from the correct size record
         if (assignedStoreId) {
-          const inv = await storage.getInventoryByProductAndStore(item.productId, assignedStoreId);
+          const inv = await storage.getInventoryByProductAndStore(item.productId, assignedStoreId, itemSize);
           if (inv) {
             await storage.updateInventoryQuantity(inv.id, inv.quantity - item.quantity);
           }
