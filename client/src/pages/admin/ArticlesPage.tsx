@@ -535,6 +535,20 @@ export default function ArticlesPage() {
               <input type="url" value={form.imageUrl} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
                 className="w-full border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-foreground"
                 placeholder="https://images.unsplash.com/... or generate with AI above" />
+              {form.imageUrl && (
+                <div className="mt-2 flex items-start gap-3">
+                  <img
+                    src={form.imageUrl}
+                    alt="Preview"
+                    className="w-24 h-24 object-cover border border-border"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                  />
+                  <button type="button" onClick={() => setForm({ ...form, imageUrl: "" })}
+                    className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground hover:text-foreground mt-1">
+                    Remove
+                  </button>
+                </div>
+              )}
               {aiImageError && <p className="text-xs text-red-500 mt-1">{aiImageError}</p>}
               {aiImages.length > 0 && (
                 <div className="mt-3">
