@@ -8,7 +8,8 @@ import bcrypt from "bcryptjs";
 import { sendSms, sendWhatsApp } from "./sms";
 import { processStylistMessage, getDemoResponse, isAIStylistConfigured } from "./ai-stylist";
 import { db } from "./db";
-import { eq, and, desc, sum } from "drizzle-orm";
+import { eq, and, desc, sum, sql } from "drizzle-orm";
+import { inventory } from "@shared/schema";
 import { createRazorpayOrder, verifyPaymentSignature, getRazorpayKeyId, isRazorpayConfigured } from "./payment";
 import { buildInvoiceData, generateInvoiceHTML, generateInvoiceNumber, calculateGST, sendInvoiceWhatsApp, sendInvoiceEmail } from "./invoice";
 import {

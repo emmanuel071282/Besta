@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { cn } from "@/lib/utils";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import AdminLayout from "./AdminLayout";
@@ -399,11 +400,11 @@ export default function ArticlesPage() {
   });
 
 
-  const handleFileSelect = (e) => {
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => setForm((prev) => ({ ...prev, imageUrl: reader.result }));
+    reader.onload = () => setForm((prev) => ({ ...prev, imageUrl: reader.result as string }));
     reader.readAsDataURL(file);
   };
   const handleGenerateImages = async () => {

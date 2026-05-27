@@ -232,6 +232,7 @@ export class DatabaseStorage implements IStorage {
     const rows = await query;
     return rows.map(r => ({
       id: r.id,
+      size: (r as any).size ?? "",
       productId: r.productId,
       storeId: r.storeId,
       quantity: r.quantity,
@@ -550,6 +551,7 @@ export class DatabaseStorage implements IStorage {
         storeId: orderItems.storeId,
         quantity: orderItems.quantity,
         price: orderItems.price,
+        costPrice: products.costPrice,
         size: orderItems.size,
         productName: products.name,
         productImage: products.imageUrl,
@@ -565,6 +567,7 @@ export class DatabaseStorage implements IStorage {
       storeId: r.storeId,
       quantity: r.quantity,
       price: r.price,
+      costPrice: r.costPrice ?? "0",
       size: r.size,
       productName: r.productName ?? undefined,
       productImage: r.productImage ?? undefined,
