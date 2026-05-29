@@ -99,6 +99,17 @@ function EditProductModal({ product, onClose }: { product: Product; onClose: () 
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await apiRequest("DELETE", `/api/admin/products/${id}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/products"] });
+    },
+  });
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -399,6 +410,17 @@ export default function ArticlesPage() {
     },
   });
 
+
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await apiRequest("DELETE", `/api/admin/products/${id}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/products"] });
+    },
+  });
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -711,6 +733,10 @@ export default function ArticlesPage() {
                           <button onClick={() => setEditProduct(p)}
                             className="flex items-center gap-1.5 text-xs border border-border px-3 py-1.5 hover:bg-secondary transition-colors">
                             <Pencil className="w-3.5 h-3.5" /> Edit
+                          </button>
+                          <button onClick={() => { if (confirm("Delete this article?")) deleteMutation.mutate(p.id); }}
+                            className="flex items-center gap-1.5 text-xs border border-red-200 text-red-600 px-3 py-1.5 hover:bg-red-50 transition-colors">
+                            <Trash2 className="w-3.5 h-3.5" /> Delete
                           </button>
                           {p.barcode && (
                             <button onClick={() => setBarcodeProduct(p)}
