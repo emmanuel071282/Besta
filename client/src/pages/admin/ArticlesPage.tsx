@@ -367,6 +367,7 @@ export default function ArticlesPage() {
     category: "",
     subcategory: "",
   });
+  const [searchQuery, setSearchQuery] = useState("");
   const [autoSizes, setAutoSizes] = useState<string[]>([]);
   const [sizeQty, setSizeQty] = useState<Record<string, number>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -677,6 +678,8 @@ export default function ArticlesPage() {
         </form>
       )}
 
+      <div className="mb-4 relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" /><input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search by name, category or barcode..." className="w-full border border-border bg-background pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-foreground" /></div>
+
       {isLoading ? (
         <div className="flex justify-center py-16">
           <Loader2 className="w-6 h-6 animate-spin" />
@@ -706,7 +709,7 @@ export default function ArticlesPage() {
                     </td>
                   </tr>
                 ) : (
-                  products.map((p) => (
+                  products.filter((p) => { if (!searchQuery) return true; const q = searchQuery.toLowerCase(); return p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q) || (p.subcategory||"").toLowerCase().includes(q) || (p.barcode||"").includes(q); }).map((p) => (
                     <tr key={p.id} className="border-b border-border/50 hover:bg-secondary/30">
                       <td className="px-4 py-3 text-muted-foreground">#{p.id}</td>
                       <td className="px-4 py-3">

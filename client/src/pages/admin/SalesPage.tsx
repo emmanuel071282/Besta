@@ -17,6 +17,8 @@ export default function SalesPage() {
   const [days, setDays] = useState(30);
   const [chartMode, setChartMode] = useState<ChartMode>("revenue");
 
+  const { data: customerData } = useQuery<any>({ queryKey: ["/api/admin/customer-analytics"] });
+
   const { data, isLoading } = useQuery<SalesData>({
     queryKey: ["/api/admin/sales", { days }],
     queryFn: async () => {
@@ -205,6 +207,7 @@ export default function SalesPage() {
               </div>
             </div>
           </div>
+          {customerData && (<div className="mt-8"><div className="flex items-center gap-2 mb-4"><Users className="w-4 h-4" /><h2 className="text-sm font-bold uppercase tracking-widest">Customer Analytics</h2></div><div className="grid grid-cols-3 gap-4 mb-6"><div className="border border-border p-4"><p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Total Customers</p><p className="text-2xl font-bold">{customerData.totalCustomers}</p></div><div className="border border-border p-4"><p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Repeat Customers</p><p className="text-2xl font-bold">{customerData.repeatCustomers}</p></div><div className="border border-border p-4"><p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1">Repeat Rate</p><p className="text-2xl font-bold">{customerData.repeatRate}%</p></div></div><div className="border border-border"><table className="w-full text-sm"><thead><tr className="border-b border-border text-left"><th className="px-4 py-3 text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">Customer</th><th className="px-4 py-3 text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">Mobile</th><th className="px-4 py-3 text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">Orders</th><th className="px-4 py-3 text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">Total Spend</th></tr></thead><tbody>{customerData.topCustomers?.map((c) => (<tr key={c.userId} className="border-b border-border/50 hover:bg-secondary/30"><td className="px-4 py-3 font-medium">{c.name}</td><td className="px-4 py-3 text-muted-foreground">{c.mobile}</td><td className="px-4 py-3">{c.orderCount}</td><td className="px-4 py-3 font-semibold">₹{c.totalSpend.toLocaleString("en-IN")}</td></tr>))}</tbody></table></div></div>)}
         </>
       )}
     </AdminLayout>

@@ -393,6 +393,16 @@ export async function registerRoutes(
     res.json(items);
   });
 
+  app.get("/api/admin/orders/:id/invoice", requireAdmin, async (req, res) => {
+    const order = await storage.getOrder(Number(req.params.id));
+    if (!order) return res.status(404).json({ message: "Order not found" });
+    const [items, user, productsList] = await Promise.all([storage.getOrderItems(order.id), order.userId ? storage.getUserById(order.userId) : Promise.resolve(undefined), storage.getProducts()]);
+    const invoiceData = buildInvoiceData(order, items as any, user as any, productsList);
+    const html = generateInvoiceHTML(invoiceData);
+    res.setHeader("Content-Type", "text/html");
+    res.send(html);
+  });
+
   app.get("/api/admin/sales", requireAdmin, async (req, res) => {
     const days = Number(req.query.days) || 30;
     const endDate = new Date();
@@ -425,6 +435,33 @@ export async function registerRoutes(
     const store = await storage.updateStore(Number(req.params.id), req.body);
     if (!store) return res.status(404).json({ message: "Store not found" });
     res.json(store);
+  });
+
+  app.get("/api/admin/customer-analytics", requireAdmin, async (req, res) => {
+    const orders = await storage.getOrders();
+    const customerMap = new Map();
+    for (const order of orders) {
+      if (!order.userId) continue;
+      const amount = parseFloat(String(order.totalAmount || 0));
+      const ex = customerMap.get(order.userId);
+      if (ex) { ex.totalSpend += amount; ex.orderCount += 1; }
+      else customerMap.set(order.userId, { userId: order.userId, totalSpend: amount, orderCount: 1 });
+    }
+    const topCustomers = await Promise.all([...customerMap.values()].sort((a,b)=>b.totalSpend-a.totalSpend).slice(0,10).map(async c => { const user = await storage.getUserById(c.userId); return {...c, name: user?.name||"Guest", mobile: user?.mobile||""}; }));
+    const totalCustomers = customerMap.size;
+    const repeatCustomers = [...customerMap.values()].filter(c=>c.orderCount>1).length;
+    const repeatRate = totalCustomers > 0 ? Math.round((repeatCustomers/totalCustomers)*100) : 0;
+    res.json({ topCustomers, totalCustomers, repeatCustomers, repeatRate });
+  });
+
+  app.get("/api/admin/low-stock", requireAdmin, async (req, res) => {
+    const threshold = Number(req.query.threshold) || 5;
+    const inv = await storage.getInventory({});
+    const productsList = await storage.getProducts();
+    const stockMap = new Map();
+    for (const item of inv) stockMap.set(item.productId, (stockMap.get(item.productId) ?? 0) + item.quantity);
+    const lowStock = productsList.map(p => ({ ...p, totalStock: stockMap.get(p.id) ?? 0 })).filter(p => p.totalStock <= threshold).sort((a, b) => a.totalStock - b.totalStock);
+    res.json(lowStock);
   });
 
   app.get("/api/admin/inventory", requireAdmin, async (req, res) => {
@@ -581,6 +618,13 @@ export async function registerRoutes(
     }
 
     res.json({ imported: imported.length, errors });
+  });
+
+  app.delete("/api/admin/products/:id", requireAdmin, async (req, res) => {
+    const id = Number(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ message: "Invalid product ID" });
+    await storage.deleteProduct(id);
+    res.json({ success: true });
   });
 
   app.post("/api/admin/generate-product-images", requireAdmin, async (req, res) => {

@@ -100,6 +100,8 @@ export default function DashboardPage() {
     queryKey: ["/api/admin/dashboard/metrics"],
   });
 
+  const { data: lowStockItems } = useQuery<any[]>({ queryKey: ["/api/admin/low-stock"] });
+
   const { data: recentOrders } = useQuery<Order[]>({
     queryKey: ["/api/admin/orders"],
   });
@@ -143,6 +145,13 @@ export default function DashboardPage() {
         <h1 className="text-3xl font-bold tracking-tight" data-testid="text-admin-dashboard-title">Dashboard</h1>
         <p className="text-muted-foreground text-sm mt-1">Business performance overview</p>
       </div>
+
+      {lowStockItems && lowStockItems.length > 0 && (
+        <div className="mb-6 border border-amber-200 bg-amber-50 p-4">
+          <div className="flex items-center gap-2 mb-3"><AlertTriangle className="w-4 h-4 text-amber-600" /><span className="text-sm font-semibold uppercase tracking-widest text-amber-700">Low Stock — {lowStockItems.length} item{lowStockItems.length > 1 ? "s" : ""} need restocking</span></div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">{lowStockItems.map((item) => (<div key={item.id} className="flex items-center justify-between bg-white border border-amber-100 px-3 py-2"><span className="text-xs font-medium truncate">{item.name}</span><span className={`text-xs font-bold ml-2 ${item.totalStock === 0 ? "text-red-600" : "text-amber-600"}`}>{item.totalStock === 0 ? "Out of stock" : `${item.totalStock} left`}</span></div>))}</div>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin" /></div>

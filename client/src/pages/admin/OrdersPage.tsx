@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import AdminLayout from "./AdminLayout";
-import { Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import { Loader2, ChevronDown, ChevronUp, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Order, OrderItem } from "@shared/schema";
 import { ORDER_STATUSES } from "@shared/schema";
@@ -175,7 +175,7 @@ function OrderRow({ order, isExpanded, onToggle, onUpdateStatus, statusColors }:
                 {order.shiprocketOrderId && <p>Shiprocket: #{order.shiprocketOrderId}</p>}
                 {order.awbNumber && <p>AWB: <span className="font-mono">{order.awbNumber}</span></p>}
                 {order.courierName && <p>Courier: {order.courierName}</p>}
-                {order.invoiceNumber && <p>Invoice: {order.invoiceNumber}</p>}
+                {order.invoiceNumber && (<p className="flex items-center gap-2">Invoice: {order.invoiceNumber}<a href={`/api/admin/orders/${order.id}/invoice`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs border border-border px-2 py-0.5 hover:bg-secondary transition-colors"><FileText className="w-3 h-3" /> View PDF</a></p>)}
                 {order.paymentStatus && <p>Payment: <span className="uppercase">{order.paymentStatus}</span></p>}
                 {!order.shiprocketOrderId && !order.awbNumber && <p className="text-muted-foreground italic">Not shipped yet</p>}
               </div>
