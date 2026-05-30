@@ -737,6 +737,7 @@ export default function ArticlesPage() {
                             className="flex items-center gap-1.5 text-xs border border-border px-3 py-1.5 hover:bg-secondary transition-colors">
                             <Pencil className="w-3.5 h-3.5" /> Edit
                           </button>
+                          <button onClick={() => { if (window.confirm("Delete this article?")) deleteMutation.mutate(p.id); }} className="flex items-center gap-1.5 text-xs border border-red-200 text-red-600 px-3 py-1.5 hover:bg-red-50 transition-colors">Delete</button>
                           <button onClick={() => { if (confirm("Delete this article?")) deleteMutation.mutate(p.id); }}
                             className="flex items-center gap-1.5 text-xs border border-red-200 text-red-600 px-3 py-1.5 hover:bg-red-50 transition-colors">
                             <Trash2 className="w-3.5 h-3.5" /> Delete
