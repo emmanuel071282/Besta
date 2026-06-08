@@ -20,6 +20,11 @@ import { getSizesForProduct } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { usePageMeta } from "@/hooks/use-page-meta";
 import { SizeGuideModal } from "@/components/product/SizeGuideModal";
+import { MapPin } from "lucide-react";
+import type { Product } from "@shared/schema";
+
+type StoreStock = { id: number; name: string; city: string; address: string; availableQty: number };
+type OutfitData = { id: number; name: string; description: string; imageUrl: string; products: Product[] };
 
 interface Review {
   id: number;
@@ -71,6 +76,26 @@ export default function ProductPage() {
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
+
+  const { data: storeStock } = useQuery<StoreStock[]>({
+    queryKey: ["/api/products", id, "stores"],
+    queryFn: async () => {
+      const res = await fetch(`/api/products/${id}/stores`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!id,
+  });
+
+  const { data: outfitData } = useQuery<OutfitData[]>({
+    queryKey: ["/api/products", id, "outfits"],
+    queryFn: async () => {
+      const res = await fetch(`/api/products/${id}/outfits`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!id,
+  });
 
   const { data: reviews = [] } = useQuery<Review[]>({
     queryKey: ["/api/products", id, "reviews"],
@@ -226,6 +251,32 @@ export default function ProductPage() {
                   </div>
                 )}
 
+                {storeStock !== undefined && (
+                  <div className="mb-8">
+                    <p className="text-xs uppercase tracking-widest font-semibold mb-3">Store Availability</p>
+                    {storeStock.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">Not available in stores near you</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {storeStock.map((store) => (
+                          <div key={store.id} className="flex items-start justify-between text-sm border border-border p-3">
+                            <div className="flex items-start gap-2">
+                              <MapPin className="w-3.5 h-3.5 mt-0.5 text-muted-foreground shrink-0" />
+                              <div>
+                                <p className="font-medium">{store.name}</p>
+                                <p className="text-xs text-muted-foreground">{store.city}</p>
+                              </div>
+                            </div>
+                            <span className="text-xs font-semibold text-green-700 shrink-0 mt-0.5">
+                              {store.availableQty > 0 ? `${store.availableQty} in stock` : "Out of stock"}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="flex gap-4 mb-12">
                   <Button 
                     onClick={handleAddToCart}
@@ -343,6 +394,22 @@ export default function ProductPage() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {outfitData && outfitData.length > 0 && (
+          <div className="border-t border-border pt-16 mt-16">
+            <h3 className="text-2xl font-display font-medium tracking-tight mb-8">Complete the Look</h3>
+            {outfitData.map((outfit) => (
+              <div key={outfit.id} className="mb-12">
+                {outfit.name && <p className="text-xs uppercase tracking-widest font-semibold text-muted-foreground mb-4">{outfit.name}</p>}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-8 md:gap-x-6">
+                  {outfit.products.map((p) => (
+                    <ProductCard key={p.id} product={p} />
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
