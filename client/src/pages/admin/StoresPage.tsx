@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import AdminLayout from "./AdminLayout";
-import { Loader2, Plus, MapPin, Phone } from "lucide-react";
+import { Loader2, Plus, MapPin, Phone, Trash2 } from "lucide-react";
 import type { Store } from "@shared/schema";
 
 export default function StoresPage() {
@@ -33,6 +33,15 @@ export default function StoresPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/stores"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/dashboard"] });
       resetForm();
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `/api/admin/stores/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stores"] });
     },
   });
 
@@ -153,6 +162,17 @@ export default function StoresPage() {
                   className="text-xs border border-border px-3 py-1.5 hover:bg-secondary transition-colors"
                 >
                   {store.isActive ? "Deactivate" : "Activate"}
+                </button>
+                <button
+                  onClick={() => {
+                    if (confirm(`Delete "${store.name}"? This cannot be undone.`)) {
+                      deleteMutation.mutate(store.id);
+                    }
+                  }}
+                  disabled={deleteMutation.isPending}
+                  className="text-xs border border-red-200 text-red-600 px-3 py-1.5 hover:bg-red-50 transition-colors flex items-center gap-1 disabled:opacity-50"
+                >
+                  <Trash2 className="w-3 h-3" /> Delete
                 </button>
               </div>
             </div>
