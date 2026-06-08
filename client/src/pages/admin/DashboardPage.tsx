@@ -1,7 +1,7 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import AdminLayout from "./AdminLayout";
-import { Loader2, TrendingUp, TrendingDown, ShoppingBag, Clock, PackageCheck, BarChart3 } from "lucide-react";
-import type { Order } from "@shared/schema";
+import { Loader2, TrendingUp, TrendingDown, Clock, PackageCheck, BarChart3 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
@@ -27,23 +27,6 @@ type SalesData = {
   report: { date: string; orders: number; revenue: number }[];
 };
 
-const STATUS_COLORS: Record<string, string> = {
-  placed: "#f59e0b",
-  confirmed: "#3b82f6",
-  shipped: "#6366f1",
-  delivered: "#22c55e",
-  cancelled: "#ef4444",
-  returned: "#6b7280",
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  placed: "Placed",
-  confirmed: "Confirmed",
-  shipped: "Shipped",
-  delivered: "Delivered",
-  cancelled: "Cancelled",
-  returned: "Returned",
-};
 
 function KpiCard({
   label, value, sub, icon: Icon, trend, trendLabel, color = "default",
@@ -95,15 +78,21 @@ const ROWS = [
 const PERIODS = ["ld", "wtd", "mtd", "ytd"] as const;
 const PERIOD_LABELS: Record<string, string> = { ld: "Today", wtd: "This Week", mtd: "This Month", ytd: "This Year" };
 
+const CATEGORY_COLORS = ["#111827", "#374151", "#6b7280", "#9ca3af", "#d1d5db", "#e5e7eb"];
+
 export default function DashboardPage() {
+  const [catPeriod, setCatPeriod] = useState<"ld" | "wtd" | "mtd" | "ytd">("mtd");
+
   const { data: metrics, isLoading } = useQuery<DashboardMetrics>({
     queryKey: ["/api/admin/dashboard/metrics"],
   });
 
-  const { data: lowStockItems } = useQuery<any[]>({ queryKey: ["/api/admin/low-stock"] });
-
-  const { data: recentOrders } = useQuery<Order[]>({
-    queryKey: ["/api/admin/orders"],
+  const { data: categorySales } = useQuery<{ category: string; revenue: number; orders: number }[]>({
+    queryKey: ["/api/admin/dashboard/category-sales", catPeriod],
+    queryFn: async () => {
+      const res = await fetch(`/api/admin/dashboard/category-sales?period=${catPeriod}`, { credentials: "include" });
+      return res.json();
+    },
   });
 
   const { data: salesData } = useQuery<SalesData>({
@@ -114,15 +103,6 @@ export default function DashboardPage() {
     },
   });
 
-  // Order status breakdown from recent orders
-  const statusCounts = (recentOrders ?? []).reduce<Record<string, number>>((acc, o) => {
-    acc[o.status] = (acc[o.status] ?? 0) + 1;
-    return acc;
-  }, {});
-  const pieData = Object.entries(statusCounts)
-    .filter(([, v]) => v > 0)
-    .map(([status, value]) => ({ name: STATUS_LABELS[status] ?? status, value, status }));
-
   // Revenue chart — last 14 days
   const revenueChart = (salesData?.report ?? []).map(d => ({
     date: new Date(d.date).toLocaleDateString("en-IN", { day: "numeric", month: "short" }),
@@ -130,28 +110,12 @@ export default function DashboardPage() {
     Orders: d.orders,
   }));
 
-  const statusColors: Record<string, string> = {
-    placed: "bg-yellow-100 text-yellow-800",
-    confirmed: "bg-blue-100 text-blue-800",
-    shipped: "bg-indigo-100 text-indigo-800",
-    delivered: "bg-green-100 text-green-800",
-    cancelled: "bg-red-100 text-red-800",
-    returned: "bg-gray-100 text-gray-800",
-  };
-
   return (
     <AdminLayout>
       <div className="mb-8">
         <h1 className="text-3xl font-bold tracking-tight" data-testid="text-admin-dashboard-title">Dashboard</h1>
         <p className="text-muted-foreground text-sm mt-1">Business performance overview</p>
       </div>
-
-      {lowStockItems && lowStockItems.length > 0 && (
-        <div className="mb-6 border border-amber-200 bg-amber-50 p-4">
-          <div className="flex items-center gap-2 mb-3"><AlertTriangle className="w-4 h-4 text-amber-600" /><span className="text-sm font-semibold uppercase tracking-widest text-amber-700">Low Stock — {lowStockItems.length} item{lowStockItems.length > 1 ? "s" : ""} need restocking</span></div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">{lowStockItems.map((item) => (<div key={item.id} className="flex items-center justify-between bg-white border border-amber-100 px-3 py-2"><span className="text-xs font-medium truncate">{item.name}</span><span className={`text-xs font-bold ml-2 ${item.totalStock === 0 ? "text-red-600" : "text-amber-600"}`}>{item.totalStock === 0 ? "Out of stock" : `${item.totalStock} left`}</span></div>))}</div>
-        </div>
-      )}
 
       {isLoading ? (
         <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin" /></div>
@@ -213,23 +177,34 @@ export default function DashboardPage() {
               )}
             </div>
 
-            {/* Order status pie — takes 1/3 width */}
+            {/* Category sales pie */}
             <div className="bg-background border border-border p-6">
-              <h2 className="text-sm font-semibold uppercase tracking-widest mb-6">Order Status</h2>
-              {pieData.length > 0 ? (
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-semibold uppercase tracking-widest">Sales by Category</h2>
+                <div className="flex gap-1">
+                  {PERIODS.map((p) => (
+                    <button key={p} onClick={() => setCatPeriod(p)}
+                      className={`text-[9px] uppercase tracking-widest font-semibold px-2 py-1 border transition-colors ${catPeriod === p ? "bg-foreground text-background border-foreground" : "border-border hover:bg-secondary"}`}>
+                      {p}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {(categorySales ?? []).length > 0 ? (
                 <ResponsiveContainer width="100%" height={220}>
                   <PieChart>
-                    <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="45%" outerRadius={75} innerRadius={45} paddingAngle={2}>
-                      {pieData.map((entry) => (
-                        <Cell key={entry.status} fill={STATUS_COLORS[entry.status] ?? "#6b7280"} />
+                    <Pie data={categorySales} dataKey="revenue" nameKey="category" cx="50%" cy="45%" outerRadius={75} innerRadius={45} paddingAngle={2}>
+                      {(categorySales ?? []).map((entry, i) => (
+                        <Cell key={entry.category} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />
                       ))}
                     </Pie>
                     <Legend iconSize={8} iconType="circle" wrapperStyle={{ fontSize: 11 }} />
-                    <Tooltip contentStyle={{ fontSize: 12, border: "1px solid hsl(var(--border))", borderRadius: 0 }} />
+                    <Tooltip formatter={(v: number) => [`₹${v.toLocaleString("en-IN")}`, "Revenue"]}
+                      contentStyle={{ fontSize: 12, border: "1px solid hsl(var(--border))", borderRadius: 0 }} />
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="h-[220px] flex items-center justify-center text-muted-foreground text-sm">No orders yet</div>
+                <div className="h-[220px] flex items-center justify-center text-muted-foreground text-sm">No sales data</div>
               )}
             </div>
           </div>
@@ -274,45 +249,6 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Recent Orders */}
-          <div className="bg-background border border-border">
-            <div className="p-5 border-b border-border flex items-center gap-2">
-              <ShoppingBag className="w-4 h-4" />
-              <h2 className="text-sm font-semibold uppercase tracking-widest">Recent Orders</h2>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left">
-                    <th className="px-6 py-3 text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">Order #</th>
-                    <th className="px-6 py-3 text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">Amount</th>
-                    <th className="px-6 py-3 text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">Status</th>
-                    <th className="px-6 py-3 text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">Date</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(!recentOrders || recentOrders.length === 0) ? (
-                    <tr><td colSpan={4} className="px-6 py-8 text-center text-muted-foreground">No orders yet</td></tr>
-                  ) : (
-                    recentOrders.slice(0, 10).map((order) => (
-                      <tr key={order.id} className="border-b border-border/50 hover:bg-secondary/30" data-testid={`row-order-${order.id}`}>
-                        <td className="px-6 py-4 font-mono text-xs">{order.orderNumber}</td>
-                        <td className="px-6 py-4 font-medium">₹{Number(order.totalAmount).toLocaleString("en-IN")}</td>
-                        <td className="px-6 py-4">
-                          <span className={`inline-block px-2 py-0.5 text-[10px] uppercase tracking-wider font-semibold rounded ${statusColors[order.status] || "bg-gray-100"}`}>
-                            {order.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-muted-foreground">
-                          {new Date(order.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
         </>
       )}
     </AdminLayout>
