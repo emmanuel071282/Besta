@@ -38,8 +38,8 @@ export interface IStorage {
   getProductsByCategoryAndSubcategory(category: string, subcategory: string): Promise<Product[]>;
   getProduct(id: number): Promise<Product | undefined>;
   createProduct(product: InsertProduct): Promise<Product>;
-  updateProduct(id: number, data: Partial<InsertProduct>): Promise<Product | undefined>;
   updateProductBarcode(id: number, barcode: string): Promise<Product | undefined>;
+  deleteProduct(id: number): Promise<void>;
   deleteAllProducts(): Promise<void>;
 
   createUser(user: InsertUser): Promise<User>;
@@ -52,8 +52,7 @@ export interface IStorage {
   updateStore(id: number, data: Partial<InsertStore>): Promise<Store | undefined>;
 
   getInventory(filters?: { productId?: number; storeId?: number }): Promise<(Inventory & { productName?: string; storeName?: string })[]>;
-  getInventoryByProductAndStore(productId: number, storeId: number, size?: string): Promise<Inventory | undefined>;
-  getAvailableQtyForItem(productId: number, storeId: number, size?: string): Promise<number>;
+  getInventoryByProductAndStore(productId: number, storeId: number): Promise<Inventory | undefined>;
   upsertInventory(data: InsertInventory): Promise<Inventory>;
   updateInventoryQuantity(id: number, quantity: number): Promise<Inventory | undefined>;
   getStockByProduct(productId: number): Promise<number>;
@@ -85,7 +84,7 @@ export interface IStorage {
 
   /** Find the nearest active store that has stock for ALL items in the cart */
   findNearestStoreWithStock(
-    items: { productId: number; quantity: number; size?: string }[],
+    items: { productId: number; quantity: number }[],
     customerPincode: string
   ): Promise<(Store & { distance?: number }) | null>;
 
@@ -99,6 +98,8 @@ export interface IStorage {
   getDashboardMetrics(): Promise<DashboardMetrics>;
   getSalesReport(startDate: Date, endDate: Date): Promise<{ date: string; orders: number; revenue: number }[]>;
   getTopSellingProducts(limit: number): Promise<{ productId: number; name: string; totalQuantity: number; totalRevenue: number }[]>;
+  getSalesByCategory(startDate: Date, endDate: Date): Promise<{ category: string; revenue: number; orders: number; profit: number }[]>;
+  getGrossProfit(startDate: Date, endDate: Date): Promise<{ revenue: number; cost: number; profit: number }>;
 
   createSupportRequest(data: InsertSupportRequest): Promise<SupportRequest>;
   getSupportRequests(): Promise<SupportRequest[]>;
@@ -163,14 +164,13 @@ export class DatabaseStorage implements IStorage {
     return product;
   }
 
-  async updateProduct(id: number, data: Partial<InsertProduct>): Promise<Product | undefined> {
-    const [updated] = await db.update(products).set(data).where(eq(products.id, id)).returning();
-    return updated ? this.ensureSizes(updated) : undefined;
-  }
-
   async updateProductBarcode(id: number, barcode: string): Promise<Product | undefined> {
     const [updated] = await db.update(products).set({ barcode }).where(eq(products.id, id)).returning();
     return updated ? this.ensureSizes(updated) : undefined;
+  }
+
+  async deleteProduct(id: number): Promise<void> {
+    await db.delete(products).where(eq(products.id, id));
   }
 
   async deleteAllProducts(): Promise<void> {
@@ -217,7 +217,6 @@ export class DatabaseStorage implements IStorage {
         id: inventory.id,
         productId: inventory.productId,
         storeId: inventory.storeId,
-        size: inventory.size,
         quantity: inventory.quantity,
         reservedQty: inventory.reservedQty,
         productName: products.name,
@@ -238,9 +237,9 @@ export class DatabaseStorage implements IStorage {
     const rows = await query;
     return rows.map(r => ({
       id: r.id,
+      size: (r as any).size ?? "",
       productId: r.productId,
       storeId: r.storeId,
-      size: r.size ?? "",
       quantity: r.quantity,
       reservedQty: r.reservedQty,
       productName: r.productName ?? undefined,
@@ -248,39 +247,17 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
-  async getInventoryByProductAndStore(productId: number, storeId: number, size?: string): Promise<Inventory | undefined> {
-    if (size !== undefined && size !== "") {
-      // Try size-specific record first, then fall back to size="" record
-      const [sizeRow] = await db.select().from(inventory).where(
-        and(eq(inventory.productId, productId), eq(inventory.storeId, storeId), eq(inventory.size, size))
-      );
-      if (sizeRow) return sizeRow;
-    }
-    // Return size="" record (legacy / free-size)
+  async getInventoryByProductAndStore(productId: number, storeId: number): Promise<Inventory | undefined> {
     const [row] = await db.select().from(inventory).where(
-      and(eq(inventory.productId, productId), eq(inventory.storeId, storeId), eq(inventory.size, ""))
+      and(eq(inventory.productId, productId), eq(inventory.storeId, storeId))
     );
     return row;
   }
 
-  // Sum available qty across all size records for a product+store (for store eligibility checks)
-  async getAvailableQtyForItem(productId: number, storeId: number, size?: string): Promise<number> {
-    if (size) {
-      const inv = await this.getInventoryByProductAndStore(productId, storeId, size);
-      return inv ? Math.max(0, inv.quantity - inv.reservedQty) : 0;
-    }
-    const [row] = await db
-      .select({ total: sql<number>`COALESCE(SUM(${inventory.quantity} - ${inventory.reservedQty}), 0)` })
-      .from(inventory)
-      .where(and(eq(inventory.productId, productId), eq(inventory.storeId, storeId)));
-    return Math.max(0, Number(row?.total ?? 0));
-  }
-
   async upsertInventory(data: InsertInventory): Promise<Inventory> {
     const size = data.size ?? "";
-    const [existing] = await db.select().from(inventory).where(
-      and(eq(inventory.productId, data.productId), eq(inventory.storeId, data.storeId), eq(inventory.size, size))
-    );
+    const conditions = [eq(inventory.productId, data.productId), eq(inventory.storeId, data.storeId), eq(inventory.size, size)];
+    const [existing] = await db.select().from(inventory).where(and(...conditions));
     if (existing) {
       const [updated] = await db.update(inventory)
         .set({ quantity: data.quantity, reservedQty: data.reservedQty ?? 0 })
@@ -381,20 +358,20 @@ export class DatabaseStorage implements IStorage {
    * zone proximity.
    */
   async findNearestStoreWithStock(
-    items: { productId: number; quantity: number; size?: string }[],
+    items: { productId: number; quantity: number }[],
     customerPincode: string
   ): Promise<(Store & { distance?: number }) | null> {
     const activeStores = await db.select().from(stores).where(eq(stores.isActive, true));
     if (activeStores.length === 0) return null;
 
-    // Check which stores can fulfill ALL items (size-aware)
+    // Check which stores can fulfill ALL items
     const qualifyingStores: (Store & { distance?: number })[] = [];
 
     for (const store of activeStores) {
       let canFulfill = true;
       for (const item of items) {
-        const available = await this.getAvailableQtyForItem(item.productId, store.id, item.size);
-        if (available < item.quantity) {
+        const inv = await this.getInventoryByProductAndStore(item.productId, store.id);
+        if (!inv || (inv.quantity - inv.reservedQty) < item.quantity) {
           canFulfill = false;
           break;
         }
@@ -406,13 +383,15 @@ export class DatabaseStorage implements IStorage {
     }
 
     if (qualifyingStores.length === 0) {
+      // Fallback: find ANY store that can fulfill (split shipment if needed later)
+      // For now, find the store that has the most items
       let bestStore: Store | null = null;
       let bestCount = 0;
       for (const store of activeStores) {
         let count = 0;
         for (const item of items) {
-          const available = await this.getAvailableQtyForItem(item.productId, store.id, item.size);
-          if (available >= item.quantity) count++;
+          const inv = await this.getInventoryByProductAndStore(item.productId, store.id);
+          if (inv && (inv.quantity - inv.reservedQty) >= item.quantity) count++;
         }
         if (count > bestCount) { bestCount = count; bestStore = store; }
       }
@@ -577,7 +556,7 @@ export class DatabaseStorage implements IStorage {
         storeId: orderItems.storeId,
         quantity: orderItems.quantity,
         price: orderItems.price,
-        costPrice: orderItems.costPrice,
+        costPrice: products.costPrice,
         size: orderItems.size,
         productName: products.name,
         productImage: products.imageUrl,
@@ -593,7 +572,7 @@ export class DatabaseStorage implements IStorage {
       storeId: r.storeId,
       quantity: r.quantity,
       price: r.price,
-      costPrice: r.costPrice,
+      costPrice: r.costPrice ?? "0",
       size: r.size,
       productName: r.productName ?? undefined,
       productImage: r.productImage ?? undefined,
@@ -736,6 +715,42 @@ export class DatabaseStorage implements IStorage {
       totalQuantity: Number(r.totalQuantity),
       totalRevenue: Number(r.totalRevenue),
     }));
+  }
+
+  async getSalesByCategory(startDate: Date, endDate: Date): Promise<{ category: string; revenue: number; orders: number; profit: number }[]> {
+    const rows = await db
+      .select({
+        category: products.category,
+        revenue: sql<number>`SUM(${orderItems.quantity} * ${orderItems.price})`,
+        orders: sql<number>`COUNT(DISTINCT ${orderItems.orderId})`,
+        profit: sql<number>`SUM(${orderItems.quantity} * (${orderItems.price} - ${orderItems.costPrice}))`,
+      })
+      .from(orderItems)
+      .innerJoin(products, eq(orderItems.productId, products.id))
+      .innerJoin(orders, and(eq(orderItems.orderId, orders.id), gte(orders.createdAt, startDate), lte(orders.createdAt, endDate)))
+      .groupBy(products.category)
+      .orderBy(sql`SUM(${orderItems.quantity} * ${orderItems.price}) DESC`);
+
+    return rows.map(r => ({
+      category: r.category,
+      revenue: Number(r.revenue),
+      orders: Number(r.orders),
+      profit: Number(r.profit),
+    }));
+  }
+
+  async getGrossProfit(startDate: Date, endDate: Date): Promise<{ revenue: number; cost: number; profit: number }> {
+    const [row] = await db
+      .select({
+        revenue: sql<number>`COALESCE(SUM(${orderItems.quantity} * ${orderItems.price}), 0)`,
+        cost: sql<number>`COALESCE(SUM(${orderItems.quantity} * ${orderItems.costPrice}), 0)`,
+      })
+      .from(orderItems)
+      .innerJoin(orders, and(eq(orderItems.orderId, orders.id), gte(orders.createdAt, startDate), lte(orders.createdAt, endDate)));
+
+    const revenue = Number(row?.revenue ?? 0);
+    const cost = Number(row?.cost ?? 0);
+    return { revenue, cost, profit: revenue - cost };
   }
 
   async createSupportRequest(data: InsertSupportRequest): Promise<SupportRequest> {

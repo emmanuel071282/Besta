@@ -1,16 +1,15 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
-import fs from "fs";
-import path from "path";
 import { api } from "@shared/routes";
 import { z } from "zod";
-import { registerSchema, loginSchema, ORDER_STATUSES, getSizesForProduct, otpVerifications, insertCampaignSchema, insertProductSchema, generateEAN13Barcode, type InsertCampaign, wishlists, reviews, outfits, outfitItems, inventory, products } from "@shared/schema";
+import { registerSchema, loginSchema, ORDER_STATUSES, getSizesForProduct, otpVerifications, insertCampaignSchema, insertProductSchema, generateEAN13Barcode, wishlists, reviews, products, type InsertCampaign } from "@shared/schema";
 import bcrypt from "bcryptjs";
 import { sendSms, sendWhatsApp } from "./sms";
 import { processStylistMessage, getDemoResponse, isAIStylistConfigured } from "./ai-stylist";
 import { db } from "./db";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sum, sql } from "drizzle-orm";
+import { inventory } from "@shared/schema";
 import { createRazorpayOrder, verifyPaymentSignature, getRazorpayKeyId, isRazorpayConfigured } from "./payment";
 import { buildInvoiceData, generateInvoiceHTML, generateInvoiceNumber, calculateGST, sendInvoiceWhatsApp, sendInvoiceEmail } from "./invoice";
 import {
@@ -394,14 +393,28 @@ export async function registerRoutes(
     res.json(items);
   });
 
+  app.get("/api/admin/orders/:id/invoice", requireAdmin, async (req, res) => {
+    const order = await storage.getOrder(Number(req.params.id));
+    if (!order) return res.status(404).json({ message: "Order not found" });
+    const [items, user, productsList] = await Promise.all([storage.getOrderItems(order.id), order.userId ? storage.getUserById(order.userId) : Promise.resolve(undefined), storage.getProducts()]);
+    const invoiceData = buildInvoiceData(order, items as any, user as any, productsList);
+    const html = generateInvoiceHTML(invoiceData);
+    res.setHeader("Content-Type", "text/html");
+    res.send(html);
+  });
+
   app.get("/api/admin/sales", requireAdmin, async (req, res) => {
     const days = Number(req.query.days) || 30;
     const endDate = new Date();
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
-    const report = await storage.getSalesReport(startDate, endDate);
-    const topProducts = await storage.getTopSellingProducts(10);
-    res.json({ report, topProducts });
+    const [report, topProducts, categoryBreakdown, grossProfit] = await Promise.all([
+      storage.getSalesReport(startDate, endDate),
+      storage.getTopSellingProducts(10),
+      storage.getSalesByCategory(startDate, endDate),
+      storage.getGrossProfit(startDate, endDate),
+    ]);
+    res.json({ report, topProducts, categoryBreakdown, grossProfit });
   });
 
   app.get("/api/admin/stores", requireAdmin, async (_req, res) => {
@@ -422,6 +435,33 @@ export async function registerRoutes(
     const store = await storage.updateStore(Number(req.params.id), req.body);
     if (!store) return res.status(404).json({ message: "Store not found" });
     res.json(store);
+  });
+
+  app.get("/api/admin/customer-analytics", requireAdmin, async (req, res) => {
+    const orders = await storage.getOrders();
+    const customerMap = new Map();
+    for (const order of orders) {
+      if (!order.userId) continue;
+      const amount = parseFloat(String(order.totalAmount || 0));
+      const ex = customerMap.get(order.userId);
+      if (ex) { ex.totalSpend += amount; ex.orderCount += 1; }
+      else customerMap.set(order.userId, { userId: order.userId, totalSpend: amount, orderCount: 1 });
+    }
+    const topCustomers = await Promise.all([...customerMap.values()].sort((a,b)=>b.totalSpend-a.totalSpend).slice(0,10).map(async c => { const user = await storage.getUserById(c.userId); return {...c, name: user?.name||"Guest", mobile: user?.mobile||""}; }));
+    const totalCustomers = customerMap.size;
+    const repeatCustomers = [...customerMap.values()].filter(c=>c.orderCount>1).length;
+    const repeatRate = totalCustomers > 0 ? Math.round((repeatCustomers/totalCustomers)*100) : 0;
+    res.json({ topCustomers, totalCustomers, repeatCustomers, repeatRate });
+  });
+
+  app.get("/api/admin/low-stock", requireAdmin, async (req, res) => {
+    const threshold = Number(req.query.threshold) || 5;
+    const inv = await storage.getInventory({});
+    const productsList = await storage.getProducts();
+    const stockMap = new Map();
+    for (const item of inv) stockMap.set(item.productId, (stockMap.get(item.productId) ?? 0) + item.quantity);
+    const lowStock = productsList.map(p => ({ ...p, totalStock: stockMap.get(p.id) ?? 0 })).filter(p => p.totalStock <= threshold).sort((a, b) => a.totalStock - b.totalStock);
+    res.json(lowStock);
   });
 
   app.get("/api/admin/inventory", requireAdmin, async (req, res) => {
@@ -460,8 +500,13 @@ export async function registerRoutes(
 
   app.post("/api/admin/products", requireAdmin, async (req, res) => {
     try {
-      const { sizeQty, storeId, ...productData } = req.body;
-      const parsed = insertProductSchema.safeParse(productData);
+      const { sizeQty, ...rawRest } = req.body as { sizeQty?: Record<string, number> } & Record<string, any>;
+      const rest = {
+        ...rawRest,
+        price: rawRest.price || "0",
+        costPrice: rawRest.costPrice || "0",
+      };
+      const parsed = insertProductSchema.safeParse(rest);
       if (!parsed.success) {
         return res.status(400).json({ message: parsed.error.errors[0].message });
       }
@@ -469,13 +514,16 @@ export async function registerRoutes(
       const barcode = generateEAN13Barcode(product.id);
       const updated = await storage.updateProductBarcode(product.id, barcode);
 
-      // Create per-size inventory records if sizeQty provided
-      if (sizeQty && typeof sizeQty === "object" && storeId) {
-        for (const [size, qty] of Object.entries(sizeQty)) {
-          const quantity = Number(qty);
-          if (quantity > 0) {
-            await storage.upsertInventory({ productId: product.id, storeId: Number(storeId), size, quantity, reservedQty: 0 });
-          }
+      // Create per-size inventory records using the first store as default
+      if (sizeQty && Object.keys(sizeQty).length > 0) {
+        const stores = await storage.getStores();
+        const defaultStoreId = stores[0]?.id;
+        if (defaultStoreId) {
+          await Promise.all(
+            Object.entries(sizeQty).map(([size, quantity]) =>
+              storage.upsertInventory({ productId: product.id, storeId: defaultStoreId, size, quantity, reservedQty: 0 })
+            )
+          );
         }
       }
 
@@ -489,44 +537,135 @@ export async function registerRoutes(
     }
   });
 
-  // Upload a product image (base64) → saves to ./uploads/, returns URL
-  app.post("/api/admin/upload", requireAdmin, async (req, res) => {
+  app.post("/api/admin/products/bulk-csv", requireAdmin, async (req, res) => {
+    const { csv } = req.body as { csv: string };
+    if (!csv || typeof csv !== "string") return res.status(400).json({ message: "CSV content required" });
+
+    // Minimal RFC 4180-compatible CSV parser (handles quoted fields with commas/newlines)
+    function parseCSV(text: string): string[][] {
+      const rows: string[][] = [];
+      let row: string[] = [];
+      let field = "";
+      let inQuotes = false;
+      for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        const next = text[i + 1];
+        if (inQuotes) {
+          if (ch === '"' && next === '"') { field += '"'; i++; }
+          else if (ch === '"') { inQuotes = false; }
+          else { field += ch; }
+        } else {
+          if (ch === '"') { inQuotes = true; }
+          else if (ch === ',') { row.push(field.trim()); field = ""; }
+          else if (ch === '\n' || (ch === '\r' && next === '\n')) {
+            if (ch === '\r') i++;
+            row.push(field.trim()); field = "";
+            if (row.some(Boolean)) rows.push(row);
+            row = [];
+          } else { field += ch; }
+        }
+      }
+      if (field || row.length) { row.push(field.trim()); if (row.some(Boolean)) rows.push(row); }
+      return rows;
+    }
+
+    const rows = parseCSV(csv.trim());
+    if (rows.length < 2) return res.status(400).json({ message: "CSV must have a header row and at least one data row" });
+
+    const headers = rows[0].map((h) => h.toLowerCase().replace(/\s+/g, ""));
+    const col = (name: string) => headers.indexOf(name);
+
+    const required = ["name", "price", "category", "subcategory"];
+    const missing = required.filter((h) => col(h) === -1);
+    if (missing.length) return res.status(400).json({ message: `Missing required columns: ${missing.join(", ")}` });
+
+    const VALID_CATEGORIES = ["Mens", "Ladies", "Kids", "Accessories", "Footwear", "Cosmetics"];
+    const imported: number[] = [];
+    const errors: { row: number; reason: string }[] = [];
+
+    for (let i = 1; i < rows.length; i++) {
+      const r = rows[i];
+      const get = (name: string) => (col(name) !== -1 ? r[col(name)] ?? "" : "");
+      const rowNum = i + 1;
+
+      const name = get("name");
+      const price = get("price");
+      const category = get("category");
+      const subcategory = get("subcategory");
+
+      if (!name) { errors.push({ row: rowNum, reason: "Name is required" }); continue; }
+      if (!price || isNaN(Number(price))) { errors.push({ row: rowNum, reason: "Price must be a number" }); continue; }
+      if (!VALID_CATEGORIES.includes(category)) { errors.push({ row: rowNum, reason: `Invalid category '${category}'` }); continue; }
+      if (!subcategory) { errors.push({ row: rowNum, reason: "Subcategory is required" }); continue; }
+
+      const costPrice = get("costprice") || get("cost_price") || "0";
+      const imageUrl = get("imageurl") || get("image_url") || get("image") || "https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=800";
+      const description = get("description") || "";
+      const sizes = getSizesForProduct(category, subcategory);
+
+      try {
+        const product = await storage.createProduct({ name, description, price, costPrice, imageUrl, category, subcategory, sizes });
+        const barcode = generateEAN13Barcode(product.id);
+        await storage.updateProductBarcode(product.id, barcode);
+        imported.push(product.id);
+      } catch (err: any) {
+        errors.push({ row: rowNum, reason: err?.message || "Database error" });
+      }
+    }
+
+    if (imported.length > 0) {
+      // Invalidation happens client-side; no server action needed
+    }
+
+    res.json({ imported: imported.length, errors });
+  });
+
+  app.delete("/api/admin/products/:id", requireAdmin, async (req, res) => {
+    const id = Number(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ message: "Invalid product ID" });
+    await storage.deleteProduct(id);
+    res.json({ success: true });
+  });
+
+  app.post("/api/admin/generate-product-images", requireAdmin, async (req, res) => {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      return res.status(503).json({ message: "OpenAI API key not configured" });
+    }
+    const { name, category, subcategory, description } = req.body as {
+      name: string; category?: string; subcategory?: string; description?: string;
+    };
+    if (!name) return res.status(400).json({ message: "Product name required" });
+    const baseDesc = [name, category, subcategory, description].filter(Boolean).join(", ");
+    const styles = [
+      "professional product photography, pure white background, clean studio lighting, high detail",
+      "fashion editorial photography, natural soft lighting, lifestyle setting, magazine quality",
+      "flat lay photography, minimalist aesthetic, top-down view, pastel background",
+    ];
     try {
-      const { data, filename } = req.body as { data: string; filename: string };
-      if (!data || !filename) return res.status(400).json({ message: "Missing data or filename" });
-
-      const matches = data.match(/^data:([A-Za-z-+/]+);base64,(.+)$/);
-      if (!matches) return res.status(400).json({ message: "Invalid base64 image" });
-
-      const ext = matches[1].split("/")[1]?.replace("jpeg", "jpg") || "jpg";
-      const safe = filename.replace(/[^a-z0-9._-]/gi, "_").replace(/\.[^.]+$/, "");
-      const fname = `${Date.now()}-${safe}.${ext}`;
-      const uploadDir = path.resolve(process.cwd(), "uploads");
-      if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-
-      fs.writeFileSync(path.join(uploadDir, fname), Buffer.from(matches[2], "base64"));
-      res.json({ url: `/uploads/${fname}` });
+      const results = await Promise.all(
+        styles.map((style) =>
+          fetch("https://api.openai.com/v1/images/generations", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+            body: JSON.stringify({
+              model: "dall-e-3",
+              prompt: `${baseDesc} fashion item. ${style}. No text, no logos.`,
+              n: 1,
+              size: "1024x1024",
+            }),
+          }).then((r) => r.json())
+        )
+      );
+      const images = results.map((r) => r.data?.[0]?.url).filter(Boolean) as string[];
+      res.json({ images });
     } catch (err) {
-      console.error("Upload error:", err);
-      res.status(500).json({ message: "Upload failed" });
+      console.error("Image generation failed:", err);
+      res.status(500).json({ message: "Failed to generate images" });
     }
   });
 
-  // Update product (image, name, price, etc.)
-  app.patch("/api/admin/products/:id", requireAdmin, async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) return res.status(400).json({ message: "Invalid id" });
-      const updated = await storage.updateProduct(id, req.body);
-      if (!updated) return res.status(404).json({ message: "Product not found" });
-      res.json(updated);
-    } catch (err) {
-      console.error("Update product error:", err);
-      res.status(500).json({ message: "Failed to update product" });
-    }
-  });
-
-  const orderBodySchema = z.object({
+    const orderBodySchema = z.object({
     items: z.array(z.object({
       productId: z.number(),
       quantity: z.number().min(1),
@@ -676,8 +815,8 @@ export async function registerRoutes(
         discountAmount: discountAmount.toString(),
       });
 
-      // Nearest-store fulfillment — pass size so stock check is size-aware
-      const legacyCartItems = items.map(i => ({ productId: i.productId, quantity: i.quantity, size: i.size }));
+      // Nearest-store fulfillment for legacy order flow
+      const legacyCartItems = items.map(i => ({ productId: i.productId, quantity: i.quantity }));
       const legacyNearestStore = await storage.findNearestStoreWithStock(legacyCartItems, shippingPincode);
       const legacyStoreId = legacyNearestStore?.id || null;
 
@@ -685,26 +824,17 @@ export async function registerRoutes(
       const allProducts = await storage.getProducts();
 
       for (const item of items) {
-        const itemSize = item.size || undefined;
         let assignedStoreId = legacyStoreId;
-
         if (legacyStoreId) {
-          const available = await storage.getAvailableQtyForItem(item.productId, legacyStoreId, itemSize);
-          if (available < item.quantity) {
-            // Fallback: find any store with enough of this size
+          const inv = await storage.getInventoryByProductAndStore(item.productId, legacyStoreId);
+          if (!inv || (inv.quantity - inv.reservedQty) < item.quantity) {
             const allInv = await storage.getInventory({ productId: item.productId });
-            const fb = allInv.find(i =>
-              (itemSize ? (i.size === itemSize || i.size === "") : true) &&
-              (i.quantity - i.reservedQty) >= item.quantity
-            );
+            const fb = allInv.find(i => (i.quantity - i.reservedQty) >= item.quantity);
             assignedStoreId = fb?.storeId || null;
           }
         } else {
           const allInv = await storage.getInventory({ productId: item.productId });
-          const fb = allInv.find(i =>
-            (itemSize ? (i.size === itemSize || i.size === "") : true) &&
-            (i.quantity - i.reservedQty) >= item.quantity
-          );
+          const fb = allInv.find(i => (i.quantity - i.reservedQty) >= item.quantity);
           assignedStoreId = fb?.storeId || null;
         }
 
@@ -719,9 +849,8 @@ export async function registerRoutes(
           size: item.size || null,
         });
 
-        // Deduct from the correct size record
         if (assignedStoreId) {
-          const inv = await storage.getInventoryByProductAndStore(item.productId, assignedStoreId, itemSize);
+          const inv = await storage.getInventoryByProductAndStore(item.productId, assignedStoreId);
           if (inv) {
             await storage.updateInventoryQuantity(inv.id, inv.quantity - item.quantity);
           }
@@ -787,169 +916,12 @@ export async function registerRoutes(
     if (isNaN(id)) {
       return res.status(400).json({ message: "Invalid product ID" });
     }
-
+    
     const product = await storage.getProduct(id);
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
     }
     res.json(product);
-  });
-
-  // Public: per-size inventory for a product (aggregated across all stores)
-  app.get("/api/products/:id/inventory", async (req, res) => {
-    const productId = Number(req.params.id);
-    if (isNaN(productId)) return res.status(400).json({ message: "Invalid product ID" });
-    const rows = await db
-      .select({ size: inventory.size, qty: sql<number>`SUM(${inventory.quantity} - ${inventory.reservedQty})` })
-      .from(inventory)
-      .where(eq(inventory.productId, productId))
-      .groupBy(inventory.size);
-    res.json(rows.map(r => ({ size: r.size, available: Math.max(0, Number(r.qty)) })));
-  });
-
-  // Public: stores that have stock for a product
-  app.get("/api/products/:id/stores", async (req, res) => {
-    const productId = Number(req.params.id);
-    if (isNaN(productId)) return res.status(400).json({ message: "Invalid product ID" });
-    const stores = await storage.getStoresWithStock(productId, 1);
-    res.json(stores);
-  });
-
-  // ---------------------------------------------------------------------------
-  // Wishlist routes
-  // ---------------------------------------------------------------------------
-  app.get("/api/wishlist", requireAuth, async (req, res) => {
-    const userId = req.session.userId!;
-    const rows = await db
-      .select({ product: products })
-      .from(wishlists)
-      .innerJoin(products, eq(wishlists.productId, products.id))
-      .where(eq(wishlists.userId, userId));
-    res.json(rows.map(r => r.product));
-  });
-
-  app.post("/api/wishlist/:productId", requireAuth, async (req, res) => {
-    const userId = req.session.userId!;
-    const productId = Number(req.params.productId);
-    if (isNaN(productId)) return res.status(400).json({ message: "Invalid product ID" });
-    const [existing] = await db.select().from(wishlists).where(and(eq(wishlists.userId, userId), eq(wishlists.productId, productId)));
-    if (!existing) {
-      await db.insert(wishlists).values({ userId, productId });
-    }
-    res.json({ ok: true });
-  });
-
-  app.delete("/api/wishlist/:productId", requireAuth, async (req, res) => {
-    const userId = req.session.userId!;
-    const productId = Number(req.params.productId);
-    if (isNaN(productId)) return res.status(400).json({ message: "Invalid product ID" });
-    await db.delete(wishlists).where(and(eq(wishlists.userId, userId), eq(wishlists.productId, productId)));
-    res.json({ ok: true });
-  });
-
-  // ---------------------------------------------------------------------------
-  // Reviews routes
-  // ---------------------------------------------------------------------------
-  app.get("/api/products/:id/reviews", async (req, res) => {
-    const productId = Number(req.params.id);
-    if (isNaN(productId)) return res.status(400).json({ message: "Invalid product ID" });
-    const rows = await db.select().from(reviews).where(eq(reviews.productId, productId)).orderBy(desc(reviews.createdAt));
-    res.json(rows);
-  });
-
-  app.post("/api/products/:id/reviews", requireAuth, async (req, res) => {
-    const userId = req.session.userId!;
-    const productId = Number(req.params.id);
-    if (isNaN(productId)) return res.status(400).json({ message: "Invalid product ID" });
-    const { rating, comment } = req.body;
-    if (!rating || rating < 1 || rating > 5) return res.status(400).json({ message: "Rating must be 1–5" });
-    const [existing] = await db.select().from(reviews).where(and(eq(reviews.userId, userId), eq(reviews.productId, productId)));
-    if (existing) {
-      const [updated] = await db.update(reviews).set({ rating, comment: comment ?? "" }).where(eq(reviews.id, existing.id)).returning();
-      return res.json(updated);
-    }
-    const [created] = await db.insert(reviews).values({ userId, productId, rating, comment: comment ?? "" }).returning();
-    res.json(created);
-  });
-
-  // ---------------------------------------------------------------------------
-  // Outfits ("Complete the Look") — public read, admin write
-  // ---------------------------------------------------------------------------
-  app.get("/api/outfits", async (_req, res) => {
-    const rows = await db.select().from(outfits).where(eq(outfits.isActive, true)).orderBy(desc(outfits.createdAt));
-    res.json(rows);
-  });
-
-  app.get("/api/outfits/:id", async (req, res) => {
-    const id = Number(req.params.id);
-    if (isNaN(id)) return res.status(400).json({ message: "Invalid outfit ID" });
-    const [outfit] = await db.select().from(outfits).where(eq(outfits.id, id));
-    if (!outfit) return res.status(404).json({ message: "Outfit not found" });
-    const items = await db
-      .select({ product: products, displayOrder: outfitItems.displayOrder })
-      .from(outfitItems)
-      .innerJoin(products, eq(outfitItems.productId, products.id))
-      .where(eq(outfitItems.outfitId, id))
-      .orderBy(outfitItems.displayOrder);
-    res.json({ ...outfit, products: items.map(i => i.product) });
-  });
-
-  // Outfits for a specific product (show "Complete the Look" on product page)
-  app.get("/api/products/:id/outfits", async (req, res) => {
-    const productId = Number(req.params.id);
-    if (isNaN(productId)) return res.status(400).json({ message: "Invalid product ID" });
-    const outfitIds = await db
-      .select({ outfitId: outfitItems.outfitId })
-      .from(outfitItems)
-      .where(eq(outfitItems.productId, productId));
-    if (outfitIds.length === 0) return res.json([]);
-    const ids = outfitIds.map(r => r.outfitId);
-    const result = [];
-    for (const oid of ids) {
-      const [outfit] = await db.select().from(outfits).where(and(eq(outfits.id, oid), eq(outfits.isActive, true)));
-      if (!outfit) continue;
-      const items = await db
-        .select({ product: products })
-        .from(outfitItems)
-        .innerJoin(products, eq(outfitItems.productId, products.id))
-        .where(eq(outfitItems.outfitId, oid))
-        .orderBy(outfitItems.displayOrder);
-      result.push({ ...outfit, products: items.map(i => i.product) });
-    }
-    res.json(result);
-  });
-
-  // Admin outfit CRUD
-  app.get("/api/admin/outfits", requireAdmin, async (_req, res) => {
-    const rows = await db.select().from(outfits).orderBy(desc(outfits.createdAt));
-    res.json(rows);
-  });
-
-  app.post("/api/admin/outfits", requireAdmin, async (req, res) => {
-    const { name, description, imageUrl, productIds } = req.body;
-    if (!name || !Array.isArray(productIds) || productIds.length < 2) {
-      return res.status(400).json({ message: "Name and at least 2 products are required" });
-    }
-    const [outfit] = await db.insert(outfits).values({ name, description: description ?? "", imageUrl: imageUrl ?? "" }).returning();
-    for (let i = 0; i < productIds.length; i++) {
-      await db.insert(outfitItems).values({ outfitId: outfit.id, productId: productIds[i], displayOrder: i });
-    }
-    res.json(outfit);
-  });
-
-  app.patch("/api/admin/outfits/:id", requireAdmin, async (req, res) => {
-    const id = Number(req.params.id);
-    const { name, description, imageUrl, isActive } = req.body;
-    const [updated] = await db.update(outfits).set({ name, description, imageUrl, isActive }).where(eq(outfits.id, id)).returning();
-    if (!updated) return res.status(404).json({ message: "Outfit not found" });
-    res.json(updated);
-  });
-
-  app.delete("/api/admin/outfits/:id", requireAdmin, async (req, res) => {
-    const id = Number(req.params.id);
-    await db.delete(outfitItems).where(eq(outfitItems.outfitId, id));
-    await db.delete(outfits).where(eq(outfits.id, id));
-    res.json({ ok: true });
   });
 
   // ---------------------------------------------------------------------------
@@ -1104,7 +1076,7 @@ export async function registerRoutes(
       // ---------------------------------------------------------------
       // Nearest-store fulfillment — pick the closest store with stock
       // ---------------------------------------------------------------
-      const cartItems = items.map(i => ({ productId: i.productId, quantity: i.quantity, size: i.size }));
+      const cartItems = items.map(i => ({ productId: i.productId, quantity: i.quantity }));
       const nearestStore = await storage.findNearestStoreWithStock(cartItems, shippingPincode);
 
       let fulfilledStoreId: number | null = null;
@@ -1115,25 +1087,20 @@ export async function registerRoutes(
 
       // Create order items + deduct inventory from the fulfilling store
       for (const item of items) {
-        const itemSize = item.size || undefined;
         let assignedStoreId: number | null = fulfilledStoreId;
 
+        // If nearest store doesn't have this specific item, fall back to any store
         if (fulfilledStoreId) {
-          const available = await storage.getAvailableQtyForItem(item.productId, fulfilledStoreId, itemSize);
-          if (available < item.quantity) {
+          const inv = await storage.getInventoryByProductAndStore(item.productId, fulfilledStoreId);
+          if (!inv || (inv.quantity - inv.reservedQty) < item.quantity) {
+            // Fallback: find any store that has this item
             const allInv = await storage.getInventory({ productId: item.productId });
-            const fallbackStore = allInv.find(i =>
-              (itemSize ? (i.size === itemSize || i.size === "") : true) &&
-              (i.quantity - i.reservedQty) >= item.quantity
-            );
+            const fallbackStore = allInv.find(i => (i.quantity - i.reservedQty) >= item.quantity);
             assignedStoreId = fallbackStore?.storeId || null;
           }
         } else {
           const allInv = await storage.getInventory({ productId: item.productId });
-          const fallbackStore = allInv.find(i =>
-            (itemSize ? (i.size === itemSize || i.size === "") : true) &&
-            (i.quantity - i.reservedQty) >= item.quantity
-          );
+          const fallbackStore = allInv.find(i => (i.quantity - i.reservedQty) >= item.quantity);
           assignedStoreId = fallbackStore?.storeId || null;
         }
 
@@ -1148,9 +1115,9 @@ export async function registerRoutes(
           size: item.size || null,
         });
 
-        // Deduct from the correct size record
+        // Deduct inventory
         if (assignedStoreId) {
-          const inv = await storage.getInventoryByProductAndStore(item.productId, assignedStoreId, itemSize);
+          const inv = await storage.getInventoryByProductAndStore(item.productId, assignedStoreId);
           if (inv) {
             await storage.updateInventoryQuantity(inv.id, inv.quantity - item.quantity);
           }
@@ -1648,6 +1615,66 @@ export async function registerRoutes(
     // Get unique mobiles with their latest message
     const allMessages = await storage.getStylistConversation("", 200);
     res.json(allMessages);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Wishlist routes
+  // ---------------------------------------------------------------------------
+  app.get("/api/wishlist", requireAuth, async (req, res) => {
+    const userId = (req as any).user.id;
+    const rows = await db
+      .select({ product: products })
+      .from(wishlists)
+      .innerJoin(products, eq(wishlists.productId, products.id))
+      .where(eq(wishlists.userId, userId));
+    res.json(rows.map(r => r.product));
+  });
+
+  app.post("/api/wishlist/:productId", requireAuth, async (req, res) => {
+    const userId = (req as any).user.id;
+    const productId = parseInt(req.params.productId);
+    if (isNaN(productId)) return res.status(400).json({ message: "Invalid product ID" });
+    try {
+      await db.insert(wishlists).values({ userId, productId }).onConflictDoNothing();
+      res.json({ added: true });
+    } catch {
+      res.status(500).json({ message: "Failed to add to wishlist" });
+    }
+  });
+
+  app.delete("/api/wishlist/:productId", requireAuth, async (req, res) => {
+    const userId = (req as any).user.id;
+    const productId = parseInt(req.params.productId);
+    if (isNaN(productId)) return res.status(400).json({ message: "Invalid product ID" });
+    await db.delete(wishlists).where(and(eq(wishlists.userId, userId), eq(wishlists.productId, productId)));
+    res.json({ removed: true });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Reviews routes
+  // ---------------------------------------------------------------------------
+  app.get("/api/products/:id/reviews", async (req, res) => {
+    const productId = parseInt(req.params.id);
+    if (isNaN(productId)) return res.status(400).json({ message: "Invalid product ID" });
+    const rows = await db.select().from(reviews).where(eq(reviews.productId, productId)).orderBy(desc(reviews.createdAt));
+    res.json(rows);
+  });
+
+  app.post("/api/products/:id/reviews", requireAuth, async (req, res) => {
+    const userId = (req as any).user.id;
+    const productId = parseInt(req.params.id);
+    if (isNaN(productId)) return res.status(400).json({ message: "Invalid product ID" });
+    const schema = z.object({ rating: z.number().int().min(1).max(5), comment: z.string().max(500).default("") });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ message: parsed.error.errors[0].message });
+    try {
+      const [review] = await db.insert(reviews).values({ userId, productId, ...parsed.data })
+        .onConflictDoUpdate({ target: [reviews.userId, reviews.productId], set: { rating: parsed.data.rating, comment: parsed.data.comment } })
+        .returning();
+      res.json(review);
+    } catch {
+      res.status(500).json({ message: "Failed to submit review" });
+    }
   });
 
   await seedDatabase();

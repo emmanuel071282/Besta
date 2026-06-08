@@ -146,6 +146,7 @@ export default function InventoryPage() {
               <thead>
                 <tr className="border-b border-border text-left">
                   <th className="px-6 py-3 text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">Product</th>
+                  <th className="px-6 py-3 text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">Size</th>
                   <th className="px-6 py-3 text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">Store</th>
                   <th className="px-6 py-3 text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">Available</th>
                   <th className="px-6 py-3 text-[10px] uppercase tracking-widest font-semibold text-muted-foreground">Reserved</th>
@@ -159,6 +160,7 @@ export default function InventoryPage() {
                   inventoryData.map((inv) => (
                     <tr key={inv.id} className={cn("border-b border-border/50 hover:bg-secondary/30", inv.quantity < 5 && "bg-yellow-50/50 dark:bg-yellow-900/10")} data-testid={`row-inventory-${inv.id}`}>
                       <td className="px-6 py-4">{inv.productName || `#${inv.productId}`}</td>
+                      <td className="px-6 py-4 text-muted-foreground">{inv.size || "—"}</td>
                       <td className="px-6 py-4 text-muted-foreground">{inv.storeName || `#${inv.storeId}`}</td>
                       <td className="px-6 py-4">
                         <span className={cn("font-semibold", inv.quantity < 5 && "text-red-600")}>

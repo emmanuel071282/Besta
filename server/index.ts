@@ -6,8 +6,6 @@ import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import { db } from "./db";
 import { sql } from "drizzle-orm";
-import path from "path";
-import fs from "fs";
 
 const app = express();
 const httpServer = createServer(app);
@@ -26,19 +24,14 @@ declare module "express-session" {
 
 app.use(
   express.json({
-    limit: "12mb",
+    limit: "20mb",
     verify: (req, _res, buf) => {
       req.rawBody = buf;
     },
   }),
 );
 
-// Serve uploaded product images
-const uploadsDir = path.resolve(process.cwd(), "uploads");
-if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
-app.use("/uploads", express.static(uploadsDir));
-
-app.use(express.urlencoded({ extended: false }));
+app.use(express.urlencoded({ extended: false, limit: "20mb" }));
 
 // Trust proxy so secure cookies work behind Replit/reverse proxy
 app.set("trust proxy", 1);
@@ -114,6 +107,10 @@ app.use((req, res, next) => {
 
 (async () => {
   await db.execute(sql`
+    ALTER TABLE inventory ADD COLUMN IF NOT EXISTS size TEXT NOT NULL DEFAULT ''
+  `).catch((err) => console.error("inventory.size migration error:", err));
+
+  await db.execute(sql`
     CREATE TABLE IF NOT EXISTS otp_verifications (
       id SERIAL PRIMARY KEY,
       mobile TEXT NOT NULL,
@@ -150,14 +147,13 @@ app.use((req, res, next) => {
     )
   `);
 
-  await db.execute(sql`ALTER TABLE inventory ADD COLUMN IF NOT EXISTS size TEXT NOT NULL DEFAULT ''`).catch(() => {});
-
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS wishlists (
       id SERIAL PRIMARY KEY,
       user_id INTEGER NOT NULL,
       product_id INTEGER NOT NULL,
-      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      UNIQUE(user_id, product_id)
     )
   `);
 
@@ -166,29 +162,10 @@ app.use((req, res, next) => {
       id SERIAL PRIMARY KEY,
       user_id INTEGER NOT NULL,
       product_id INTEGER NOT NULL,
-      rating INTEGER NOT NULL,
+      rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
       comment TEXT NOT NULL DEFAULT '',
-      created_at TIMESTAMP NOT NULL DEFAULT NOW()
-    )
-  `);
-
-  await db.execute(sql`
-    CREATE TABLE IF NOT EXISTS outfits (
-      id SERIAL PRIMARY KEY,
-      name TEXT NOT NULL,
-      description TEXT NOT NULL DEFAULT '',
-      image_url TEXT NOT NULL DEFAULT '',
-      is_active BOOLEAN NOT NULL DEFAULT true,
-      created_at TIMESTAMP NOT NULL DEFAULT NOW()
-    )
-  `);
-
-  await db.execute(sql`
-    CREATE TABLE IF NOT EXISTS outfit_items (
-      id SERIAL PRIMARY KEY,
-      outfit_id INTEGER NOT NULL,
-      product_id INTEGER NOT NULL,
-      display_order INTEGER NOT NULL DEFAULT 0
+      created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      UNIQUE(user_id, product_id)
     )
   `);
 
