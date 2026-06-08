@@ -99,17 +99,6 @@ function EditProductModal({ product, onClose }: { product: Product; onClose: () 
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-
-  const deleteMutation = useMutation({
-    mutationFn: async (id: number) => {
-      const res = await apiRequest("DELETE", `/api/admin/products/${id}`);
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/products"] });
-    },
-  });
-
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -367,7 +356,6 @@ export default function ArticlesPage() {
     category: "",
     subcategory: "",
   });
-  const [searchQuery, setSearchQuery] = useState("");
   const [autoSizes, setAutoSizes] = useState<string[]>([]);
   const [sizeQty, setSizeQty] = useState<Record<string, number>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -411,17 +399,6 @@ export default function ArticlesPage() {
     },
   });
 
-
-
-  const deleteMutation = useMutation({
-    mutationFn: async (id: number) => {
-      const res = await apiRequest("DELETE", `/api/admin/products/${id}`);
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/products"] });
-    },
-  });
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -678,8 +655,6 @@ export default function ArticlesPage() {
         </form>
       )}
 
-      <div className="mb-4 relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" /><input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search by name, category or barcode..." className="w-full border border-border bg-background pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-foreground" /></div>
-
       {isLoading ? (
         <div className="flex justify-center py-16">
           <Loader2 className="w-6 h-6 animate-spin" />
@@ -709,7 +684,7 @@ export default function ArticlesPage() {
                     </td>
                   </tr>
                 ) : (
-                  products.filter((p) => { if (!searchQuery) return true; const q = searchQuery.toLowerCase(); return p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q) || (p.subcategory||"").toLowerCase().includes(q) || (p.barcode||"").includes(q); }).map((p) => (
+                  products.map((p) => (
                     <tr key={p.id} className="border-b border-border/50 hover:bg-secondary/30">
                       <td className="px-4 py-3 text-muted-foreground">#{p.id}</td>
                       <td className="px-4 py-3">
@@ -736,11 +711,6 @@ export default function ArticlesPage() {
                           <button onClick={() => setEditProduct(p)}
                             className="flex items-center gap-1.5 text-xs border border-border px-3 py-1.5 hover:bg-secondary transition-colors">
                             <Pencil className="w-3.5 h-3.5" /> Edit
-                          </button>
-                          <button onClick={() => { if (window.confirm("Delete this article?")) deleteMutation.mutate(p.id); }} className="flex items-center gap-1.5 text-xs border border-red-200 text-red-600 px-3 py-1.5 hover:bg-red-50 transition-colors">Delete</button>
-                          <button onClick={() => { if (confirm("Delete this article?")) deleteMutation.mutate(p.id); }}
-                            className="flex items-center gap-1.5 text-xs border border-red-200 text-red-600 px-3 py-1.5 hover:bg-red-50 transition-colors">
-                            <Trash2 className="w-3.5 h-3.5" /> Delete
                           </button>
                           {p.barcode && (
                             <button onClick={() => setBarcodeProduct(p)}
