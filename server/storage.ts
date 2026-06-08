@@ -39,7 +39,6 @@ export interface IStorage {
   getProduct(id: number): Promise<Product | undefined>;
   createProduct(product: InsertProduct): Promise<Product>;
   updateProductBarcode(id: number, barcode: string): Promise<Product | undefined>;
-  deleteProduct(id: number): Promise<void>;
   deleteAllProducts(): Promise<void>;
 
   createUser(user: InsertUser): Promise<User>;
@@ -169,10 +168,6 @@ export class DatabaseStorage implements IStorage {
     return updated ? this.ensureSizes(updated) : undefined;
   }
 
-  async deleteProduct(id: number): Promise<void> {
-    await db.delete(products).where(eq(products.id, id));
-  }
-
   async deleteAllProducts(): Promise<void> {
     await db.delete(products);
   }
@@ -209,6 +204,40 @@ export class DatabaseStorage implements IStorage {
   async updateStore(id: number, data: Partial<InsertStore>): Promise<Store | undefined> {
     const [store] = await db.update(stores).set(data).where(eq(stores.id, id)).returning();
     return store;
+  }
+
+  async deleteStore(id: number): Promise<boolean> {
+    const result = await db.delete(stores).where(eq(stores.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async getCategorySales(period: "ld" | "wtd" | "mtd" | "ytd"): Promise<{ category: string; revenue: number; orders: number }[]> {
+    const now = new Date();
+    let from: Date;
+    if (period === "ld") {
+      from = new Date(now); from.setHours(0, 0, 0, 0);
+    } else if (period === "wtd") {
+      from = new Date(now); from.setDate(now.getDate() - now.getDay());  from.setHours(0, 0, 0, 0);
+    } else if (period === "mtd") {
+      from = new Date(now.getFullYear(), now.getMonth(), 1);
+    } else {
+      from = new Date(now.getFullYear(), 0, 1);
+    }
+
+    const rows = await db
+      .select({
+        category: products.category,
+        revenue: sql<number>`COALESCE(SUM(${orderItems.price} * ${orderItems.quantity}), 0)`,
+        orders: sql<number>`COUNT(DISTINCT ${orders.id})`,
+      })
+      .from(orders)
+      .innerJoin(orderItems, eq(orderItems.orderId, orders.id))
+      .innerJoin(products, eq(products.id, orderItems.productId))
+      .where(and(gte(orders.createdAt, from), sql`${orders.status} != 'cancelled'`))
+      .groupBy(products.category)
+      .orderBy(sql`SUM(${orderItems.price} * ${orderItems.quantity}) DESC`);
+
+    return rows.map(r => ({ category: r.category, revenue: Number(r.revenue), orders: Number(r.orders) }));
   }
 
   async getInventory(filters?: { productId?: number; storeId?: number }): Promise<(Inventory & { productName?: string; storeName?: string })[]> {
