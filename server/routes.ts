@@ -3,7 +3,7 @@ import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
-import { registerSchema, loginSchema, ORDER_STATUSES, getSizesForProduct, otpVerifications, insertCampaignSchema, insertProductSchema, generateEAN13Barcode, wishlists, reviews, products, type InsertCampaign } from "@shared/schema";
+import { registerSchema, loginSchema, ORDER_STATUSES, getSizesForProduct, otpVerifications, insertCampaignSchema, insertProductSchema, generateEAN13Barcode, wishlists, reviews, products, outfits, outfitItems, type InsertCampaign } from "@shared/schema";
 import bcrypt from "bcryptjs";
 import { sendSms, sendWhatsApp } from "./sms";
 import { processStylistMessage, getDemoResponse, isAIStylistConfigured } from "./ai-stylist";
@@ -349,7 +349,7 @@ export async function registerRoutes(
   });
 
   app.patch("/api/admin/support-requests/:id/status", requireAdmin, async (req, res) => {
-    const id = parseInt(req.params.id);
+    const id = Number(req.params.id);
     const { status } = req.body;
     if (!["pending", "processing", "resolved", "rejected"].includes(status)) {
       return res.status(400).json({ message: "Invalid status" });
@@ -393,16 +393,6 @@ export async function registerRoutes(
     res.json(items);
   });
 
-  app.get("/api/admin/orders/:id/invoice", requireAdmin, async (req, res) => {
-    const order = await storage.getOrder(Number(req.params.id));
-    if (!order) return res.status(404).json({ message: "Order not found" });
-    const [items, user, productsList] = await Promise.all([storage.getOrderItems(order.id), order.userId ? storage.getUserById(order.userId) : Promise.resolve(undefined), storage.getProducts()]);
-    const invoiceData = buildInvoiceData(order, items as any, user as any, productsList);
-    const html = generateInvoiceHTML(invoiceData);
-    res.setHeader("Content-Type", "text/html");
-    res.send(html);
-  });
-
   app.get("/api/admin/sales", requireAdmin, async (req, res) => {
     const days = Number(req.query.days) || 30;
     const endDate = new Date();
@@ -437,31 +427,17 @@ export async function registerRoutes(
     res.json(store);
   });
 
-  app.get("/api/admin/customer-analytics", requireAdmin, async (req, res) => {
-    const orders = await storage.getOrders();
-    const customerMap = new Map();
-    for (const order of orders) {
-      if (!order.userId) continue;
-      const amount = parseFloat(String(order.totalAmount || 0));
-      const ex = customerMap.get(order.userId);
-      if (ex) { ex.totalSpend += amount; ex.orderCount += 1; }
-      else customerMap.set(order.userId, { userId: order.userId, totalSpend: amount, orderCount: 1 });
-    }
-    const topCustomers = await Promise.all([...customerMap.values()].sort((a,b)=>b.totalSpend-a.totalSpend).slice(0,10).map(async c => { const user = await storage.getUserById(c.userId); return {...c, name: user?.name||"Guest", mobile: user?.mobile||""}; }));
-    const totalCustomers = customerMap.size;
-    const repeatCustomers = [...customerMap.values()].filter(c=>c.orderCount>1).length;
-    const repeatRate = totalCustomers > 0 ? Math.round((repeatCustomers/totalCustomers)*100) : 0;
-    res.json({ topCustomers, totalCustomers, repeatCustomers, repeatRate });
+  app.delete("/api/admin/stores/:id", requireAdmin, async (req, res) => {
+    const deleted = await storage.deleteStore(Number(req.params.id));
+    if (!deleted) return res.status(404).json({ message: "Store not found" });
+    res.json({ success: true });
   });
 
-  app.get("/api/admin/low-stock", requireAdmin, async (req, res) => {
-    const threshold = Number(req.query.threshold) || 5;
-    const inv = await storage.getInventory({});
-    const productsList = await storage.getProducts();
-    const stockMap = new Map();
-    for (const item of inv) stockMap.set(item.productId, (stockMap.get(item.productId) ?? 0) + item.quantity);
-    const lowStock = productsList.map(p => ({ ...p, totalStock: stockMap.get(p.id) ?? 0 })).filter(p => p.totalStock <= threshold).sort((a, b) => a.totalStock - b.totalStock);
-    res.json(lowStock);
+  app.get("/api/admin/dashboard/category-sales", requireAdmin, async (req, res) => {
+    const period = (req.query.period as string) || "mtd";
+    if (!["ld", "wtd", "mtd", "ytd"].includes(period)) return res.status(400).json({ message: "Invalid period" });
+    const data = await storage.getCategorySales(period as "ld" | "wtd" | "mtd" | "ytd");
+    res.json(data);
   });
 
   app.get("/api/admin/inventory", requireAdmin, async (req, res) => {
@@ -618,13 +594,6 @@ export async function registerRoutes(
     }
 
     res.json({ imported: imported.length, errors });
-  });
-
-  app.delete("/api/admin/products/:id", requireAdmin, async (req, res) => {
-    const id = Number(req.params.id);
-    if (isNaN(id)) return res.status(400).json({ message: "Invalid product ID" });
-    await storage.deleteProduct(id);
-    res.json({ success: true });
   });
 
   app.post("/api/admin/generate-product-images", requireAdmin, async (req, res) => {
@@ -922,6 +891,104 @@ export async function registerRoutes(
       return res.status(404).json({ message: "Product not found" });
     }
     res.json(product);
+  });
+
+  // Per-size inventory for a product (aggregated across all stores)
+  app.get("/api/products/:id/inventory", async (req, res) => {
+    const productId = Number(req.params.id);
+    if (isNaN(productId)) return res.status(400).json({ message: "Invalid product ID" });
+    const rows = await db
+      .select({ size: inventory.size, qty: sql<number>`SUM(${inventory.quantity} - ${inventory.reservedQty})` })
+      .from(inventory)
+      .where(eq(inventory.productId, productId))
+      .groupBy(inventory.size);
+    res.json(rows.map(r => ({ size: r.size, available: Math.max(0, Number(r.qty)) })));
+  });
+
+  // Stores that have stock for a product
+  app.get("/api/products/:id/stores", async (req, res) => {
+    const productId = Number(req.params.id);
+    if (isNaN(productId)) return res.status(400).json({ message: "Invalid product ID" });
+    const storesList = await storage.getStoresWithStock(productId, 1);
+    res.json(storesList);
+  });
+
+  // Outfits (public)
+  app.get("/api/outfits", async (_req, res) => {
+    const rows = await db.select().from(outfits).where(eq(outfits.isActive, true)).orderBy(desc(outfits.createdAt));
+    res.json(rows);
+  });
+
+  app.get("/api/outfits/:id", async (req, res) => {
+    const id = Number(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ message: "Invalid outfit ID" });
+    const [outfit] = await db.select().from(outfits).where(eq(outfits.id, id));
+    if (!outfit) return res.status(404).json({ message: "Outfit not found" });
+    const items = await db
+      .select({ product: products, displayOrder: outfitItems.displayOrder })
+      .from(outfitItems)
+      .innerJoin(products, eq(outfitItems.productId, products.id))
+      .where(eq(outfitItems.outfitId, id))
+      .orderBy(outfitItems.displayOrder);
+    res.json({ ...outfit, products: items.map(i => i.product) });
+  });
+
+  app.get("/api/products/:id/outfits", async (req, res) => {
+    const productId = Number(req.params.id);
+    if (isNaN(productId)) return res.status(400).json({ message: "Invalid product ID" });
+    const outfitIds = await db
+      .select({ outfitId: outfitItems.outfitId })
+      .from(outfitItems)
+      .where(eq(outfitItems.productId, productId));
+    if (outfitIds.length === 0) return res.json([]);
+    const ids = outfitIds.map(r => r.outfitId);
+    const result = [];
+    for (const oid of ids) {
+      const [outfit] = await db.select().from(outfits).where(and(eq(outfits.id, oid), eq(outfits.isActive, true)));
+      if (!outfit) continue;
+      const items = await db
+        .select({ product: products })
+        .from(outfitItems)
+        .innerJoin(products, eq(outfitItems.productId, products.id))
+        .where(eq(outfitItems.outfitId, oid))
+        .orderBy(outfitItems.displayOrder);
+      result.push({ ...outfit, products: items.map(i => i.product) });
+    }
+    res.json(result);
+  });
+
+  // Admin outfit CRUD
+  app.get("/api/admin/outfits", requireAdmin, async (_req, res) => {
+    const rows = await db.select().from(outfits).orderBy(desc(outfits.createdAt));
+    res.json(rows);
+  });
+
+  app.post("/api/admin/outfits", requireAdmin, async (req, res) => {
+    const { name, description, imageUrl, productIds } = req.body;
+    if (!name || !Array.isArray(productIds) || productIds.length < 2) {
+      return res.status(400).json({ message: "Name and at least 2 products are required" });
+    }
+    const [outfit] = await db.insert(outfits).values({ name, description: description ?? "", imageUrl: imageUrl ?? "" }).returning();
+    for (let i = 0; i < productIds.length; i++) {
+      await db.insert(outfitItems).values({ outfitId: outfit.id, productId: productIds[i], displayOrder: i });
+    }
+    res.json(outfit);
+  });
+
+  app.patch("/api/admin/outfits/:id", requireAdmin, async (req, res) => {
+    const id = Number(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ message: "Invalid ID" });
+    const { name, description, imageUrl, isActive } = req.body;
+    const [updated] = await db.update(outfits).set({ name, description, imageUrl, isActive }).where(eq(outfits.id, id)).returning();
+    res.json(updated);
+  });
+
+  app.delete("/api/admin/outfits/:id", requireAdmin, async (req, res) => {
+    const id = Number(req.params.id);
+    if (isNaN(id)) return res.status(400).json({ message: "Invalid ID" });
+    await db.delete(outfitItems).where(eq(outfitItems.outfitId, id));
+    await db.delete(outfits).where(eq(outfits.id, id));
+    res.json({ ok: true });
   });
 
   // ---------------------------------------------------------------------------
@@ -1632,7 +1699,7 @@ export async function registerRoutes(
 
   app.post("/api/wishlist/:productId", requireAuth, async (req, res) => {
     const userId = (req as any).user.id;
-    const productId = parseInt(req.params.productId);
+    const productId = Number(req.params.productId);
     if (isNaN(productId)) return res.status(400).json({ message: "Invalid product ID" });
     try {
       await db.insert(wishlists).values({ userId, productId }).onConflictDoNothing();
@@ -1644,7 +1711,7 @@ export async function registerRoutes(
 
   app.delete("/api/wishlist/:productId", requireAuth, async (req, res) => {
     const userId = (req as any).user.id;
-    const productId = parseInt(req.params.productId);
+    const productId = Number(req.params.productId);
     if (isNaN(productId)) return res.status(400).json({ message: "Invalid product ID" });
     await db.delete(wishlists).where(and(eq(wishlists.userId, userId), eq(wishlists.productId, productId)));
     res.json({ removed: true });
@@ -1654,7 +1721,7 @@ export async function registerRoutes(
   // Reviews routes
   // ---------------------------------------------------------------------------
   app.get("/api/products/:id/reviews", async (req, res) => {
-    const productId = parseInt(req.params.id);
+    const productId = Number(req.params.id);
     if (isNaN(productId)) return res.status(400).json({ message: "Invalid product ID" });
     const rows = await db.select().from(reviews).where(eq(reviews.productId, productId)).orderBy(desc(reviews.createdAt));
     res.json(rows);
@@ -1662,7 +1729,7 @@ export async function registerRoutes(
 
   app.post("/api/products/:id/reviews", requireAuth, async (req, res) => {
     const userId = (req as any).user.id;
-    const productId = parseInt(req.params.id);
+    const productId = Number(req.params.id);
     if (isNaN(productId)) return res.status(400).json({ message: "Invalid product ID" });
     const schema = z.object({ rating: z.number().int().min(1).max(5), comment: z.string().max(500).default("") });
     const parsed = schema.safeParse(req.body);
